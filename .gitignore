@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
-.streamlit/
+.streamlit/secrets.toml
 *.xlsx~
 ~$*.xlsx
+.ipynb_checkpoints/
+utils/.ipynb_checkpoints/

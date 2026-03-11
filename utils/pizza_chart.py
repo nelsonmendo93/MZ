@@ -1,4 +1,7 @@
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import os
 from mplsoccer import PyPizza
 
 
@@ -8,7 +11,8 @@ GROUP_LABELS = ["Defensa", "Ataque", "Distribución"]
 
 
 def create_pizza_chart(player_name, player_team, subtitle, params, values,
-                       min_range, max_range, center_text="MARCA\nZONAL"):
+                       min_range, max_range, center_image=None,
+                       center_text="MARCA\nZONAL"):
     """
     Create a PyPizza radar chart for a player.
 
@@ -70,10 +74,16 @@ def create_pizza_chart(player_name, player_team, subtitle, params, values,
         ),
     )
 
-    # Center text instead of image — small enough to fit inside inner circle
-    ax.text(0, 0, center_text, ha='center', va='center',
-            fontsize=9, fontweight='bold', color='#F2F2F2',
-            zorder=20)
+    # Center: logo image if available, otherwise fallback to text
+    if center_image and os.path.exists(center_image):
+        logo = mpimg.imread(center_image)
+        imagebox = OffsetImage(logo, zoom=0.05)
+        ab = AnnotationBbox(imagebox, (-1.51, -14.5), frameon=False, zorder=20)
+        ax.add_artist(ab)
+    else:
+        ax.text(0, 0, center_text, ha='center', va='center',
+                fontsize=9, fontweight='bold', color='#F2F2F2',
+                zorder=20)
 
     # Title
     fig.text(0.515, 0.975, f"{player_name} | {player_team}",

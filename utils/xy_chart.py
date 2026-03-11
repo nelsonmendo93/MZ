@@ -77,7 +77,7 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
 
     # Adjust text positions to avoid overlap
     adjust_text(texts, ax=ax,
-                arrowprops=dict(arrowstyle='->', color='gray', alpha=0.4,
+                arrowprops=dict(color='gray', alpha=0.4,
                                 lw=0.5, shrinkA=5, shrinkB=5),
                 expand=(1.5, 1.5),
                 force_text=(0.8, 0.8),
@@ -102,6 +102,11 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
     for spine in ax.spines.values():
         spine.set_color('white')
         spine.set_linewidth(1)
+
+    # Branding credit (same style as radar chart)
+    fig.text(0.99, 0.02,
+             "DATAVIZ DE MARCA ZONAL\nMétricas per 90.",
+             size=9, color="#F2F2F2", ha="right", fontstyle='italic')
 
     fig.tight_layout()
     return fig

@@ -47,7 +47,7 @@ ACTION_PERCENTAGE_PAIRS = {
 
 # Position to group mapping
 POSITION_GROUP_MAPPING = {
-    'AMF': 'Volante Ofensivo',
+    'AMF': 'Delantero',
     'CF': 'Delantero',
     'RW': 'Extremo',
     'RWF': 'Extremo',
@@ -73,6 +73,10 @@ POSITION_GROUP_MAPPING = {
 def process_database(df):
     """Process the raw database: per-90 to totals, derived columns, position groups."""
     df = df.copy()
+
+    # Ensure 'Pie' (Foot) column is string to avoid Arrow serialization issues
+    if 'Pie' in df.columns:
+        df['Pie'] = df['Pie'].astype(str)
 
     # Clean positions - keep only the first
     df['Position'] = df['Position'].astype(str).str.split(',').str[0].str.strip()
@@ -106,7 +110,7 @@ def process_database(df):
                 success_col_name = f"{action_col} won"
             base = pd.to_numeric(df[action_col], errors='coerce').fillna(0)
             perc = pd.to_numeric(df[perc_col], errors='coerce').fillna(0)
-            df[success_col_name] = (base * perc / 100).round(0).astype(int)
+            df[success_col_name] = (base * perc / 100).round(0)
 
     # Derived columns
     if 'Goals' in df.columns and 'xG' in df.columns:
@@ -119,20 +123,20 @@ def process_database(df):
         df['Progressive actions'] = (
             pd.to_numeric(df['Accurate progressive passes'], errors='coerce').fillna(0)
             + pd.to_numeric(df['Progressive runs'], errors='coerce').fillna(0)
-        ).astype(int)
+        ).round(0)
 
     if 'Successful defensive actions' in df.columns and 'Successful attacking actions' in df.columns:
         df['Off Def Successful actions'] = (
             pd.to_numeric(df['Successful defensive actions'], errors='coerce').fillna(0)
             + pd.to_numeric(df['Successful attacking actions'], errors='coerce').fillna(0)
-        ).astype(int)
+        ).round(0)
 
     if all(col in df.columns for col in ['Sliding tackles', 'Interceptions', 'Shots blocked']):
         df['CBIT'] = (
             pd.to_numeric(df['Sliding tackles'], errors='coerce').fillna(0)
             + pd.to_numeric(df['Interceptions'], errors='coerce').fillna(0)
             + pd.to_numeric(df['Shots blocked'], errors='coerce').fillna(0)
-        ).astype(int)
+        ).round(0)
 
     # Per-90 versions of derived count columns
     minutes = pd.to_numeric(df['Minutes played'], errors='coerce').replace(0, pd.NA)
