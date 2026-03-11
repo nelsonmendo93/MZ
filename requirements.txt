@@ -1,0 +1,9 @@
+streamlit
+pandas
+matplotlib
+mplsoccer
+Pillow
+requests
+numpy
+openpyxl
+adjustText
