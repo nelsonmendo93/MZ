@@ -9,6 +9,7 @@ from collections import defaultdict
 from utils.data_processing import load_and_process_data
 from utils.xy_chart import create_xy_chart
 from utils.bar_chart import create_bar_chart
+from utils.pizza_chart import create_pizza_chart
 from utils.translations import translate
 
 # Logo paths
@@ -43,6 +44,33 @@ BAR_METRICS = {
         'Shot assists per 90',
         'Accurate passes to final third per 90',
         'Accurate progressive passes per 90',
+    ],
+}
+
+# ---------------------------------------------------------------------------
+# Pizza chart metrics — 3 categories × 5 metrics for the radial chart
+# ---------------------------------------------------------------------------
+PIZZA_METRICS = {
+    'Defensa': [
+        'Defensive duels per 90',
+        'Defensive duels won, %',
+        'Aerial duels per 90',
+        'Interceptions per 90',
+        'Sliding tackles per 90',
+    ],
+    'Ataque': [
+        'Goals per 90',
+        'Shots per 90',
+        'Assists per 90',
+        'Dribbles per 90',
+        'Touches in box per 90',
+    ],
+    'Distribución': [
+        'Accurate passes, %',
+        'Shot assists per 90',
+        'Passes to final third per 90',
+        'Progressive passes per 90',
+        'Key passes per 90',
     ],
 }
 
@@ -210,8 +238,8 @@ CATEGORY_ORDER = [
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_table, tab_xy, tab_bar = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "📊 Barras - Percentiles"]
+tab_table, tab_xy, tab_bar, tab_pizza = st.tabs(
+    ["📊 Tabla de datos", "📈 Gráfico XY", "📊 Barras - Percentiles", "🎯 Radial"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -270,7 +298,7 @@ with tab_table:
         if data_view == "Por 90":
             show_cols = sorted([
                 c for c in df.columns
-                if c.endswith(' per 90')
+                if (c.endswith(' per 90') or c.endswith(', %'))
                 and c not in NON_METRIC_COLS and c not in HIDDEN_TABLE_COLS
                 and c not in info_shown
                 and pd.api.types.is_numeric_dtype(df[c])
@@ -455,3 +483,108 @@ with tab_bar:
                     st.download_button("⬇️ Descargar grafica", buf2.getvalue(),
                                        file_name="comparativa_marcazonal.png", mime="image/png",
                                        key="dl_bar")
+
+# ---- Tab 4: Pizza/Radar Chart ---------------------------------------------
+with tab_pizza:
+    st.subheader("Gráfico Radial por percentiles")
+
+    # Club → Player selection
+    pizza_team_col = 'Team within selected timeframe'
+    if pizza_team_col not in df.columns:
+        pizza_team_col = 'Team'
+    pizza_all_clubs = sorted(df[pizza_team_col].dropna().unique())
+
+    pizza_col1, pizza_col2, pizza_col3 = st.columns(3)
+    with pizza_col1:
+        pizza_club = st.selectbox("Club", pizza_all_clubs, key="pizza_club")
+
+    # Filter positions available in the selected club
+    pizza_club_df = df[df[pizza_team_col] == pizza_club]
+    pizza_positions = sorted(pizza_club_df['Position Group'].dropna().unique())
+    with pizza_col2:
+        pizza_position = st.selectbox("Posición", pizza_positions, key="pizza_position")
+
+    # Filter players by club + position
+    pizza_club_pos_df = pizza_club_df[pizza_club_df['Position Group'] == pizza_position]
+    pizza_club_players = sorted(pizza_club_pos_df['Player'].dropna().unique())
+    with pizza_col3:
+        pizza_player = st.selectbox("Jugador", pizza_club_players, key="pizza_player")
+
+    # Minutes slider
+    pizza_min_min = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
+    pizza_max_min = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
+    pizza_min_minutes = st.slider(
+        "Minutos mínimos jugados", pizza_min_min, pizza_max_min,
+        value=min(200, pizza_max_min), key="pizza_min_minutes"
+    )
+
+    # Find the player's position group
+    pizza_player_rows = df[df['Player'] == pizza_player]
+    if pizza_player_rows.empty:
+        st.warning("Jugador no encontrado.")
+    else:
+        pizza_player_data = pizza_player_rows.iloc[0]
+        pizza_pos_group = pizza_player_data.get('Position Group', None)
+
+        if pd.isna(pizza_pos_group):
+            st.warning("El jugador no tiene grupo de posición asignado.")
+        else:
+            # Filter comparison group: same position group + min minutes
+            pizza_group_df = df[
+                (df['Position Group'] == pizza_pos_group)
+                & (df['Minutes played'] >= pizza_min_minutes)
+            ].copy()
+
+            pizza_player_in_group = pizza_group_df[pizza_group_df['Player'] == pizza_player]
+            if pizza_player_in_group.empty:
+                st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
+            else:
+                pizza_player_data = pizza_player_in_group.iloc[0]
+                n_pizza_players = len(pizza_group_df)
+
+                # Build params, values, min_range, max_range from PIZZA_METRICS
+                params = []
+                values = []
+                min_range = []
+                max_range = []
+
+                for cat_name, metric_list in PIZZA_METRICS.items():
+                    for m in metric_list:
+                        if m not in pizza_group_df.columns:
+                            continue
+                        col = pd.to_numeric(pizza_group_df[m], errors='coerce')
+                        val = pd.to_numeric(pizza_player_data[m], errors='coerce')
+                        mn = float(col.min()) if pd.notnull(col.min()) else 0
+                        mx = float(col.max()) if pd.notnull(col.max()) else 1
+                        if mn == mx:
+                            mx = mn + 1
+                        v = float(val) if pd.notnull(val) else 0
+                        params.append(translate(m))
+                        values.append(round(v, 2))
+                        min_range.append(round(mn, 2))
+                        max_range.append(round(mx, 2))
+
+                if len(params) < 3:
+                    st.warning("No hay suficientes métricas para generar el gráfico radial.")
+                else:
+                    team_display = str(pizza_player_data.get(pizza_team_col, ''))
+                    subtitle = f"Entre {n_pizza_players} {pizza_pos_group.lower()}s +{pizza_min_minutes} min | Apertura 2026"
+
+                    fig_pizza = create_pizza_chart(
+                        player_name=pizza_player,
+                        player_team=team_display,
+                        subtitle=subtitle,
+                        params=params,
+                        values=values,
+                        min_range=min_range,
+                        max_range=max_range,
+                        center_image=LOGO_BLANCO,
+                    )
+                    st.pyplot(fig_pizza)
+
+                    buf3 = io.BytesIO()
+                    fig_pizza.savefig(buf3, format='png', dpi=200, bbox_inches='tight',
+                                     facecolor=fig_pizza.get_facecolor())
+                    st.download_button("⬇️ Descargar gráfica", buf3.getvalue(),
+                                       file_name="radial_marcazonal.png", mime="image/png",
+                                       key="dl_pizza")

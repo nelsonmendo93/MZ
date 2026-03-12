@@ -142,7 +142,9 @@ def process_database(df):
     minutes = pd.to_numeric(df['Minutes played'], errors='coerce').replace(0, pd.NA)
     per90_divisor = minutes / 90
     for col in ['Shots on target', 'Dribbles won', 'Accurate passes',
-                'Accurate passes to final third', 'Accurate progressive passes']:
+                'Accurate passes to final third', 'Accurate progressive passes',
+                'Duels won', 'Defensive duels won', 'Aerial duels won',
+                'Offensive duels won']:
         if col in df.columns:
             df[f'{col} per 90'] = (
                 pd.to_numeric(df[col], errors='coerce') / per90_divisor
