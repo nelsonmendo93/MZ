@@ -342,7 +342,7 @@ st.markdown(f"""
     color: #9ca3af;
     margin: 0 0 24px 0;
     letter-spacing: 1px;
-  ">Análisis de rendimiento del fútbol argentino · Apertura 2026</p>
+  ">Análisis de rendimiento del fútbol paraguayo · Apertura 2026</p>
 
   <div style="
     display: inline-flex;
