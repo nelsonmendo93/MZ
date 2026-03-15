@@ -711,6 +711,7 @@ with tab_table:
                 categorize_metric(c) in {
                     '\U0001f4cb Disciplina',
                     '\U0001f3af Creaci\u00f3n',
+                    '\U0001f6e1\ufe0f Defensa',
                 } or
                 c in _TAB1_ALWAYS
             )
