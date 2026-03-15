@@ -206,6 +206,8 @@ def categorize_metric(col_name):
     cl = col_name.lower()
     if 'shots blocked' in cl:
         return '\U0001f6e1\ufe0f Defensa'
+    if 'successful defensive actions' in cl:
+        return '\U0001f4aa Duelos'
     if 'fouls suffered' in cl:
         return '\u26a1 Posesi\u00f3n'
     if 'received' in cl:
@@ -688,6 +690,7 @@ with tab_table:
             'Goals per 90',
             'Shots on target per 90',
             'Successful attacking actions per 90',
+            'Successful defensive actions per 90',
             'Received passes per 90',
             'Received long passes per 90',
         }
