@@ -738,17 +738,19 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
 
     plt.tight_layout(pad=0.3)
 
-    # Watermark — logo en esquina inferior izquierda
+    # Watermark — logo encima de la leyenda con opacidad 20%
     import matplotlib.image as mpimg
     if os.path.exists(LOGO_BLANCO):
         try:
             logo = mpimg.imread(LOGO_BLANCO)
-            logo_ax = fig.add_axes([0.01, 0.01, 0.30, 0.07], anchor='SW')
-            logo_ax.imshow(logo)
+            # Posición: centrado horizontalmente, justo encima de la leyenda
+            logo_ax = fig.add_axes([0.18, 0.04, 0.64, 0.07])
+            logo_ax.imshow(logo, alpha=0.2)
             logo_ax.axis('off')
+            logo_ax.patch.set_alpha(0)   # fondo transparente
         except Exception:
-            fig.text(0.01, 0.01, '@marca_zonal', size=8,
-                     color='#ffffff', ha='left', alpha=0.5, fontstyle='italic')
+            fig.text(0.5, 0.06, '@marca_zonal', size=8, color='#ffffff',
+                     ha='center', alpha=0.2, fontstyle='italic')
 
     return fig
 
