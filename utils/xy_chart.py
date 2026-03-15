@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import numpy as np
 from adjustText import adjust_text
 
 
 def create_xy_chart(df, x_col, y_col, highlight_player=None,
-                    x_label=None, y_label=None):
+                    x_label=None, y_label=None, logo_path=None):
     """
     Create an XY scatter chart with quadrant divisions.
 
@@ -103,10 +104,20 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
         spine.set_color('white')
         spine.set_linewidth(1)
 
-    # Branding credit (same style as radar chart)
-    fig.text(0.99, 0.02,
-             "DATAVIZ DE MARCA ZONAL\nMétricas per 90.",
-             size=9, color="#F2F2F2", ha="right", fontstyle='italic')
+    # Watermark — logo en esquina inferior derecha
+    import os
+    if logo_path and os.path.exists(logo_path):
+        try:
+            logo = mpimg.imread(logo_path)
+            logo_ax = fig.add_axes([0.72, 0.01, 0.26, 0.09], anchor='SE')
+            logo_ax.imshow(logo)
+            logo_ax.axis('off')
+        except Exception:
+            fig.text(0.99, 0.01, '@marca_zonal', size=9,
+                     color='#ffffff', ha='right', alpha=0.6, fontstyle='italic')
+    else:
+        fig.text(0.99, 0.01, '@marca_zonal', size=9,
+                 color='#ffffff', ha='right', alpha=0.6, fontstyle='italic')
 
     fig.tight_layout()
     return fig

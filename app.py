@@ -208,9 +208,6 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-if os.path.exists(LOGO_BLANCO):
-    st.image(LOGO_BLANCO, width=1000)
-st.caption("Bienvenidos al portal de datos de Marca Zonal · Datos actualizados semanalmente")
 
 # ---------------------------------------------------------------------------
 # Load data
@@ -740,6 +737,19 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
               bbox_to_anchor=(0.5, -0.04))
 
     plt.tight_layout(pad=0.3)
+
+    # Watermark — logo en esquina inferior izquierda
+    import matplotlib.image as mpimg
+    if os.path.exists(LOGO_BLANCO):
+        try:
+            logo = mpimg.imread(LOGO_BLANCO)
+            logo_ax = fig.add_axes([0.01, 0.01, 0.30, 0.07], anchor='SW')
+            logo_ax.imshow(logo)
+            logo_ax.axis('off')
+        except Exception:
+            fig.text(0.01, 0.01, '@marca_zonal', size=8,
+                     color='#ffffff', ha='left', alpha=0.5, fontstyle='italic')
+
     return fig
 
 
@@ -878,7 +888,8 @@ with tab_xy:
         else:
             fig_xy = create_xy_chart(xy_df, x_metric, y_metric, xy_selected_player,
                                      x_label=translate(x_metric),
-                                     y_label=translate(y_metric))
+                                     y_label=translate(y_metric),
+                                     logo_path=LOGO_BLANCO)
             st.pyplot(fig_xy)
 
             # Download button
