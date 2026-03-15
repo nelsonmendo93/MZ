@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import io
 import os
 import matplotlib
@@ -243,6 +244,79 @@ tab_table, tab_xy, tab_bar, tab_pizza = st.tabs(
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
+
+# Color map per metric category
+CATEGORY_COLORS = {
+    '\U0001f6e1\ufe0f Defensa':      '#eab308',   # amarillo
+    '\U0001f4aa Duelos':             '#eab308',   # amarillo
+    '\u26a1 Ataque':                 '#ef4444',   # rojo
+    '\u26bd Goles y Remates':        '#ef4444',   # rojo
+    '\U0001f3af Creaci\u00f3n':      '#f97316',   # naranja
+    '\u2197\ufe0f Centros':          '#8b5cf6',   # violeta
+    '\U0001f4d0 Pases':              '#3b82f6',   # azul
+    '\U0001f4e5 Recepci\u00f3n':     '#14b8a6',   # teal
+    '\U0001f4cb Disciplina':         '#6b7280',   # gris
+    '\U0001f945 Pelota Parada':      '#10b981',   # verde
+    '\U0001f4ca Otros':              '#94a3b8',   # slate
+}
+
+
+def _compute_percentile(player_val, series):
+    """Return 0-99 percentile of player_val within series."""
+    vals = pd.to_numeric(series, errors='coerce').dropna()
+    if len(vals) == 0:
+        return 0
+    return int(np.sum(vals <= player_val) / len(vals) * 99)
+
+
+def _render_metric_bars(cat_label, metrics_list, color):
+    """Render a category block with BallerzBantz-style horizontal bars."""
+    rows_html = ""
+    for m in metrics_list:
+        bar_w = max(int(m['pct']), 3)   # min 3 % so bar is always visible
+        # choose text color inside bar based on whether bar is wide enough
+        text_vis = "visible" if bar_w >= 12 else "hidden"
+        rows_html += f"""
+        <div style="display:flex; align-items:center; gap:10px; margin:5px 0;">
+          <div style="width:195px; font-size:12.5px; color:#b0b8c8;
+                      text-align:right; flex-shrink:0; line-height:1.3;">
+            {m['metric']}
+          </div>
+          <div style="flex:1; background:rgba(255,255,255,0.07); border-radius:5px;
+                      height:28px; position:relative; overflow:hidden;">
+            <div style="width:{bar_w}%; background:{color}cc; height:100%;
+                        border-radius:5px; display:flex; align-items:center;
+                        padding-left:8px;">
+              <span style="visibility:{text_vis}; color:#fff; font-size:12px;
+                           font-weight:700; white-space:nowrap;">{m['value']}</span>
+            </div>
+            <!-- value outside bar when bar too short -->
+            <span style="visibility:{'hidden' if text_vis == 'visible' else 'visible'};
+                         position:absolute; top:50%; left:{bar_w+1}%;
+                         transform:translateY(-50%);
+                         color:#ddd; font-size:12px; font-weight:600;
+                         white-space:nowrap;">{m['value']}</span>
+          </div>
+          <div style="width:36px; font-size:15px; font-weight:800;
+                      color:{color}; text-align:center; flex-shrink:0;">
+            {m['pct']}
+          </div>
+        </div>
+        """
+    block = f"""
+    <div style="margin-bottom:22px;">
+      <div style="font-family:'Poppins',sans-serif; font-weight:700;
+                  font-size:12px; text-transform:uppercase; letter-spacing:1.2px;
+                  color:{color}; margin-bottom:8px; padding-bottom:5px;
+                  border-bottom:2px solid {color}40;">
+        {cat_label}
+      </div>
+      {rows_html}
+    </div>
+    """
+    st.markdown(block, unsafe_allow_html=True)
+
+
 with tab_table:
     # Determine team column
     team_col_tab1 = 'Team within selected timeframe'
@@ -266,9 +340,12 @@ with tab_table:
     with col_player:
         selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
 
-    # Toggle per-90 / totals
-    data_view = st.radio(
-        "Tipo de datos", ["Totales", "Por 90"], horizontal=True, key="data_view"
+    # Min-minutes slider for the comparison pool
+    t1_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
+    t1_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
+    tab1_min_minutes = st.slider(
+        "Minutos mínimos (para percentiles)", t1_min_v, t1_max_v,
+        value=min(200, t1_max_v), key="tab1_min_minutes"
     )
 
     # Display selected player data
@@ -276,12 +353,12 @@ with tab_table:
     if not player_rows.empty:
         player_data = player_rows.iloc[0]
 
-        # Player header with position
+        # Player header
         st.subheader(selected_player_tab1)
         pos_display = player_data.get('Position', '')
-        st.caption(f"\U0001f4cd {pos_display} · {selected_pos}")
+        st.caption(f"\U0001f4cd {pos_display}  ·  {selected_pos}")
 
-        # Basic info as metric cards
+        # Basic info cards
         ic1, ic2, ic3, ic4 = st.columns(4)
         ic1.metric("Equipo", str(player_data.get(team_col_tab1, '')))
         age_val = player_data.get('Age', None)
@@ -291,51 +368,64 @@ with tab_table:
         mins_val = player_data.get('Minutes played', None)
         ic4.metric("Minutos", int(mins_val) if pd.notnull(mins_val) else '\u2014')
 
+        # Comparison pool info
+        comparison_df = df[
+            (df['Position Group'] == selected_pos) &
+            (df['Minutes played'] >= tab1_min_minutes)
+        ].copy()
+        n_comp = len(comparison_df)
+        st.caption(
+            f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
+            f"con \u2265 {tab1_min_minutes} min · Apertura 2026"
+        )
         st.markdown("---")
 
-        # Select metrics based on data view (exclude info already shown)
-        info_shown = {'Age', 'Matches played', 'Minutes played'}
-        if data_view == "Por 90":
-            show_cols = sorted([
-                c for c in df.columns
-                if (c.endswith(' per 90') or c.endswith(', %'))
-                and c not in NON_METRIC_COLS and c not in HIDDEN_TABLE_COLS
-                and c not in info_shown
-                and pd.api.types.is_numeric_dtype(df[c])
-            ])
-        else:
-            show_cols = sorted([
-                c for c in df.columns
-                if c not in NON_METRIC_COLS and c not in HIDDEN_TABLE_COLS
-                and c not in info_shown
-                and not c.endswith(' per 90')
-                and pd.api.types.is_numeric_dtype(df[c])
-            ])
+        # Collect per-90 + percentage metrics only (most comparable)
+        show_cols = [
+            c for c in df.columns
+            if (c.endswith(' per 90') or c.endswith(', %'))
+            and c not in NON_METRIC_COLS
+            and c not in HIDDEN_TABLE_COLS
+            and pd.api.types.is_numeric_dtype(df[c])
+        ]
 
-        # Group metrics by category
+        # Group and compute percentiles
         categorized = defaultdict(list)
         for c in show_cols:
             val = player_data.get(c, None)
-            if pd.notnull(val):
-                cat = categorize_metric(c)
-                if c.endswith(' per 90') or ', %' in c:
-                    formatted = f"{float(val):.2f}"
-                else:
-                    formatted = f"{float(val):.0f}"
-                categorized[cat].append({'M\u00e9trica': translate(c), 'Valor': formatted})
+            if pd.isnull(val):
+                continue
+            player_val = float(val)
+            pct = _compute_percentile(player_val, comparison_df[c]) if c in comparison_df.columns else 0
+            formatted = f"{player_val:.2f}"
+            cat = categorize_metric(c)
+            categorized[cat].append({
+                'metric': translate(c),
+                'value':  formatted,
+                'pct':    pct,
+            })
 
-        # Display categories in order with expanders
+        # Render bars per category
         if categorized:
+            # legend header
+            st.markdown(
+                """<div style="display:flex; align-items:center; gap:10px;
+                              margin-bottom:6px; padding:0 0 4px 0;">
+                     <div style="width:195px; text-align:right; font-size:11px;
+                                 color:#666; flex-shrink:0;">Métrica</div>
+                     <div style="flex:1; font-size:11px; color:#666; padding-left:8px;">
+                       Valor  (barra = percentil)</div>
+                     <div style="width:36px; font-size:11px; color:#666;
+                                 text-align:center; flex-shrink:0;">%il</div>
+                   </div>""",
+                unsafe_allow_html=True
+            )
             for cat in CATEGORY_ORDER:
                 if cat in categorized:
-                    with st.expander(cat, expanded=True):
-                        st.dataframe(
-                            pd.DataFrame(categorized[cat]),
-                            use_container_width=True,
-                            hide_index=True,
-                        )
+                    color = CATEGORY_COLORS.get(cat, '#94a3b8')
+                    _render_metric_bars(cat, categorized[cat], color)
         else:
-            st.info("No hay m\u00e9tricas disponibles para mostrar.")
+            st.info("No hay métricas disponibles para mostrar.")
     elif players_list:
         st.info("Selecciona un jugador para ver sus datos.")
 
