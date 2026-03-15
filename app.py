@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import io
 import os
+import json
 import matplotlib
 matplotlib.use('Agg')
 from collections import defaultdict
@@ -92,6 +93,37 @@ HIDDEN_TABLE_COLS = {
 # ---------------------------------------------------------------------------
 # App config
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Contador de visitas — persiste en data/visit_counter.json
+# Se incrementa una sola vez por sesión (no en cada rerun de Streamlit)
+# ---------------------------------------------------------------------------
+_COUNTER_FILE = os.path.join(_APP_DIR, 'data', 'visit_counter.json')
+
+
+def _load_visits():
+    """Lee el total de visitas desde el archivo JSON."""
+    if os.path.exists(_COUNTER_FILE):
+        with open(_COUNTER_FILE, 'r') as f:
+            return json.load(f).get('visits', 0)
+    return 0
+
+
+def _increment_visits():
+    """Incrementa el contador y lo guarda. Retorna el nuevo total."""
+    count = _load_visits() + 1
+    with open(_COUNTER_FILE, 'w') as f:
+        json.dump({'visits': count}, f)
+    return count
+
+
+# Contar solo en sesiones nuevas (la primera vez que el usuario carga la página)
+if 'visit_counted' not in st.session_state:
+    st.session_state['visit_counted'] = True
+    _visit_count = _increment_visits()
+else:
+    _visit_count = _load_visits()
+
+
 st.set_page_config(page_title="Portal de Datos", layout="wide")
 
 # Professional theme CSS
@@ -1044,3 +1076,9 @@ with tab_pizza:
                     st.download_button("⬇️ Descargar gráfica", buf3.getvalue(),
                                        file_name="radial_marcazonal.png", mime="image/png",
                                        key="dl_pizza")
+
+# ---------------------------------------------------------------------------
+# Footer — contador de visitas
+# ---------------------------------------------------------------------------
+st.markdown("---")
+st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · Apertura 2026")
