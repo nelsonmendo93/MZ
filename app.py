@@ -207,9 +207,9 @@ def categorize_metric(col_name):
     if 'shots blocked' in cl:
         return '\U0001f6e1\ufe0f Defensa'
     if 'fouls suffered' in cl:
-        return '\u26a1 Ataque'
+        return '\u26a1 Posesi\u00f3n'
     if 'received' in cl:
-        return '\U0001f4e5 Recepci\u00f3n'
+        return '\u26a1 Posesi\u00f3n'
     if 'assist' in cl or cl.startswith('xa'):
         return '\U0001f3af Creaci\u00f3n'
     # Early checks: evita que 'goalie' matchee 'goal' y 'penalty area' matchee 'penalty'
@@ -228,7 +228,7 @@ def categorize_metric(col_name):
     if any(k in cl for k in ['defensive', 'sliding', 'intercept', 'cbit']):
         return '\U0001f6e1\ufe0f Defensa'
     if any(k in cl for k in ['dribble', 'touch', 'progressive', 'acceleration', 'offensive', 'attacking']):
-        return '\u26a1 Ataque'
+        return '\u26a1 Posesi\u00f3n'
     if any(k in cl for k in ['foul', 'card', 'yellow', 'red']):
         return '\U0001f4cb Disciplina'
     if any(k in cl for k in ['corner', 'free kick']):
@@ -237,7 +237,7 @@ def categorize_metric(col_name):
 
 CATEGORY_ORDER = [
     '\u26bd Goles y Remates', '\U0001f3af Creaci\u00f3n', '\U0001f4d0 Pases',
-    '\u2197\ufe0f Centros', '\u26a1 Ataque', '\U0001f4aa Duelos',
+    '\u2197\ufe0f Centros', '\u26a1 Posesi\u00f3n', '\U0001f4aa Duelos',
     '\U0001f6e1\ufe0f Defensa', '\U0001f4e5 Recepci\u00f3n',
     '\U0001f4cb Disciplina', '\U0001f945 Pelota Parada', '\U0001f4ca Otros',
 ]
@@ -246,7 +246,7 @@ CATEGORY_ORDER = [
 # Tabs
 # ---------------------------------------------------------------------------
 tab_table, tab_xy, tab_bar, tab_pizza = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "📊 Barras - Percentiles", "🎯 Radial"]
+    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -255,7 +255,7 @@ tab_table, tab_xy, tab_bar, tab_pizza = st.tabs(
 CATEGORY_COLORS = {
     '\U0001f6e1\ufe0f Defensa':      '#eab308',   # amarillo
     '\U0001f4aa Duelos':             '#eab308',   # amarillo
-    '\u26a1 Ataque':                 '#ef4444',   # rojo
+    '\u26a1 Posesi\u00f3n':                 '#ef4444',   # rojo
     '\u26bd Goles y Remates':        '#ef4444',   # rojo
     '\U0001f3af Creaci\u00f3n':      '#f97316',   # naranja
     '\u2197\ufe0f Centros':          '#8b5cf6',   # violeta
@@ -369,14 +369,14 @@ def _render_all_bars(categorized, category_order, category_colors):
 # Mapeo de macro-categorías del pentágono a categorías internas
 PENTAGON_GROUPS = {
     'ATQ': ['\u26bd Goles y Remates'],
-    'DRB': ['\u26a1 Ataque'],
+    'POS': ['\u26a1 Posesi\u00f3n'],
     'PAS': ['\U0001f4d0 Pases', '\u2197\ufe0f Centros'],
     'CRE': ['\U0001f3af Creaci\u00f3n'],
     'DEF': ['\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos'],  # con penalización por Disciplina
 }
 PENTAGON_LABELS_ES = {
     'ATQ': 'Ataque',
-    'DRB': 'Dribbling',
+    'POS': 'Posesión',
     'PAS': 'Pases',
     'CRE': 'Creatividad',
     'DEF': 'Defensa',
@@ -402,7 +402,7 @@ def _compute_pentagon_scores(player_data, comparison_df, all_cols):
         return float(np.mean(vals)) if vals else 0.0
 
     atq = avg_cats('\u26bd Goles y Remates')
-    drb = avg_cats('\u26a1 Ataque')
+    pos = avg_cats('\u26a1 Posesi\u00f3n')
     pas = avg_cats('\U0001f4d0 Pases', '\u2197\ufe0f Centros')
     cre = avg_cats('\U0001f3af Creaci\u00f3n')
     def_pos = avg_cats('\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos')
@@ -411,7 +411,7 @@ def _compute_pentagon_scores(player_data, comparison_df, all_cols):
 
     return {
         'ATQ': int(round(atq)),
-        'DRB': int(round(drb)),
+        'POS': int(round(pos)),
         'PAS': int(round(pas)),
         'CRE': int(round(cre)),
         'DEF': int(round(def_score)),
@@ -442,7 +442,7 @@ def _compute_avg_pentagon_scores(comparison_df, all_cols):
         return float(np.mean(vals)) if vals else 0.0
 
     atq     = avg_cats('\u26bd Goles y Remates')
-    drb     = avg_cats('\u26a1 Ataque')
+    pos     = avg_cats('\u26a1 Posesi\u00f3n')
     pas     = avg_cats('\U0001f4d0 Pases', '\u2197\ufe0f Centros')
     cre     = avg_cats('\U0001f3af Creaci\u00f3n')
     def_pos = avg_cats('\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos')
@@ -451,7 +451,7 @@ def _compute_avg_pentagon_scores(comparison_df, all_cols):
 
     return {
         'ATQ': int(round(atq)),
-        'DRB': int(round(drb)),
+        'POS': int(round(pos)),
         'PAS': int(round(pas)),
         'CRE': int(round(cre)),
         'DEF': int(round(def_score)),
@@ -463,7 +463,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
 
-    labels    = ['ATQ', 'DRB', 'PAS', 'DEF', 'CRE']
+    labels    = ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
     # ATQ arriba, luego sentido horario
     angles    = [np.radians(90 - i * 72) for i in range(5)]
     score_vals = [scores.get(l, 0) for l in labels]
@@ -635,6 +635,8 @@ with tab_table:
             'Goals per 90',
             'Shots on target per 90',
             'Successful attacking actions per 90',
+            'Received passes per 90',
+            'Received long passes per 90',
         }
 
         # Regla base: SOLO por 90 o porcentaje (elimina duplicados con totales).
@@ -822,12 +824,12 @@ with tab_bar:
             summary_rows = []
             group_desc = {
                 'ATQ': 'Goles y Remates',
-                'DRB': 'Dribbling y Ataque',
+                'POS': 'Posesión (Dribbling, Recepción, Acciones ofensivas)',
                 'PAS': 'Pases y Centros',
                 'CRE': 'Creatividad',
                 'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
             }
-            for key in ['ATQ', 'DRB', 'PAS', 'CRE', 'DEF']:
+            for key in ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']:
                 diff = scores[key] - avg_scores[key]
                 summary_rows.append({
                     'Categoría': key,
