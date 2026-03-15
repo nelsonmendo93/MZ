@@ -141,10 +141,27 @@ def process_database(df):
     # Per-90 versions of derived count columns
     minutes = pd.to_numeric(df['Minutes played'], errors='coerce').replace(0, pd.NA)
     per90_divisor = minutes / 90
-    for col in ['Shots on target', 'Dribbles won', 'Accurate passes',
-                'Accurate passes to final third', 'Accurate progressive passes',
-                'Duels won', 'Defensive duels won', 'Aerial duels won',
-                'Offensive duels won']:
+    for col in [
+        # Duelos y tiros
+        'Shots on target', 'Dribbles won',
+        'Duels won', 'Defensive duels won', 'Aerial duels won', 'Offensive duels won',
+        # Pases precisos (todas las variantes)
+        'Accurate passes',
+        'Accurate forward passes',
+        'Accurate back passes',
+        'Accurate lateral passes',
+        'Accurate short / medium passes',
+        'Accurate long passes',
+        'Accurate smart passes',
+        'Accurate passes to final third',
+        'Accurate passes to penalty area',
+        'Accurate through passes',
+        'Accurate progressive passes',
+        # Centros precisos
+        'Accurate crosses',
+        'Accurate crosses from left flank',
+        'Accurate crosses from right flank',
+    ]:
         if col in df.columns:
             df[f'{col} per 90'] = (
                 pd.to_numeric(df[col], errors='coerce') / per90_divisor
