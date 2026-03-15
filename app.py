@@ -744,7 +744,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
         try:
             logo = mpimg.imread(LOGO_BLANCO)
             # Posición: centrado horizontalmente, 20% más arriba de la leyenda
-            logo_ax = fig.add_axes([0.18, 0.50, 0.64, 0.07])
+            logo_ax = fig.add_axes([0.18, 0.12, 0.64, 0.07])
             logo_ax.imshow(logo, alpha=0.2)
             logo_ax.axis('off')
             logo_ax.patch.set_alpha(0)   # fondo transparente
