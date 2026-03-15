@@ -579,19 +579,12 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
 
         if compare_mode:
             sc2 = scores2.get(label, 0)
-            # Badge P1 (verde/dorado, arriba)
-            if score >= 70 and score > avg_val:
-                b1_col, t1_col = '#ca8a04', '#fff'
-            elif score >= avg_val:
-                b1_col, t1_col = '#166534', '#fff'
-            else:
-                b1_col, t1_col = '#374151', '#d1d5db'
-
+            # Badge P1 siempre verde (color de referencia)
             ax.text(bx, by + 0.20, str(score), ha='center', va='center',
-                    fontsize=13, fontweight='bold', color=t1_col,
-                    bbox=dict(boxstyle='round,pad=0.26', facecolor=b1_col, edgecolor='none'),
+                    fontsize=13, fontweight='bold', color='#fff',
+                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#166534', edgecolor='none'),
                     zorder=9)
-            # Badge P2 (azul, abajo)
+            # Badge P2 siempre azul (color de referencia)
             ax.text(bx, by - 0.02, str(sc2), ha='center', va='center',
                     fontsize=13, fontweight='bold', color='#fff',
                     bbox=dict(boxstyle='round,pad=0.26', facecolor='#0369a1', edgecolor='none'),
