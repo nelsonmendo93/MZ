@@ -263,7 +263,11 @@ CATEGORY_COLORS = {
 
 
 def _compute_percentile(player_val, series):
-    """Return 0-99 percentile of player_val within series."""
+    """Return 0-99 percentile of player_val within series.
+    Si el valor del jugador es 0, retorna 0 directamente para evitar
+    percentiles inflados por empate en cero."""
+    if player_val == 0.0:
+        return 0
     vals = pd.to_numeric(series, errors='coerce').dropna()
     if len(vals) == 0:
         return 0
