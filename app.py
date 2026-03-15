@@ -243,6 +243,43 @@ CATEGORY_ORDER = [
 ]
 
 # ---------------------------------------------------------------------------
+# Métricas curadas — compartidas entre Tab 1 (barras) y Tab 3 (pentágono)
+# ---------------------------------------------------------------------------
+# Métricas per 90 que deben aparecer siempre aunque no cumplan el filtro general
+_ALWAYS_COLS = {
+    'Goals per 90',
+    'Shots on target per 90',
+    'Successful attacking actions per 90',
+    'Successful defensive actions per 90',
+    'Received passes per 90',
+    'Received long passes per 90',
+}
+
+
+def _get_display_cols(df):
+    """Devuelve las columnas curadas para barras de percentiles y pentágono OVERALL.
+    Solo métricas de calidad: %, Accurate, won y categorías completas."""
+    return [
+        c for c in df.columns
+        if (c.endswith(' per 90') or c.endswith(', %'))
+        and c not in NON_METRIC_COLS
+        and c not in HIDDEN_TABLE_COLS
+        and pd.api.types.is_numeric_dtype(df[c])
+        and (
+            c.endswith(', %') or
+            'Accurate' in c or
+            'won' in c.lower() or
+            categorize_metric(c) in {
+                '\U0001f4cb Disciplina',
+                '\U0001f3af Creaci\u00f3n',
+                '\U0001f6e1\ufe0f Defensa',
+            } or
+            c in _ALWAYS_COLS
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
 tab_table, tab_xy, tab_bar, tab_pizza = st.tabs(
@@ -391,11 +428,8 @@ def _compute_pentagon_scores(player_data, comparison_df, all_cols):
         if pd.isnull(val):
             continue
         pv = float(val)
-        cat = categorize_metric(c)
-        # En Duelos solo incluir métricas 'won' (excluye totales como Duels per 90)
-        if cat == '\U0001f4aa Duelos' and 'won' not in c.lower():
-            continue
         pct = _compute_percentile(pv, comparison_df[c]) if c in comparison_df.columns else 0
+        cat = categorize_metric(c)
         pcts_by_cat[cat].append(pct)
 
     def avg_cats(*cats):
@@ -430,9 +464,6 @@ def _compute_avg_pentagon_scores(comparison_df, all_cols):
         if c not in comparison_df.columns:
             continue
         cat = categorize_metric(c)
-        # En Duelos solo incluir métricas 'won' (excluye totales como Duels per 90)
-        if cat == '\U0001f4aa Duelos' and 'won' not in c.lower():
-            continue
         col_vals = pd.to_numeric(comparison_df[c], errors='coerce').dropna()
         if len(col_vals) == 0:
             continue
@@ -689,37 +720,8 @@ with tab_table:
         )
         st.markdown("---")
 
-        # Métricas a incluir siempre (independiente del filtro general)
-        _TAB1_ALWAYS = {
-            'Goals per 90',
-            'Shots on target per 90',
-            'Successful attacking actions per 90',
-            'Successful defensive actions per 90',
-            'Received passes per 90',
-            'Received long passes per 90',
-        }
-
-        # Regla base: SOLO por 90 o porcentaje (elimina duplicados con totales).
-        # En Pases y Centros: solo métricas Accurate (per 90 y %) + los % generales.
-        # Disciplina y Creatividad se muestran completas. Métricas especiales via _TAB1_ALWAYS.
-        show_cols = [
-            c for c in df.columns
-            if (c.endswith(' per 90') or c.endswith(', %'))   # sin totales
-            and c not in NON_METRIC_COLS
-            and c not in HIDDEN_TABLE_COLS
-            and pd.api.types.is_numeric_dtype(df[c])
-            and (
-                c.endswith(', %') or
-                'Accurate' in c or
-                'won' in c.lower() or
-                categorize_metric(c) in {
-                    '\U0001f4cb Disciplina',
-                    '\U0001f3af Creaci\u00f3n',
-                    '\U0001f6e1\ufe0f Defensa',
-                } or
-                c in _TAB1_ALWAYS
-            )
-        ]
+        # Métricas curadas — usa la misma función compartida con el pentágono OVERALL
+        show_cols = _get_display_cols(df)
 
         # Group and compute percentiles
         categorized = defaultdict(list)
@@ -872,14 +874,8 @@ with tab_bar:
         if pent_comparison_df[pent_comparison_df['Player'] == pent_player].empty:
             st.warning("El jugador no alcanza el mínimo de minutos. Reducí el slider.")
         else:
-            # Todas las métricas per-90 y % para calcular los scores
-            all_pent_cols = [
-                c for c in df.columns
-                if (c.endswith(' per 90') or c.endswith(', %'))
-                and c not in NON_METRIC_COLS
-                and c not in HIDDEN_TABLE_COLS
-                and pd.api.types.is_numeric_dtype(df[c])
-            ]
+            # Métricas curadas — las mismas que Tab 1 (calidad, no volumen)
+            all_pent_cols = _get_display_cols(df)
 
             scores = _compute_pentagon_scores(
                 pent_player_data, pent_comparison_df, all_pent_cols
