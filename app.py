@@ -212,6 +212,11 @@ def categorize_metric(col_name):
         return '\U0001f4e5 Recepci\u00f3n'
     if 'assist' in cl or cl.startswith('xa'):
         return '\U0001f3af Creaci\u00f3n'
+    # Early checks: evita que 'goalie' matchee 'goal' y 'penalty area' matchee 'penalty'
+    if 'goalie box' in cl:
+        return '\u2197\ufe0f Centros'
+    if 'penalty area' in cl:
+        return '\U0001f4d0 Pases'
     if any(k in cl for k in ['goal', 'shot', 'xg', 'penalty', 'conversion']):
         return '\u26bd Goles y Remates'
     if 'cross' in cl or 'flank' in cl:
@@ -357,6 +362,151 @@ def _render_all_bars(categorized, category_order, category_colors):
     components.html(full_html, height=height, scrolling=True)
 
 
+# ---------------------------------------------------------------------------
+# Pentagon chart helpers (Tab 3)
+# ---------------------------------------------------------------------------
+
+# Mapeo de macro-categorías del pentágono a categorías internas
+PENTAGON_GROUPS = {
+    'ATQ': ['\u26bd Goles y Remates'],
+    'DRB': ['\u26a1 Ataque'],
+    'PAS': ['\U0001f4d0 Pases', '\u2197\ufe0f Centros'],
+    'CRE': ['\U0001f3af Creaci\u00f3n'],
+    'DEF': ['\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos'],  # con penalización por Disciplina
+}
+PENTAGON_LABELS_ES = {
+    'ATQ': 'Ataque',
+    'DRB': 'Dribbling',
+    'PAS': 'Pases',
+    'CRE': 'Creatividad',
+    'DEF': 'Defensa',
+}
+
+
+def _compute_pentagon_scores(player_data, comparison_df, all_cols):
+    """Calcula los 5 puntajes del pentágono promediando percentiles por macro-categoría."""
+    pcts_by_cat = defaultdict(list)
+    for c in all_cols:
+        val = player_data.get(c, None)
+        if pd.isnull(val):
+            continue
+        pv = float(val)
+        pct = _compute_percentile(pv, comparison_df[c]) if c in comparison_df.columns else 0
+        cat = categorize_metric(c)
+        pcts_by_cat[cat].append(pct)
+
+    def avg_cats(*cats):
+        vals = []
+        for cat in cats:
+            vals.extend(pcts_by_cat.get(cat, []))
+        return float(np.mean(vals)) if vals else 0.0
+
+    atq = avg_cats('\u26bd Goles y Remates')
+    drb = avg_cats('\u26a1 Ataque')
+    pas = avg_cats('\U0001f4d0 Pases', '\u2197\ufe0f Centros')
+    cre = avg_cats('\U0001f3af Creaci\u00f3n')
+    def_pos = avg_cats('\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos')
+    def_neg = avg_cats('\U0001f4cb Disciplina')
+    def_score = float(np.clip(def_pos - def_neg * 0.25, 0, 99))
+
+    return {
+        'ATQ': int(round(atq)),
+        'DRB': int(round(drb)),
+        'PAS': int(round(pas)),
+        'CRE': int(round(cre)),
+        'DEF': int(round(def_score)),
+    }
+
+
+def _create_pentagon_chart(scores, player_name, team, subtitle):
+    """Dibuja el gráfico pentágono estilo Sofascore con matplotlib."""
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+
+    labels    = ['ATQ', 'DRB', 'PAS', 'DEF', 'CRE']
+    # ATQ arriba, luego sentido horario
+    angles    = [np.radians(90 - i * 72) for i in range(5)]
+    score_vals = [scores.get(l, 0) for l in labels]
+    norm_vals  = [s / 99.0 for s in score_vals]
+
+    bg_x = [np.cos(a) for a in angles]
+    bg_y = [np.sin(a) for a in angles]
+    pl_x = [v * np.cos(a) for v, a in zip(norm_vals, angles)]
+    pl_y = [v * np.sin(a) for v, a in zip(norm_vals, angles)]
+
+    fig, ax = plt.subplots(figsize=(6.5, 7.2), facecolor='#0f1117')
+    ax.set_facecolor('#0f1117')
+    ax.set_aspect('equal')
+    ax.axis('off')
+
+    # Fondo del pentágono
+    bg_poly = plt.Polygon(list(zip(bg_x, bg_y)), closed=True,
+                          facecolor='#1a1f2e', edgecolor='#2d3748', linewidth=1.5)
+    ax.add_patch(bg_poly)
+
+    # Líneas de grilla (25 %, 50 %, 75 %)
+    for pct in [0.25, 0.50, 0.75]:
+        gx = [pct * np.cos(a) for a in angles] + [pct * np.cos(angles[0])]
+        gy = [pct * np.sin(a) for a in angles] + [pct * np.sin(angles[0])]
+        ax.plot(gx, gy, color='#2d3748', linewidth=0.6, alpha=0.6)
+
+    # Ejes radiales
+    for a in angles:
+        ax.plot([0, np.cos(a)], [0, np.sin(a)], color='#2d3748', linewidth=0.6, alpha=0.6)
+
+    # Polígono del jugador
+    pl_pts = list(zip(pl_x, pl_y)) + [(pl_x[0], pl_y[0])]
+    pl_poly = plt.Polygon(list(zip(pl_x, pl_y)), closed=True,
+                          facecolor='#16a34a30', edgecolor='#22c55e', linewidth=2.5)
+    ax.add_patch(pl_poly)
+
+    # Punto central
+    ax.plot(0, 0, 'o', color='#22c55e', markersize=5, zorder=5)
+
+    # Badges con puntaje en cada vértice
+    offset = 1.34
+    for label, angle, score in zip(labels, angles, score_vals):
+        bx = offset * np.cos(angle)
+        by = offset * np.sin(angle)
+        if score >= 70:
+            badge_col, txt_col = '#ca8a04', '#fff'
+        elif score >= 50:
+            badge_col, txt_col = '#4b5563', '#fff'
+        else:
+            badge_col, txt_col = '#374151', '#d1d5db'
+
+        # Número (puntaje)
+        ax.text(bx, by + 0.09, str(score), ha='center', va='center',
+                fontsize=17, fontweight='bold', color=txt_col,
+                bbox=dict(boxstyle='round,pad=0.32', facecolor=badge_col, edgecolor='none'))
+        # Etiqueta
+        ax.text(bx, by - 0.15, label, ha='center', va='center',
+                fontsize=11, fontweight='bold', color='#9ca3af')
+
+    ax.set_xlim(-1.78, 1.78)
+    ax.set_ylim(-1.78, 1.90)
+
+    # Título
+    ax.text(0, 1.85, player_name, ha='center', va='top',
+            fontsize=15, fontweight='bold', color='white',
+            fontfamily='sans-serif')
+    ax.text(0, 1.68, f'{team}  ·  {subtitle}', ha='center', va='top',
+            fontsize=9.5, color='#6b7280', fontfamily='sans-serif')
+
+    # Leyenda de macro-categorías
+    legend_items = [
+        mpatches.Patch(color='#22c55e', label='Área del jugador'),
+        mpatches.Patch(color='#1a1f2e', label='Área máxima (99)'),
+    ]
+    ax.legend(handles=legend_items, loc='lower center', ncol=2,
+              facecolor='#0f1117', edgecolor='#2d3748',
+              labelcolor='#9ca3af', fontsize=8.5,
+              bbox_to_anchor=(0.5, -0.01))
+
+    plt.tight_layout(pad=0.3)
+    return fig
+
+
 with tab_table:
     # Determine team column
     team_col_tab1 = 'Team within selected timeframe'
@@ -420,10 +570,14 @@ with tab_table:
         )
         st.markdown("---")
 
-        # Collect per-90 + percentage metrics only (most comparable)
+        # Solo métricas precisas (Accurate), ganadas (won) y todas las de %
         show_cols = [
             c for c in df.columns
-            if (c.endswith(' per 90') or c.endswith(', %'))
+            if (
+                c.endswith(', %') or
+                'Accurate' in c or
+                'won' in c.lower()
+            )
             and c not in NON_METRIC_COLS
             and c not in HIDDEN_TABLE_COLS
             and pd.api.types.is_numeric_dtype(df[c])
@@ -508,95 +662,105 @@ with tab_xy:
             st.download_button("⬇️ Descargar grafica", buf.getvalue(),
                                file_name="grafico_xy_marcazonal.png", mime="image/png")
 
-# ---- Tab 3: Bar Chart Comparison ------------------------------------------
+# ---- Tab 3: Resumen Pentágono estilo Sofascore ----------------------------
 with tab_bar:
-    st.subheader("Grafico de Barras por percentiles")
+    st.subheader("Resumen de atributos")
+    st.caption("Puntaje compuesto (0–99) por macro-categoría, calculado como promedio de percentiles")
 
-    # Club → Player selection (inside the tab)
-    team_col = 'Team within selected timeframe'
-    if team_col not in df.columns:
-        team_col = 'Team'
-    all_clubs = sorted(df[team_col].dropna().unique())
+    # Selectores: Posición → Club → Jugador
+    pent_team_col = 'Team within selected timeframe'
+    if pent_team_col not in df.columns:
+        pent_team_col = 'Team'
 
-    bar_col1, bar_col2 = st.columns(2)
-    with bar_col1:
-        bar_club = st.selectbox("Club", all_clubs, key="bar_club")
-    club_players = sorted(df[df[team_col] == bar_club]['Player'].dropna().unique())
-    with bar_col2:
-        bar_player = st.selectbox("Jugador", club_players, key="bar_player")
+    pent_col1, pent_col2, pent_col3 = st.columns(3)
+    pent_pos_groups = sorted(df['Position Group'].dropna().unique())
+    with pent_col1:
+        pent_pos = st.selectbox("Posición", pent_pos_groups, key="pent_pos")
+    pent_pos_df = df[df['Position Group'] == pent_pos]
+    pent_clubs  = sorted(pent_pos_df[pent_team_col].dropna().unique())
+    with pent_col2:
+        pent_club = st.selectbox("Club", pent_clubs, key="pent_club")
+    pent_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club]
+    pent_players = sorted(pent_club_df['Player'].dropna().unique())
+    with pent_col3:
+        pent_player = st.selectbox("Jugador", pent_players, key="pent_player")
 
-    # Minutes slider
-    bar_min_min = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
-    bar_max_min = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
-    bar_min_minutes = st.slider(
-        "Minutos mínimos jugados", bar_min_min, bar_max_min,
-        value=min(200, bar_max_min), key="bar_min_minutes"
+    # Slider de minutos mínimos para el pool de comparación
+    pent_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
+    pent_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
+    pent_min_minutes = st.slider(
+        "Minutos mínimos (pool de comparación)", pent_min_v, pent_max_v,
+        value=min(200, pent_max_v), key="pent_min_minutes"
     )
 
-    # Find the player's position group
-    player_rows = df[df['Player'] == bar_player]
-    if player_rows.empty:
+    pent_player_rows = pent_club_df[pent_club_df['Player'] == pent_player]
+    if pent_player_rows.empty:
         st.warning("Jugador no encontrado.")
     else:
-        player_data = player_rows.iloc[0]
-        pos_group = player_data.get('Position Group', None)
+        pent_player_data = pent_player_rows.iloc[0]
+        pent_comparison_df = df[
+            (df['Position Group'] == pent_pos) &
+            (df['Minutes played'] >= pent_min_minutes)
+        ].copy()
+        n_pent = len(pent_comparison_df)
 
-        if pd.isna(pos_group):
-            st.warning("El jugador no tiene grupo de posición asignado.")
+        if pent_comparison_df[pent_comparison_df['Player'] == pent_player].empty:
+            st.warning("El jugador no alcanza el mínimo de minutos. Reducí el slider.")
         else:
-            # Filter comparison group: same position group + min minutes
-            bar_group_df = df[
-                (df['Position Group'] == pos_group)
-                & (df['Minutes played'] >= bar_min_minutes)
-            ].copy()
+            # Todas las métricas per-90 y % para calcular los scores
+            all_pent_cols = [
+                c for c in df.columns
+                if (c.endswith(' per 90') or c.endswith(', %'))
+                and c not in NON_METRIC_COLS
+                and c not in HIDDEN_TABLE_COLS
+                and pd.api.types.is_numeric_dtype(df[c])
+            ]
 
-            # Check that the player is in the filtered group
-            player_in_group = bar_group_df[bar_group_df['Player'] == bar_player]
-            if player_in_group.empty:
-                st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
-            else:
-                player_data = player_in_group.iloc[0]
-                n_players = len(bar_group_df)
+            scores = _compute_pentagon_scores(
+                pent_player_data, pent_comparison_df, all_pent_cols
+            )
 
-                # Build categories_data for the chart
-                categories_data = []
-                for cat_name, metric_list in BAR_METRICS.items():
-                    cat_metrics = []
-                    for m in metric_list:
-                        if m not in bar_group_df.columns:
-                            continue
-                        col = pd.to_numeric(bar_group_df[m], errors='coerce')
-                        val = pd.to_numeric(player_data[m], errors='coerce')
-                        mn = float(col.min()) if pd.notnull(col.min()) else 0
-                        mx = float(col.max()) if pd.notnull(col.max()) else 1
-                        if mn == mx:
-                            mx = mn + 1
-                        v = float(val) if pd.notnull(val) else 0
-                        pct = max(0, min(100, (v - mn) / (mx - mn) * 100))
-                        cat_metrics.append((translate(m), round(pct, 1)))
-                    if cat_metrics:
-                        categories_data.append((cat_name, cat_metrics))
+            team_display = str(pent_player_data.get(pent_team_col, ''))
+            subtitle_pent = f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min · Apertura 2026"
 
-                if not categories_data:
-                    st.warning("No hay métricas disponibles para generar el gráfico.")
-                else:
-                    team_display = str(player_data.get(team_col, ''))
-                    subtitle = f"Entre {n_players} {pos_group.lower()}s +{bar_min_minutes} min | Apertura 2026"
+            # Centrar el gráfico
+            _, col_center, _ = st.columns([1, 2, 1])
+            with col_center:
+                fig_pent = _create_pentagon_chart(
+                    scores, pent_player, team_display, subtitle_pent
+                )
+                st.pyplot(fig_pent)
 
-                    fig_bar = create_bar_chart(
-                        player_name=bar_player,
-                        player_team=team_display,
-                        subtitle=subtitle,
-                        categories_data=categories_data,
-                    )
-                    st.pyplot(fig_bar)
+                buf_pent = io.BytesIO()
+                fig_pent.savefig(buf_pent, format='png', dpi=200, bbox_inches='tight',
+                                 facecolor=fig_pent.get_facecolor())
+                st.download_button(
+                    "⬇️ Descargar gráfico", buf_pent.getvalue(),
+                    file_name=f"pentagono_{pent_player.replace(' ', '_')}.png",
+                    mime="image/png", key="dl_pent"
+                )
 
-                    buf2 = io.BytesIO()
-                    fig_bar.savefig(buf2, format='png', dpi=200, bbox_inches='tight',
-                                    facecolor=fig_bar.get_facecolor())
-                    st.download_button("⬇️ Descargar grafica", buf2.getvalue(),
-                                       file_name="comparativa_marcazonal.png", mime="image/png",
-                                       key="dl_bar")
+            # Tabla resumen de puntajes debajo del gráfico
+            st.markdown("#### Detalle de puntajes")
+            summary_rows = []
+            group_desc = {
+                'ATQ': 'Goles y Remates',
+                'DRB': 'Dribbling y Ataque',
+                'PAS': 'Pases y Centros',
+                'CRE': 'Creatividad',
+                'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
+            }
+            for key in ['ATQ', 'DRB', 'PAS', 'CRE', 'DEF']:
+                summary_rows.append({
+                    'Categoría': key,
+                    'Descripción': group_desc[key],
+                    'Puntaje': scores[key],
+                })
+            st.dataframe(
+                pd.DataFrame(summary_rows),
+                use_container_width=True,
+                hide_index=True,
+            )
 
 # ---- Tab 4: Pizza/Radar Chart ---------------------------------------------
 with tab_pizza:
