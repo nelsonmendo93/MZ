@@ -693,8 +693,8 @@ with tab_table:
         }
 
         # Regla base: SOLO por 90 o porcentaje (elimina duplicados con totales).
-        # Dentro de eso, mostrar: Accurate, won, %, categorías Disciplina/Creatividad/Pases/Centros
-        # completas, y las métricas específicas declaradas arriba.
+        # En Pases y Centros: solo métricas Accurate (per 90 y %) + los % generales.
+        # Disciplina y Creatividad se muestran completas. Métricas especiales via _TAB1_ALWAYS.
         show_cols = [
             c for c in df.columns
             if (c.endswith(' per 90') or c.endswith(', %'))   # sin totales
@@ -708,8 +708,6 @@ with tab_table:
                 categorize_metric(c) in {
                     '\U0001f4cb Disciplina',
                     '\U0001f3af Creaci\u00f3n',
-                    '\U0001f4d0 Pases',       # todas las per 90 de pases
-                    '\u2197\ufe0f Centros',    # todas las per 90 de centros
                 } or
                 c in _TAB1_ALWAYS
             )
