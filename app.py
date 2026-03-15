@@ -322,7 +322,7 @@ _n_metrics = len(metric_columns)
 # Logo centrado
 _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
-    st.image(LOGO_BLANCO, use_container_width=True)
+    st.image(LOGO_BLANCO, use_column_width=True)
 
 st.markdown(f"""
 <div style="text-align:center; padding: 4px 0 28px 0;">
