@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import io
@@ -269,52 +270,87 @@ def _compute_percentile(player_val, series):
     return int(np.sum(vals <= player_val) / len(vals) * 99)
 
 
-def _render_metric_bars(cat_label, metrics_list, color):
-    """Render a category block with BallerzBantz-style horizontal bars."""
-    rows_html = ""
-    for m in metrics_list:
-        bar_w = max(int(m['pct']), 3)   # min 3 % so bar is always visible
-        # choose text color inside bar based on whether bar is wide enough
-        text_vis = "visible" if bar_w >= 12 else "hidden"
-        rows_html += f"""
-        <div style="display:flex; align-items:center; gap:10px; margin:5px 0;">
-          <div style="width:195px; font-size:12.5px; color:#b0b8c8;
-                      text-align:right; flex-shrink:0; line-height:1.3;">
-            {m['metric']}
-          </div>
-          <div style="flex:1; background:rgba(255,255,255,0.07); border-radius:5px;
-                      height:28px; position:relative; overflow:hidden;">
-            <div style="width:{bar_w}%; background:{color}cc; height:100%;
-                        border-radius:5px; display:flex; align-items:center;
-                        padding-left:8px;">
-              <span style="visibility:{text_vis}; color:#fff; font-size:12px;
-                           font-weight:700; white-space:nowrap;">{m['value']}</span>
-            </div>
-            <!-- value outside bar when bar too short -->
-            <span style="visibility:{'hidden' if text_vis == 'visible' else 'visible'};
-                         position:absolute; top:50%; left:{bar_w+1}%;
-                         transform:translateY(-50%);
-                         color:#ddd; font-size:12px; font-weight:600;
-                         white-space:nowrap;">{m['value']}</span>
-          </div>
-          <div style="width:36px; font-size:15px; font-weight:800;
-                      color:{color}; text-align:center; flex-shrink:0;">
-            {m['pct']}
-          </div>
-        </div>
-        """
-    block = f"""
-    <div style="margin-bottom:22px;">
-      <div style="font-family:'Poppins',sans-serif; font-weight:700;
-                  font-size:12px; text-transform:uppercase; letter-spacing:1.2px;
-                  color:{color}; margin-bottom:8px; padding-bottom:5px;
-                  border-bottom:2px solid {color}40;">
-        {cat_label}
-      </div>
-      {rows_html}
+def _render_all_bars(categorized, category_order, category_colors):
+    """Render all metric categories as BallerzBantz-style bars via components.html."""
+    total_rows = sum(len(categorized[cat]) for cat in category_order if cat in categorized)
+    n_cats     = sum(1 for cat in category_order if cat in categorized)
+    height     = total_rows * 38 + n_cats * 52 + 60
+
+    css = """
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'Roboto', Arial, sans-serif;
+        background: #0e1117;
+        color: #b0b8c8;
+        padding: 4px 2px;
+      }
+      .legend {
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: 8px; padding-bottom: 5px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      .legend-name { width:195px; font-size:11px; color:#555; text-align:right; flex-shrink:0; }
+      .legend-bar  { flex:1; font-size:11px; color:#555; padding-left:8px; }
+      .legend-pct  { width:36px; font-size:11px; color:#555; text-align:center; flex-shrink:0; }
+      .cat-block   { margin-bottom: 20px; }
+      .cat-header  {
+        font-family: 'Poppins', 'Roboto', sans-serif;
+        font-weight: 700; font-size: 12px;
+        text-transform: uppercase; letter-spacing: 1.2px;
+        margin-bottom: 8px; padding-bottom: 5px;
+      }
+      .metric-row  { display:flex; align-items:center; gap:10px; margin:4px 0; }
+      .metric-name {
+        width: 195px; font-size: 12.5px; color: #b0b8c8;
+        text-align: right; flex-shrink: 0; line-height: 1.3;
+      }
+      .bar-container {
+        flex: 1; background: rgba(255,255,255,0.07);
+        border-radius: 5px; height: 28px;
+        position: relative; overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%; border-radius: 5px;
+        display: flex; align-items: center; padding-left: 8px;
+      }
+      .bar-value  { color:#fff; font-size:12px; font-weight:700; white-space:nowrap; }
+      .pct-num    { width:36px; font-size:15px; font-weight:800; text-align:center; flex-shrink:0; }
+    </style>
+    """
+
+    body = """
+    <div class="legend">
+      <div class="legend-name">Métrica</div>
+      <div class="legend-bar">Valor &nbsp;&nbsp;(barra = percentil)</div>
+      <div class="legend-pct">%il</div>
     </div>
     """
-    st.markdown(block, unsafe_allow_html=True)
+
+    for cat in category_order:
+        if cat not in categorized:
+            continue
+        color = category_colors.get(cat, '#94a3b8')
+        body += f'<div class="cat-block">'
+        body += (f'<div class="cat-header" '
+                 f'style="color:{color}; border-bottom:2px solid {color}40;">'
+                 f'{cat}</div>')
+        for m in categorized[cat]:
+            bw = max(int(m["pct"]), 3)
+            body += (
+                f'<div class="metric-row">'
+                f'<div class="metric-name">{m["metric"]}</div>'
+                f'<div class="bar-container">'
+                f'<div class="bar-fill" style="width:{bw}%; background:{color}cc;">'
+                f'<span class="bar-value">{m["value"]}</span>'
+                f'</div></div>'
+                f'<div class="pct-num" style="color:{color};">{m["pct"]}</div>'
+                f'</div>'
+            )
+        body += '</div>'
+
+    full_html = f'<!DOCTYPE html><html><head>{css}</head><body>{body}</body></html>'
+    components.html(full_html, height=height, scrolling=True)
 
 
 with tab_table:
@@ -405,25 +441,9 @@ with tab_table:
                 'pct':    pct,
             })
 
-        # Render bars per category
+        # Render bars — all categories in one component call
         if categorized:
-            # legend header
-            st.markdown(
-                """<div style="display:flex; align-items:center; gap:10px;
-                              margin-bottom:6px; padding:0 0 4px 0;">
-                     <div style="width:195px; text-align:right; font-size:11px;
-                                 color:#666; flex-shrink:0;">Métrica</div>
-                     <div style="flex:1; font-size:11px; color:#666; padding-left:8px;">
-                       Valor  (barra = percentil)</div>
-                     <div style="width:36px; font-size:11px; color:#666;
-                                 text-align:center; flex-shrink:0;">%il</div>
-                   </div>""",
-                unsafe_allow_html=True
-            )
-            for cat in CATEGORY_ORDER:
-                if cat in categorized:
-                    color = CATEGORY_COLORS.get(cat, '#94a3b8')
-                    _render_metric_bars(cat, categorized[cat], color)
+            _render_all_bars(categorized, CATEGORY_ORDER, CATEGORY_COLORS)
         else:
             st.info("No hay métricas disponibles para mostrar.")
     elif players_list:
