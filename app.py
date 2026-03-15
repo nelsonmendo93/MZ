@@ -630,17 +630,32 @@ with tab_table:
         )
         st.markdown("---")
 
-        # Solo métricas precisas (Accurate), ganadas (won) y todas las de %
+        # Métricas a incluir siempre (independiente del filtro general)
+        _TAB1_ALWAYS = {
+            'Goals per 90',
+            'Shots on target per 90',
+            'Successful attacking actions per 90',
+        }
+
+        # Regla base: SOLO por 90 o porcentaje (elimina duplicados con totales).
+        # Dentro de eso, mostrar: Accurate, won, %, categorías Disciplina/Creatividad completas,
+        # y las métricas específicas declaradas arriba.
         show_cols = [
             c for c in df.columns
-            if (
-                c.endswith(', %') or
-                'Accurate' in c or
-                'won' in c.lower()
-            )
+            if (c.endswith(' per 90') or c.endswith(', %'))   # sin totales
             and c not in NON_METRIC_COLS
             and c not in HIDDEN_TABLE_COLS
             and pd.api.types.is_numeric_dtype(df[c])
+            and (
+                c.endswith(', %') or
+                'Accurate' in c or
+                'won' in c.lower() or
+                categorize_metric(c) in {
+                    '\U0001f4cb Disciplina',
+                    '\U0001f3af Creaci\u00f3n',
+                } or
+                c in _TAB1_ALWAYS
+            )
         ]
 
         # Group and compute percentiles
