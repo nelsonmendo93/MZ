@@ -418,7 +418,47 @@ def _compute_pentagon_scores(player_data, comparison_df, all_cols):
     }
 
 
-def _create_pentagon_chart(scores, player_name, team, subtitle):
+def _compute_avg_pentagon_scores(comparison_df, all_cols):
+    """Calcula el puntaje promedio del pentágono para todo el pool de comparación.
+    Para cada métrica calcula el percentil de cada jugador y promedia por categoría."""
+    avg_pcts_by_cat = defaultdict(list)
+
+    for c in all_cols:
+        if c not in comparison_df.columns:
+            continue
+        col_vals = pd.to_numeric(comparison_df[c], errors='coerce').dropna()
+        if len(col_vals) == 0:
+            continue
+        # Percentil de cada jugador del pool en esta métrica
+        pcts = [0 if v == 0.0 else int(np.sum(col_vals <= v) / len(col_vals) * 99)
+                for v in col_vals]
+        cat = categorize_metric(c)
+        avg_pcts_by_cat[cat].append(float(np.mean(pcts)))
+
+    def avg_cats(*cats):
+        vals = []
+        for cat in cats:
+            vals.extend(avg_pcts_by_cat.get(cat, []))
+        return float(np.mean(vals)) if vals else 0.0
+
+    atq     = avg_cats('\u26bd Goles y Remates')
+    drb     = avg_cats('\u26a1 Ataque')
+    pas     = avg_cats('\U0001f4d0 Pases', '\u2197\ufe0f Centros')
+    cre     = avg_cats('\U0001f3af Creaci\u00f3n')
+    def_pos = avg_cats('\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos')
+    def_neg = avg_cats('\U0001f4cb Disciplina')
+    def_score = float(np.clip(def_pos - def_neg * 0.25, 0, 99))
+
+    return {
+        'ATQ': int(round(atq)),
+        'DRB': int(round(drb)),
+        'PAS': int(round(pas)),
+        'CRE': int(round(cre)),
+        'DEF': int(round(def_score)),
+    }
+
+
+def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None, pos_label=''):
     """Dibuja el gráfico pentágono estilo Sofascore con matplotlib."""
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
@@ -454,34 +494,50 @@ def _create_pentagon_chart(scores, player_name, team, subtitle):
     for a in angles:
         ax.plot([0, np.cos(a)], [0, np.sin(a)], color='#2d3748', linewidth=0.6, alpha=0.6)
 
-    # Polígono del jugador
-    pl_pts = list(zip(pl_x, pl_y)) + [(pl_x[0], pl_y[0])]
+    # Polígono del promedio de la posición (si se provee)
+    if avg_scores:
+        avg_vals = [avg_scores.get(l, 0) / 99.0 for l in labels]
+        avg_x = [v * np.cos(a) for v, a in zip(avg_vals, angles)]
+        avg_y = [v * np.sin(a) for v, a in zip(avg_vals, angles)]
+        avg_poly = plt.Polygon(list(zip(avg_x, avg_y)), closed=True,
+                               fill=False, edgecolor='#94a3b8', linewidth=1.6,
+                               linestyle='--', alpha=0.8, zorder=3)
+        ax.add_patch(avg_poly)
+        # Puntaje promedio en cada vértice (pequeño, sin badge)
+        for lbl, ang, sc in zip(labels, angles, [avg_scores.get(l, 0) for l in labels]):
+            ax.text(0.88 * np.cos(ang), 0.88 * np.sin(ang), str(sc),
+                    ha='center', va='center', fontsize=7.5,
+                    color='#94a3b8', alpha=0.85, zorder=4)
+
+    # Polígono del jugador (encima del promedio)
     pl_poly = plt.Polygon(list(zip(pl_x, pl_y)), closed=True,
-                          facecolor='#16a34a30', edgecolor='#22c55e', linewidth=2.5)
+                          facecolor='#16a34a30', edgecolor='#22c55e', linewidth=2.5,
+                          zorder=4)
     ax.add_patch(pl_poly)
 
     # Punto central
-    ax.plot(0, 0, 'o', color='#22c55e', markersize=5, zorder=5)
+    ax.plot(0, 0, 'o', color='#22c55e', markersize=5, zorder=6)
 
-    # Badges con puntaje en cada vértice
+    # Badges con puntaje del jugador en cada vértice
     offset = 1.34
     for label, angle, score in zip(labels, angles, score_vals):
         bx = offset * np.cos(angle)
         by = offset * np.sin(angle)
-        if score >= 70:
+        # Badge dorado si supera el promedio Y es ≥ 60, naranja si solo supera promedio
+        avg_val = avg_scores.get(label, 50) if avg_scores else 50
+        if score >= 70 and score > avg_val:
             badge_col, txt_col = '#ca8a04', '#fff'
-        elif score >= 50:
-            badge_col, txt_col = '#4b5563', '#fff'
+        elif score >= avg_val:
+            badge_col, txt_col = '#166534', '#fff'   # verde oscuro = sobre promedio
         else:
-            badge_col, txt_col = '#374151', '#d1d5db'
+            badge_col, txt_col = '#374151', '#d1d5db'  # gris = bajo promedio
 
-        # Número (puntaje)
         ax.text(bx, by + 0.09, str(score), ha='center', va='center',
                 fontsize=17, fontweight='bold', color=txt_col,
-                bbox=dict(boxstyle='round,pad=0.32', facecolor=badge_col, edgecolor='none'))
-        # Etiqueta
+                bbox=dict(boxstyle='round,pad=0.32', facecolor=badge_col, edgecolor='none'),
+                zorder=7)
         ax.text(bx, by - 0.15, label, ha='center', va='center',
-                fontsize=11, fontweight='bold', color='#9ca3af')
+                fontsize=11, fontweight='bold', color='#9ca3af', zorder=7)
 
     ax.set_xlim(-1.78, 1.78)
     ax.set_ylim(-1.78, 1.90)
@@ -493,15 +549,19 @@ def _create_pentagon_chart(scores, player_name, team, subtitle):
     ax.text(0, 1.68, f'{team}  ·  {subtitle}', ha='center', va='top',
             fontsize=9.5, color='#6b7280', fontfamily='sans-serif')
 
-    # Leyenda de macro-categorías
+    # Leyenda
     legend_items = [
-        mpatches.Patch(color='#22c55e', label='Área del jugador'),
-        mpatches.Patch(color='#1a1f2e', label='Área máxima (99)'),
+        mpatches.Patch(color='#22c55e', label='Jugador'),
+        mpatches.Patch(facecolor='none', edgecolor='#94a3b8',
+                       linestyle='--', label=f'Promedio {pos_label}'),
+        mpatches.Patch(color='#ca8a04', label='Destacado (≥70 y sobre prom.)'),
+        mpatches.Patch(color='#166534', label='Sobre el promedio'),
+        mpatches.Patch(color='#374151', label='Bajo el promedio'),
     ]
     ax.legend(handles=legend_items, loc='lower center', ncol=2,
               facecolor='#0f1117', edgecolor='#2d3748',
-              labelcolor='#9ca3af', fontsize=8.5,
-              bbox_to_anchor=(0.5, -0.01))
+              labelcolor='#9ca3af', fontsize=7.8,
+              bbox_to_anchor=(0.5, -0.04))
 
     plt.tight_layout(pad=0.3)
     return fig
@@ -719,6 +779,7 @@ with tab_bar:
             scores = _compute_pentagon_scores(
                 pent_player_data, pent_comparison_df, all_pent_cols
             )
+            avg_scores = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
 
             team_display = str(pent_player_data.get(pent_team_col, ''))
             subtitle_pent = f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min · Apertura 2026"
@@ -727,7 +788,8 @@ with tab_bar:
             _, col_center, _ = st.columns([1, 2, 1])
             with col_center:
                 fig_pent = _create_pentagon_chart(
-                    scores, pent_player, team_display, subtitle_pent
+                    scores, pent_player, team_display, subtitle_pent,
+                    avg_scores=avg_scores, pos_label=pent_pos
                 )
                 st.pyplot(fig_pent)
 
@@ -751,10 +813,13 @@ with tab_bar:
                 'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
             }
             for key in ['ATQ', 'DRB', 'PAS', 'CRE', 'DEF']:
+                diff = scores[key] - avg_scores[key]
                 summary_rows.append({
                     'Categoría': key,
                     'Descripción': group_desc[key],
-                    'Puntaje': scores[key],
+                    'Jugador': scores[key],
+                    f'Prom. {pent_pos}': avg_scores[key],
+                    'Diferencia': f"+{diff}" if diff >= 0 else str(diff),
                 })
             st.dataframe(
                 pd.DataFrame(summary_rows),
