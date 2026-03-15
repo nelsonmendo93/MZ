@@ -109,9 +109,9 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
     if logo_path and os.path.exists(logo_path):
         try:
             logo = mpimg.imread(logo_path)
-            # Centrado en la figura: [left, bottom, width, height] en fracción de figura
-            logo_ax = fig.add_axes([0.28, 0.32, 0.44, 0.36])
-            logo_ax.imshow(logo, alpha=0.7)
+            # Centrado, 30% más grande, opacidad 10%
+            logo_ax = fig.add_axes([0.21, 0.27, 0.57, 0.47])
+            logo_ax.imshow(logo, alpha=0.1)
             logo_ax.axis('off')
             logo_ax.patch.set_alpha(0)   # fondo del axes transparente
         except Exception:
