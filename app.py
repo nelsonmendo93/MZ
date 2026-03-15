@@ -458,14 +458,15 @@ def _compute_avg_pentagon_scores(comparison_df, all_cols):
     }
 
 
-def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None, pos_label=''):
-    """Dibuja el gráfico pentágono estilo Sofascore con matplotlib."""
+def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
+                           pos_label='', scores2=None, player2_name=''):
+    """Dibuja el gráfico pentágono estilo Sofascore con matplotlib.
+    Si scores2 se provee, dibuja dos polígonos (verde P1, azul P2) y badges apilados."""
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
 
-    labels    = ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
-    # ATQ arriba, luego sentido horario
-    angles    = [np.radians(90 - i * 72) for i in range(5)]
+    labels     = ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
+    angles     = [np.radians(90 - i * 72) for i in range(5)]
     score_vals = [scores.get(l, 0) for l in labels]
     norm_vals  = [s / 99.0 for s in score_vals]
 
@@ -474,7 +475,9 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     pl_x = [v * np.cos(a) for v, a in zip(norm_vals, angles)]
     pl_y = [v * np.sin(a) for v, a in zip(norm_vals, angles)]
 
-    fig, ax = plt.subplots(figsize=(6.5, 7.2), facecolor='#0f1117')
+    compare_mode = bool(scores2 and player2_name)
+
+    fig, ax = plt.subplots(figsize=(6.5, 7.4), facecolor='#0f1117')
     ax.set_facecolor('#0f1117')
     ax.set_aspect('equal')
     ax.axis('off')
@@ -494,7 +497,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     for a in angles:
         ax.plot([0, np.cos(a)], [0, np.sin(a)], color='#2d3748', linewidth=0.6, alpha=0.6)
 
-    # Polígono del promedio de la posición (si se provee)
+    # Polígono promedio de la posición (punteado gris)
     if avg_scores:
         avg_vals = [avg_scores.get(l, 0) / 99.0 for l in labels]
         avg_x = [v * np.cos(a) for v, a in zip(avg_vals, angles)]
@@ -503,61 +506,111 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
                                fill=False, edgecolor='#94a3b8', linewidth=1.6,
                                linestyle='--', alpha=0.8, zorder=3)
         ax.add_patch(avg_poly)
-        # Puntaje promedio en cada vértice (pequeño, sin badge)
         for lbl, ang, sc in zip(labels, angles, [avg_scores.get(l, 0) for l in labels]):
             ax.text(0.88 * np.cos(ang), 0.88 * np.sin(ang), str(sc),
                     ha='center', va='center', fontsize=7.5,
                     color='#94a3b8', alpha=0.85, zorder=4)
 
-    # Polígono del jugador (encima del promedio)
+    # Polígono jugador 2 (azul, debajo del jugador 1)
+    if compare_mode:
+        score2_vals = [scores2.get(l, 0) for l in labels]
+        norm2_vals  = [s / 99.0 for s in score2_vals]
+        pl2_x = [v * np.cos(a) for v, a in zip(norm2_vals, angles)]
+        pl2_y = [v * np.sin(a) for v, a in zip(norm2_vals, angles)]
+        pl2_poly = plt.Polygon(list(zip(pl2_x, pl2_y)), closed=True,
+                               facecolor='#0ea5e925', edgecolor='#38bdf8', linewidth=2.5,
+                               zorder=4)
+        ax.add_patch(pl2_poly)
+
+    # Polígono jugador 1 (verde, encima)
     pl_poly = plt.Polygon(list(zip(pl_x, pl_y)), closed=True,
-                          facecolor='#16a34a30', edgecolor='#22c55e', linewidth=2.5,
-                          zorder=4)
+                          facecolor='#16a34a25', edgecolor='#22c55e', linewidth=2.5,
+                          zorder=5)
     ax.add_patch(pl_poly)
 
     # Punto central
-    ax.plot(0, 0, 'o', color='#22c55e', markersize=5, zorder=6)
+    ax.plot(0, 0, 'o', color='#22c55e', markersize=5, zorder=7)
+    if compare_mode:
+        ax.plot(0, 0, 'o', color='#38bdf8', markersize=3, zorder=8)
 
-    # Badges con puntaje del jugador en cada vértice
-    offset = 1.34
+    # Badges en vértices
+    offset = 1.36
     for label, angle, score in zip(labels, angles, score_vals):
         bx = offset * np.cos(angle)
         by = offset * np.sin(angle)
-        # Badge dorado si supera el promedio Y es ≥ 60, naranja si solo supera promedio
         avg_val = avg_scores.get(label, 50) if avg_scores else 50
-        if score >= 70 and score > avg_val:
-            badge_col, txt_col = '#ca8a04', '#fff'
-        elif score >= avg_val:
-            badge_col, txt_col = '#166534', '#fff'   # verde oscuro = sobre promedio
-        else:
-            badge_col, txt_col = '#374151', '#d1d5db'  # gris = bajo promedio
 
-        ax.text(bx, by + 0.09, str(score), ha='center', va='center',
-                fontsize=17, fontweight='bold', color=txt_col,
-                bbox=dict(boxstyle='round,pad=0.32', facecolor=badge_col, edgecolor='none'),
-                zorder=7)
-        ax.text(bx, by - 0.15, label, ha='center', va='center',
-                fontsize=11, fontweight='bold', color='#9ca3af', zorder=7)
+        if compare_mode:
+            sc2 = scores2.get(label, 0)
+            # Badge P1 (verde/dorado, arriba)
+            if score >= 70 and score > avg_val:
+                b1_col, t1_col = '#ca8a04', '#fff'
+            elif score >= avg_val:
+                b1_col, t1_col = '#166534', '#fff'
+            else:
+                b1_col, t1_col = '#374151', '#d1d5db'
+
+            ax.text(bx, by + 0.20, str(score), ha='center', va='center',
+                    fontsize=13, fontweight='bold', color=t1_col,
+                    bbox=dict(boxstyle='round,pad=0.26', facecolor=b1_col, edgecolor='none'),
+                    zorder=9)
+            # Badge P2 (azul, abajo)
+            ax.text(bx, by - 0.02, str(sc2), ha='center', va='center',
+                    fontsize=13, fontweight='bold', color='#fff',
+                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#0369a1', edgecolor='none'),
+                    zorder=9)
+            ax.text(bx, by - 0.26, label, ha='center', va='center',
+                    fontsize=10, fontweight='bold', color='#9ca3af', zorder=9)
+        else:
+            # Badge único (modo individual)
+            if score >= 70 and score > avg_val:
+                badge_col, txt_col = '#ca8a04', '#fff'
+            elif score >= avg_val:
+                badge_col, txt_col = '#166534', '#fff'
+            else:
+                badge_col, txt_col = '#374151', '#d1d5db'
+
+            ax.text(bx, by + 0.09, str(score), ha='center', va='center',
+                    fontsize=17, fontweight='bold', color=txt_col,
+                    bbox=dict(boxstyle='round,pad=0.32', facecolor=badge_col, edgecolor='none'),
+                    zorder=7)
+            ax.text(bx, by - 0.15, label, ha='center', va='center',
+                    fontsize=11, fontweight='bold', color='#9ca3af', zorder=7)
 
     ax.set_xlim(-1.78, 1.78)
-    ax.set_ylim(-1.78, 1.90)
+    ax.set_ylim(-1.78, 1.92)
 
     # Título
-    ax.text(0, 1.85, player_name, ha='center', va='top',
-            fontsize=15, fontweight='bold', color='white',
+    if compare_mode:
+        title_text = f'{player_name}  ⚔  {player2_name}'
+        title_fs   = 12
+    else:
+        title_text = player_name
+        title_fs   = 15
+    ax.text(0, 1.88, title_text, ha='center', va='top',
+            fontsize=title_fs, fontweight='bold', color='white',
             fontfamily='sans-serif')
-    ax.text(0, 1.68, f'{team}  ·  {subtitle}', ha='center', va='top',
+    ax.text(0, 1.70, f'{team}  ·  {subtitle}', ha='center', va='top',
             fontsize=9.5, color='#6b7280', fontfamily='sans-serif')
 
     # Leyenda
-    legend_items = [
-        mpatches.Patch(color='#22c55e', label='Jugador'),
-        mpatches.Patch(facecolor='none', edgecolor='#94a3b8',
-                       linestyle='--', label=f'Promedio {pos_label}'),
-        mpatches.Patch(color='#ca8a04', label='Destacado (≥70 y sobre prom.)'),
-        mpatches.Patch(color='#166534', label='Sobre el promedio'),
-        mpatches.Patch(color='#374151', label='Bajo el promedio'),
-    ]
+    if compare_mode:
+        legend_items = [
+            mpatches.Patch(color='#22c55e', label=f'■ {player_name[:18]}'),
+            mpatches.Patch(color='#38bdf8', label=f'■ {player2_name[:18]}'),
+            mpatches.Patch(facecolor='none', edgecolor='#94a3b8',
+                           linestyle='--', label=f'Prom. {pos_label}'),
+            mpatches.Patch(color='#ca8a04', label='Dest. P1 (≥70 y sobre prom.)'),
+        ]
+    else:
+        legend_items = [
+            mpatches.Patch(color='#22c55e', label='Jugador'),
+            mpatches.Patch(facecolor='none', edgecolor='#94a3b8',
+                           linestyle='--', label=f'Promedio {pos_label}'),
+            mpatches.Patch(color='#ca8a04', label='Destacado (≥70 y sobre prom.)'),
+            mpatches.Patch(color='#166534', label='Sobre el promedio'),
+            mpatches.Patch(color='#374151', label='Bajo el promedio'),
+        ]
     ax.legend(handles=legend_items, loc='lower center', ncol=2,
               facecolor='#0f1117', edgecolor='#2d3748',
               labelcolor='#9ca3af', fontsize=7.8,
@@ -744,6 +797,10 @@ with tab_bar:
     st.subheader("Resumen de atributos")
     st.caption("Puntaje compuesto (0–99) por macro-categoría, calculado como promedio de percentiles")
 
+    # Inicializar session state para el comparador
+    if 'pent_show_compare' not in st.session_state:
+        st.session_state['pent_show_compare'] = False
+
     # Selectores: Posición → Club → Jugador
     pent_team_col = 'Team within selected timeframe'
     if pent_team_col not in df.columns:
@@ -769,6 +826,29 @@ with tab_bar:
         "Minutos mínimos (pool de comparación)", pent_min_v, pent_max_v,
         value=min(200, pent_max_v), key="pent_min_minutes"
     )
+
+    # Botón "Comparar" (toggle)
+    compare_label = "❌ Cancelar comparación" if st.session_state['pent_show_compare'] else "⚔️ Comparar jugadores"
+    if st.button(compare_label, key="btn_comparar"):
+        st.session_state['pent_show_compare'] = not st.session_state['pent_show_compare']
+        st.rerun()
+
+    # Selectores del segundo jugador (misma posición)
+    pent_player2 = None
+    pent_club2   = None
+    if st.session_state['pent_show_compare']:
+        st.markdown("---")
+        st.markdown("**Segundo jugador** *(misma posición: {})*".format(pent_pos))
+        cmp_col1, cmp_col2 = st.columns(2)
+        with cmp_col1:
+            pent_club2 = st.selectbox("Club (jugador 2)", pent_clubs, key="pent_club2")
+        cmp_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club2]
+        cmp_players = sorted(cmp_club_df['Player'].dropna().unique())
+        # Excluir al jugador 1 de la lista
+        cmp_players_filt = [p for p in cmp_players if p != pent_player] or cmp_players
+        with cmp_col2:
+            pent_player2 = st.selectbox("Jugador 2", cmp_players_filt, key="pent_player2")
+        st.markdown("---")
 
     pent_player_rows = pent_club_df[pent_club_df['Player'] == pent_player]
     if pent_player_rows.empty:
@@ -798,6 +878,14 @@ with tab_bar:
             )
             avg_scores = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
 
+            # Calcular scores del jugador 2 si el comparador está activo
+            scores2 = None
+            if st.session_state['pent_show_compare'] and pent_player2:
+                p2_rows = pent_pos_df[pent_pos_df['Player'] == pent_player2]
+                if not p2_rows.empty:
+                    p2_data = p2_rows.iloc[0]
+                    scores2 = _compute_pentagon_scores(p2_data, pent_comparison_df, all_pent_cols)
+
             team_display = str(pent_player_data.get(pent_team_col, ''))
             subtitle_pent = f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min · Apertura 2026"
 
@@ -806,22 +894,27 @@ with tab_bar:
             with col_center:
                 fig_pent = _create_pentagon_chart(
                     scores, pent_player, team_display, subtitle_pent,
-                    avg_scores=avg_scores, pos_label=pent_pos
+                    avg_scores=avg_scores, pos_label=pent_pos,
+                    scores2=scores2, player2_name=pent_player2 or '',
                 )
                 st.pyplot(fig_pent)
 
                 buf_pent = io.BytesIO()
                 fig_pent.savefig(buf_pent, format='png', dpi=200, bbox_inches='tight',
                                  facecolor=fig_pent.get_facecolor())
+                dl_fname = (
+                    f"pentagono_{pent_player.replace(' ', '_')}_vs_{pent_player2.replace(' ', '_')}.png"
+                    if scores2 and pent_player2
+                    else f"pentagono_{pent_player.replace(' ', '_')}.png"
+                )
                 st.download_button(
                     "⬇️ Descargar gráfico", buf_pent.getvalue(),
-                    file_name=f"pentagono_{pent_player.replace(' ', '_')}.png",
+                    file_name=dl_fname,
                     mime="image/png", key="dl_pent"
                 )
 
             # Tabla resumen de puntajes debajo del gráfico
             st.markdown("#### Detalle de puntajes")
-            summary_rows = []
             group_desc = {
                 'ATQ': 'Goles y Remates',
                 'POS': 'Posesión (Dribbling, Recepción, Acciones ofensivas)',
@@ -829,15 +922,21 @@ with tab_bar:
                 'CRE': 'Creatividad',
                 'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
             }
+            summary_rows = []
             for key in ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']:
                 diff = scores[key] - avg_scores[key]
-                summary_rows.append({
+                row = {
                     'Categoría': key,
                     'Descripción': group_desc[key],
-                    'Jugador': scores[key],
+                    pent_player[:20]: scores[key],
                     f'Prom. {pent_pos}': avg_scores[key],
-                    'Diferencia': f"+{diff}" if diff >= 0 else str(diff),
-                })
+                    'Dif. P1': f"+{diff}" if diff >= 0 else str(diff),
+                }
+                if scores2 and pent_player2:
+                    diff2 = scores2[key] - avg_scores[key]
+                    row[pent_player2[:20]] = scores2[key]
+                    row['Dif. P2'] = f"+{diff2}" if diff2 >= 0 else str(diff2)
+                summary_rows.append(row)
             st.dataframe(
                 pd.DataFrame(summary_rows),
                 use_container_width=True,
