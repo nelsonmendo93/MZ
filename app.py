@@ -391,8 +391,11 @@ def _compute_pentagon_scores(player_data, comparison_df, all_cols):
         if pd.isnull(val):
             continue
         pv = float(val)
-        pct = _compute_percentile(pv, comparison_df[c]) if c in comparison_df.columns else 0
         cat = categorize_metric(c)
+        # En Duelos solo incluir métricas 'won' (excluye totales como Duels per 90)
+        if cat == '\U0001f4aa Duelos' and 'won' not in c.lower():
+            continue
+        pct = _compute_percentile(pv, comparison_df[c]) if c in comparison_df.columns else 0
         pcts_by_cat[cat].append(pct)
 
     def avg_cats(*cats):
@@ -426,13 +429,16 @@ def _compute_avg_pentagon_scores(comparison_df, all_cols):
     for c in all_cols:
         if c not in comparison_df.columns:
             continue
+        cat = categorize_metric(c)
+        # En Duelos solo incluir métricas 'won' (excluye totales como Duels per 90)
+        if cat == '\U0001f4aa Duelos' and 'won' not in c.lower():
+            continue
         col_vals = pd.to_numeric(comparison_df[c], errors='coerce').dropna()
         if len(col_vals) == 0:
             continue
         # Percentil de cada jugador del pool en esta métrica
         pcts = [0 if v == 0.0 else int(np.sum(col_vals <= v) / len(col_vals) * 99)
                 for v in col_vals]
-        cat = categorize_metric(c)
         avg_pcts_by_cat[cat].append(float(np.mean(pcts)))
 
     def avg_cats(*cats):
