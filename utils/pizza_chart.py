@@ -10,6 +10,23 @@ GROUP_COLORS = ["#2a6f97", "#588b8b", "#8d0801"]
 GROUP_LABELS = ["Defensa", "Ataque", "Distribución"]
 
 
+def _wrap_label(text, max_chars=15):
+    """Inserta un salto de línea en la palabra más cercana al centro del texto.
+    Si el texto ya entra en max_chars, lo devuelve sin cambios."""
+    if len(text) <= max_chars:
+        return text
+    mid = len(text) // 2
+    # Buscar espacio hacia la izquierda desde el centro
+    for i in range(mid, 0, -1):
+        if text[i] == ' ':
+            return text[:i] + '\n' + text[i + 1:]
+    # Si no hay espacio a la izquierda, buscar a la derecha
+    for i in range(mid + 1, len(text)):
+        if text[i] == ' ':
+            return text[:i] + '\n' + text[i + 1:]
+    return text  # sin espacios, devolver original
+
+
 def create_pizza_chart(player_name, player_team, subtitle, params, values,
                        min_range, max_range, center_image=None,
                        center_text="MARCA\nZONAL"):
@@ -29,6 +46,9 @@ def create_pizza_chart(player_name, player_team, subtitle, params, values,
     Returns:
         matplotlib Figure
     """
+    # Aplicar salto de línea a etiquetas largas
+    params = [_wrap_label(p) for p in params]
+
     n_params = len(params)
     n_per_group = n_params // 3 if n_params >= 3 else n_params
 
@@ -66,9 +86,9 @@ def create_pizza_chart(player_name, player_team, subtitle, params, values,
         value_bck_colors=slice_colors,
         blank_alpha=0.4,
         kwargs_slices=dict(edgecolor="#000000", zorder=2, linewidth=1),
-        kwargs_params=dict(color="#F2F2F2", fontsize=6, va="center"),
+        kwargs_params=dict(color="#F2F2F2", fontsize=8, va="center"),
         kwargs_values=dict(
-            color="#F2F2F2", fontsize=7, zorder=3,
+            color="#F2F2F2", fontsize=9, zorder=3,
             bbox=dict(edgecolor="#000000", facecolor="cornflowerblue",
                       boxstyle="circle,pad=0.15", lw=1)
         ),
