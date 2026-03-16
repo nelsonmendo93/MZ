@@ -8,6 +8,7 @@ import json
 import urllib.request
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import matplotlib.font_manager as _fm
 from collections import defaultdict
 from sklearn.preprocessing import StandardScaler
