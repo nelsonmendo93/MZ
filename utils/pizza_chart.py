@@ -66,11 +66,11 @@ def create_pizza_chart(player_name, player_team, subtitle, params, values,
         value_bck_colors=slice_colors,
         blank_alpha=0.4,
         kwargs_slices=dict(edgecolor="#000000", zorder=2, linewidth=1),
-        kwargs_params=dict(color="#F2F2F2", fontsize=8, va="center"),
+        kwargs_params=dict(color="#F2F2F2", fontsize=6, va="center"),
         kwargs_values=dict(
-            color="#F2F2F2", fontsize=9, zorder=3,
+            color="#F2F2F2", fontsize=7, zorder=3,
             bbox=dict(edgecolor="#000000", facecolor="cornflowerblue",
-                      boxstyle="circle,pad=0.2", lw=1)
+                      boxstyle="circle,pad=0.15", lw=1)
         ),
     )
 
