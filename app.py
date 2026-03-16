@@ -129,14 +129,14 @@ st.set_page_config(page_title="Portal de Datos", layout="wide")
 # Professional theme CSS
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Poppins:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&family=Poppins:wght@600;700&display=swap');
 
 html, body, *, [class*="css"], [class*="st-"],
 button, input, select, textarea, label,
 .stButton > button, .stSelectbox div, .stRadio div,
 .stSlider div, .stTextInput input, .stNumberInput input,
 .stDataFrame, .stTable, p, span, div {
-    font-family: 'Roboto', sans-serif !important;
+    font-family: 'Cousine', monospace !important;
 }
 
 h1, h2, h3 {
@@ -272,7 +272,7 @@ CATEGORY_ORDER = [
     '\u26bd Goles y Remates', '\U0001f3af Creaci\u00f3n', '\U0001f4d0 Pases',
     '\u2197\ufe0f Centros', '\u26a1 Posesi\u00f3n', '\U0001f4aa Duelos',
     '\U0001f6e1\ufe0f Defensa', '\U0001f4e5 Recepci\u00f3n',
-    '\U0001f4cb Disciplina', '\U0001f945 Pelota Parada', '\U0001f4ca Otros',
+    '\U0001f4cb Disciplina', '\U0001f4ca Otros',
 ]
 
 # ---------------------------------------------------------------------------
@@ -420,7 +420,7 @@ def _render_all_bars(categorized, category_order, category_colors):
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
-        font-family: 'Roboto', Arial, sans-serif;
+        font-family: 'Cousine', monospace;
         background: #0e1117;
         color: #b0b8c8;
         padding: 4px 2px;
@@ -435,7 +435,7 @@ def _render_all_bars(categorized, category_order, category_colors):
       .legend-pct  { width:36px; font-size:11px; color:#555; text-align:center; flex-shrink:0; }
       .cat-block   { margin-bottom: 20px; }
       .cat-header  {
-        font-family: 'Poppins', 'Roboto', sans-serif;
+        font-family: 'Poppins', 'Cousine', monospace;
         font-weight: 700; font-size: 12px;
         text-transform: uppercase; letter-spacing: 1.2px;
         margin-bottom: 8px; padding-bottom: 5px;
