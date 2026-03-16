@@ -1321,9 +1321,8 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         ('Mins',    7.75, 'right'),
         ('Similitud', 9.65, 'right'),
     ]:
-        ax.text(xpos, y - 0.08, txt, fontsize=7.5, color='#6b7280',
-                fontweight='bold', va='top', ha=align,
-                text_transform='upper' if False else None)
+        ax.text(xpos, y - 0.08, txt.upper(), fontsize=7.5, color='#6b7280',
+                fontweight='bold', va='top', ha=align)
     y -= 0.42
     ax.axhline(y + 0.22, color='#2d3748', linewidth=0.5)
 
