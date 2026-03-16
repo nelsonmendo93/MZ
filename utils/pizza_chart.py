@@ -11,20 +11,30 @@ GROUP_LABELS = ["Defensa", "Ataque", "Distribución"]
 
 
 def _wrap_label(text, max_chars=15):
-    """Inserta un salto de línea en la palabra más cercana al centro del texto.
+    """Inserta un salto de línea en el espacio más cercano al centro del texto.
+    Busca en ambas direcciones y elige el más próximo al centro.
     Si el texto ya entra en max_chars, lo devuelve sin cambios."""
     if len(text) <= max_chars:
         return text
     mid = len(text) // 2
-    # Buscar espacio hacia la izquierda desde el centro
+    left = right = -1
     for i in range(mid, 0, -1):
         if text[i] == ' ':
-            return text[:i] + '\n' + text[i + 1:]
-    # Si no hay espacio a la izquierda, buscar a la derecha
+            left = i
+            break
     for i in range(mid + 1, len(text)):
         if text[i] == ' ':
-            return text[:i] + '\n' + text[i + 1:]
-    return text  # sin espacios, devolver original
+            right = i
+            break
+    if left == -1 and right == -1:
+        return text
+    if left == -1:
+        best = right
+    elif right == -1:
+        best = left
+    else:
+        best = left if (mid - left) <= (right - mid) else right
+    return text[:best] + '\n' + text[best + 1:]
 
 
 def create_pizza_chart(player_name, player_team, subtitle, params, values,
