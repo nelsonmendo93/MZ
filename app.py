@@ -55,25 +55,25 @@ BAR_METRICS = {
 # ---------------------------------------------------------------------------
 PIZZA_METRICS = {
     'Defensa': [
-        'Defensive duels per 90',
         'Defensive duels won, %',
-        'Aerial duels per 90',
+        'Aerial duels won, %',
+        'Shots blocked per 90',
         'Interceptions per 90',
-        'Sliding tackles per 90',
+        'Fouls per 90',
     ],
     'Ataque': [
         'Goals per 90',
-        'Shots per 90',
+        'Shots on target per 90',
         'Assists per 90',
-        'Dribbles per 90',
-        'Touches in box per 90',
+        'Dribbles won per 90',
+        'Progressive runs per 90',
     ],
     'Distribución': [
-        'Accurate passes, %',
-        'Shot assists per 90',
-        'Passes to final third per 90',
-        'Progressive passes per 90',
+        'Received passes per 90',
+        'Accurate passes per 90',
         'Key passes per 90',
+        'Accurate passes to final third per 90',
+        'Accurate progressive passes per 90',
     ],
 }
 
@@ -131,8 +131,12 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Poppins:wght@600;700&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Roboto', sans-serif;
+html, body, *, [class*="css"], [class*="st-"],
+button, input, select, textarea, label,
+.stButton > button, .stSelectbox div, .stRadio div,
+.stSlider div, .stTextInput input, .stNumberInput input,
+.stDataFrame, .stTable, p, span, div {
+    font-family: 'Roboto', sans-serif !important;
 }
 
 h1, h2, h3 {
@@ -744,7 +748,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
         try:
             logo = mpimg.imread(LOGO_BLANCO)
             # Posición: centrado horizontalmente, 20% más arriba de la leyenda
-            logo_ax = fig.add_axes([0.115, 0.18, 0.77, 0.084])
+            logo_ax = fig.add_axes([0.115, 0.19, 0.77, 0.084])
             logo_ax.imshow(logo, alpha=0.14)
             logo_ax.axis('off')
             logo_ax.patch.set_alpha(0)   # fondo transparente
