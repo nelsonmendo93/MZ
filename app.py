@@ -10,6 +10,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.font_manager as _fm
 from collections import defaultdict
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 from utils.data_processing import load_and_process_data
 from utils.xy_chart import create_xy_chart
@@ -417,8 +419,8 @@ st.markdown(f"""
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_table, tab_xy, tab_bar, tab_pizza = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial"]
+tab_table, tab_xy, tab_bar, tab_pizza, tab_similar = st.tabs(
+    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -1194,6 +1196,240 @@ with tab_pizza:
                     st.download_button("⬇️ Descargar gráfica", buf3.getvalue(),
                                        file_name="radial_marcazonal.png", mime="image/png",
                                        key="dl_pizza")
+
+# ---- Tab 5: Jugadores Similares -------------------------------------------
+def _get_similarity_cols(df):
+    """Columnas para el PCA de similitud: todas las per-90 y % numéricas disponibles."""
+    return [
+        c for c in df.columns
+        if (c.endswith(' per 90') or c.endswith(', %'))
+        and c not in NON_METRIC_COLS
+        and pd.api.types.is_numeric_dtype(df[c])
+    ]
+
+
+def _compute_similarity_scores(pool_df, player_name):
+    """
+    Calcula puntajes de similitud (0–100%) vs todos los jugadores del pool.
+
+    Flujo:
+      1. Seleccionar métricas per-90 y %
+      2. Imputar NaN con 0
+      3. Eliminar columnas de varianza cero
+      4. StandardScaler → PCA (componentes que expliquen ≥85% de varianza)
+      5. Distancia euclídea en espacio PCA
+      6. Similitud % = (1 - dist / max_dist) * 100
+    """
+    sim_cols = _get_similarity_cols(pool_df)
+    if len(sim_cols) < 3:
+        return None, 0, 0.0
+
+    X_raw = pool_df[sim_cols].fillna(0).copy()
+
+    # Eliminar columnas de varianza cero
+    var_mask = X_raw.var() > 0
+    X_raw = X_raw.loc[:, var_mask]
+    n_features = X_raw.shape[1]
+    n_samples = X_raw.shape[0]
+
+    if n_features < 2 or n_samples < 3:
+        return None, 0, 0.0
+
+    # Estandarizar
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_raw)
+
+    # PCA — componentes para ≥85% varianza, mínimo 3, máximo 25
+    max_comp = min(n_features, n_samples - 1, 25)
+    pca_full = PCA(n_components=max_comp, random_state=42)
+    pca_full.fit(X_scaled)
+    cumvar = np.cumsum(pca_full.explained_variance_ratio_)
+    n_comp = int(np.argmax(cumvar >= 0.85)) + 1
+    n_comp = max(3, min(n_comp, max_comp))
+
+    pca = PCA(n_components=n_comp, random_state=42)
+    X_pca = pca.fit_transform(X_scaled)
+    var_explained = float(np.sum(pca.explained_variance_ratio_) * 100)
+
+    # Índice del jugador seleccionado
+    players_reset = pool_df['Player'].reset_index(drop=True)
+    player_mask = players_reset == player_name
+    if not player_mask.any():
+        return None, n_comp, var_explained
+
+    player_idx = int(player_mask.idxmax())
+    player_vec = X_pca[player_idx]
+
+    # Distancias euclídeas
+    distances = np.sqrt(np.sum((X_pca - player_vec) ** 2, axis=1))
+    max_dist = distances.max()
+    similarities = (1 - distances / max_dist) * 100.0 if max_dist > 0 else np.ones(len(distances)) * 100.0
+
+    # Armar DataFrame de resultados
+    results = pool_df[['Player']].copy().reset_index(drop=True)
+    results['Similitud'] = np.round(similarities, 1)
+    results = results[results['Player'] != player_name]
+    results = results.sort_values('Similitud', ascending=False).reset_index(drop=True)
+    results.index += 1
+
+    return results, n_comp, var_explained
+
+
+def _render_similarity_table(results, pool_df, team_col, top_n):
+    """Renderiza la tabla de similitud como HTML con barras de porcentaje."""
+    rows_html = ''
+    for rank, row in results.head(top_n).iterrows():
+        pname = row['Player']
+        sim   = row['Similitud']
+
+        player_info = pool_df[pool_df['Player'] == pname]
+        team  = str(player_info[team_col].values[0]) if not player_info.empty else '—'
+        pos   = str(player_info['Position Group'].values[0]) if not player_info.empty else '—'
+        mins  = int(player_info['Minutes played'].values[0]) if not player_info.empty else 0
+
+        # Color de barra según similitud
+        if sim >= 85:
+            bar_color = '#22c55e'
+        elif sim >= 70:
+            bar_color = '#84cc16'
+        elif sim >= 55:
+            bar_color = '#eab308'
+        else:
+            bar_color = '#f97316'
+
+        bar_w = max(int(sim), 2)
+        rows_html += f"""
+        <tr>
+          <td class="rank">{rank}</td>
+          <td class="pname">{pname}</td>
+          <td class="team">{team}</td>
+          <td class="pos">{pos}</td>
+          <td class="mins">{mins:,}</td>
+          <td class="bar-cell">
+            <div class="bar-bg">
+              <div class="bar-fill" style="width:{bar_w}%; background:{bar_color};"></div>
+              <span class="bar-label">{sim:.1f}%</span>
+            </div>
+          </td>
+        </tr>"""
+
+    n_rows = min(top_n, len(results))
+    height = n_rows * 44 + 90
+
+    html = f"""<!DOCTYPE html><html><head><style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ font-family: 'Cousine', monospace; background: #0e1117; color: #b0b8c8; padding: 6px 2px; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th {{
+        font-size: 10px; font-weight: 700; color: #6b7280;
+        text-transform: uppercase; letter-spacing: 1px;
+        padding: 8px 10px; border-bottom: 1px solid #2d3748;
+        text-align: left;
+    }}
+    td {{ padding: 7px 10px; border-bottom: 1px solid #1a1f2e; font-size: 13px; vertical-align: middle; }}
+    tr:hover td {{ background: #1a1f2e; }}
+    .rank  {{ width: 36px; color: #4b5563; font-weight: 700; font-size: 14px; text-align: center; }}
+    .pname {{ font-weight: 700; color: #f1f5f9; min-width: 160px; }}
+    .team  {{ color: #9ca3af; min-width: 130px; }}
+    .pos   {{ color: #6b7280; font-size: 11px; min-width: 80px; }}
+    .mins  {{ color: #6b7280; font-size: 11px; text-align: right; min-width: 60px; }}
+    .bar-cell {{ width: 220px; }}
+    .bar-bg {{
+        position: relative; background: rgba(255,255,255,0.07);
+        border-radius: 4px; height: 26px; overflow: hidden;
+        display: flex; align-items: center;
+    }}
+    .bar-fill {{ position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; opacity: 0.85; }}
+    .bar-label {{ position: relative; z-index: 1; padding-left: 10px; font-size: 13px; font-weight: 800; color: #fff; }}
+    </style></head><body>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Jugador</th><th>Equipo</th><th>Posición</th>
+          <th style="text-align:right">Mins</th><th>Similitud</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    </body></html>"""
+
+    components.html(html, height=height, scrolling=True)
+
+
+with tab_similar:
+    st.subheader("Jugadores Similares")
+    st.caption("PCA sobre métricas por 90 y porcentuales · Distancia euclídea en espacio reducido · Comparación dentro del mismo grupo de posición")
+
+    sim_team_col = 'Team within selected timeframe' if 'Team within selected timeframe' in df.columns else 'Team'
+
+    sim_col1, sim_col2, sim_col3 = st.columns(3)
+    sim_pos_groups = sorted(df['Position Group'].dropna().unique())
+    with sim_col1:
+        sim_pos = st.selectbox("Posición", sim_pos_groups, key="sim_pos")
+    sim_pos_df = df[df['Position Group'] == sim_pos]
+    sim_clubs = sorted(sim_pos_df[sim_team_col].dropna().unique())
+    with sim_col2:
+        sim_club = st.selectbox("Club", sim_clubs, key="sim_club")
+    sim_club_pos_df = sim_pos_df[sim_pos_df[sim_team_col] == sim_club]
+    sim_players_list = sorted(sim_club_pos_df['Player'].dropna().unique())
+    with sim_col3:
+        sim_player = st.selectbox("Jugador", sim_players_list, key="sim_player")
+
+    sim_slider_col, sim_top_col = st.columns(2)
+    sim_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
+    sim_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
+    with sim_slider_col:
+        sim_min_minutes = st.slider(
+            "Minutos mínimos (pool de comparación)", sim_min_v, sim_max_v,
+            value=min(200, sim_max_v), key="sim_min_minutes"
+        )
+    with sim_top_col:
+        sim_top_n = st.slider("Cantidad de jugadores a mostrar", 5, 30, 15, key="sim_top_n")
+
+    # Pool: misma posición + mínimo de minutos
+    sim_pool = df[
+        (df['Position Group'] == sim_pos) &
+        (df['Minutes played'] >= sim_min_minutes)
+    ].copy().reset_index(drop=True)
+
+    sim_n_pool = len(sim_pool)
+    sim_player_in_pool = sim_pool[sim_pool['Player'] == sim_player]
+
+    if sim_player_in_pool.empty:
+        st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
+    elif sim_n_pool < 5:
+        st.warning("El pool de comparación tiene menos de 5 jugadores. Reducí los minutos mínimos.")
+    else:
+        sim_results, sim_n_comp, sim_var = _compute_similarity_scores(sim_pool, sim_player)
+
+        if sim_results is None:
+            st.warning("No hay suficientes métricas disponibles para calcular similitud.")
+        else:
+            # Header del jugador seleccionado
+            sim_player_info = sim_pool[sim_pool['Player'] == sim_player].iloc[0]
+            sim_player_team = str(sim_player_info.get(sim_team_col, ''))
+            sim_player_mins = int(sim_player_info.get('Minutes played', 0))
+
+            st.markdown(f"""
+            <div style="background:#1a1f2e; border:1px solid #2d3748; border-radius:12px;
+                        padding:16px 24px; margin-bottom:16px; display:flex; align-items:center; gap:20px;">
+              <div>
+                <div style="font-size:1.4rem; font-weight:800; color:#f1f5f9;">{sim_player}</div>
+                <div style="color:#9ca3af; font-size:0.9rem; margin-top:4px;">
+                  {sim_player_team} &nbsp;·&nbsp; {sim_pos} &nbsp;·&nbsp; {sim_player_mins:,} mins
+                </div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            n_sim_cols = len(_get_similarity_cols(sim_pool))
+            st.caption(
+                f"🔬 PCA: **{sim_n_comp} componentes** · **{sim_var:.1f}%** varianza explicada · "
+                f"**{n_sim_cols}** métricas · Pool: **{sim_n_pool}** {sim_pos.lower()}s"
+            )
+            st.markdown("---")
+
+            _render_similarity_table(sim_results, sim_pool, sim_team_col, sim_top_n)
 
 # ---------------------------------------------------------------------------
 # Footer — contador de visitas
