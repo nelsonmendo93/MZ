@@ -1275,6 +1275,119 @@ def _compute_similarity_scores(pool_df, player_name):
     return results, n_comp, var_explained
 
 
+def _create_similarity_card(player_name, player_team, player_age, player_pos,
+                            player_mins, results, pool_df, team_col,
+                            n_comp, var_explained, top_n=10, logo_path=None):
+    """Genera una figura matplotlib descargable con la tarjeta de jugadores similares."""
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    import matplotlib.image as mpimg
+    from matplotlib.patches import FancyBboxPatch
+
+    top = results.head(top_n).copy()
+    n_rows = len(top)
+    fig_h = 2.8 + n_rows * 0.52
+    fig, ax = plt.subplots(figsize=(10, fig_h), facecolor='#0e1117')
+    ax.set_facecolor('#0e1117')
+    ax.axis('off')
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, fig_h)
+
+    y = fig_h
+
+    # ── Header del jugador ──────────────────────────────────────────────────
+    header_h = 1.0
+    header_box = FancyBboxPatch((0.15, y - header_h - 0.15), 9.7, header_h,
+                                boxstyle="round,pad=0.08",
+                                facecolor='#1a1f2e', edgecolor='#2d3748', linewidth=1)
+    ax.add_patch(header_box)
+    ax.text(0.45, y - 0.38, player_name, fontsize=17, fontweight='bold',
+            color='#f1f5f9', va='top')
+    info_str = f"{player_team}  ·  {player_pos}  ·  {player_age} años  ·  {player_mins:,} mins"
+    ax.text(0.45, y - 0.72, info_str, fontsize=9, color='#9ca3af', va='top')
+    ax.text(9.65, y - 0.38,
+            f"PCA: {n_comp} comp.  ·  {var_explained:.1f}% var.",
+            fontsize=8, color='#6b7280', va='top', ha='right')
+    y -= (header_h + 0.35)
+
+    # ── Encabezado de columnas ──────────────────────────────────────────────
+    ax.axhline(y, color='#2d3748', linewidth=0.8)
+    for txt, xpos, align in [
+        ('#',     0.35, 'center'),
+        ('Jugador', 0.65, 'left'),
+        ('Equipo',  3.80, 'left'),
+        ('Pos.',    6.00, 'left'),
+        ('Edad',    7.00, 'center'),
+        ('Mins',    7.75, 'right'),
+        ('Similitud', 9.65, 'right'),
+    ]:
+        ax.text(xpos, y - 0.08, txt, fontsize=7.5, color='#6b7280',
+                fontweight='bold', va='top', ha=align,
+                text_transform='upper' if False else None)
+    y -= 0.42
+    ax.axhline(y + 0.22, color='#2d3748', linewidth=0.5)
+
+    # ── Filas ───────────────────────────────────────────────────────────────
+    for rank, row in top.iterrows():
+        pname = row['Player']
+        sim   = row['Similitud']
+        info  = pool_df[pool_df['Player'] == pname]
+        team  = str(info[team_col].values[0]) if not info.empty else '—'
+        pos   = str(info['Position Group'].values[0]) if not info.empty else '—'
+        mins  = int(info['Minutes played'].values[0]) if not info.empty else 0
+        age_r = info['Age'].values[0] if (not info.empty and 'Age' in info.columns) else None
+        age   = int(age_r) if age_r is not None and pd.notnull(age_r) else '—'
+
+        # Color barra
+        if sim >= 85:   bar_col = '#22c55e'
+        elif sim >= 70: bar_col = '#84cc16'
+        elif sim >= 55: bar_col = '#eab308'
+        else:           bar_col = '#f97316'
+
+        row_y = y - 0.08
+        # Barra de fondo
+        bar_bg = FancyBboxPatch((8.05, row_y - 0.26), 1.50, 0.34,
+                                boxstyle="round,pad=0.02",
+                                facecolor='#1f2937', edgecolor='none')
+        ax.add_patch(bar_bg)
+        # Barra relleno
+        bar_w = 1.50 * (sim / 100.0)
+        bar_fill = FancyBboxPatch((8.05, row_y - 0.26), bar_w, 0.34,
+                                  boxstyle="round,pad=0.02",
+                                  facecolor=bar_col, edgecolor='none', alpha=0.85)
+        ax.add_patch(bar_fill)
+
+        ax.text(0.35, row_y, str(rank),    fontsize=9,  color='#4b5563', va='center', ha='center', fontweight='bold')
+        ax.text(0.65, row_y, pname[:26],   fontsize=9.5, color='#f1f5f9', va='center', ha='left', fontweight='bold')
+        ax.text(3.80, row_y, team[:22],    fontsize=8.5, color='#9ca3af', va='center', ha='left')
+        ax.text(6.00, row_y, pos[:14],     fontsize=7.5, color='#6b7280', va='center', ha='left')
+        ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#a78bfa', va='center', ha='center', fontweight='bold')
+        ax.text(7.75, row_y, f'{mins:,}',  fontsize=7.5, color='#6b7280', va='center', ha='right')
+        ax.text(9.65, row_y, f'{sim:.1f}%', fontsize=9.5, color='#fff',   va='center', ha='right', fontweight='bold')
+
+        y -= 0.52
+        ax.axhline(y + 0.28, color='#1a1f2e', linewidth=0.5)
+
+    # ── Footer / branding ───────────────────────────────────────────────────
+    ax.axhline(0.32, color='#2d3748', linewidth=0.8)
+    ax.text(5.0, 0.14, 'MARCA ZONAL · Jugadores Similares · PCA + Distancia Euclídea',
+            fontsize=7.5, color='#374151', va='center', ha='center', fontstyle='italic')
+
+    # Logo watermark
+    if logo_path and os.path.exists(logo_path):
+        try:
+            logo = mpimg.imread(logo_path)
+            logo_ax = fig.add_axes([0.80, 0.01, 0.14, 0.06])
+            logo_ax.imshow(logo, alpha=0.25)
+            logo_ax.axis('off')
+            logo_ax.patch.set_alpha(0)
+        except Exception:
+            pass
+
+    plt.tight_layout(pad=0.4)
+    return fig
+
+
 def _render_similarity_table(results, pool_df, team_col, top_n):
     """Renderiza la tabla de similitud como HTML con barras de porcentaje."""
     rows_html = ''
@@ -1414,6 +1527,8 @@ with tab_similar:
             sim_player_info = sim_pool[sim_pool['Player'] == sim_player].iloc[0]
             sim_player_team = str(sim_player_info.get(sim_team_col, ''))
             sim_player_mins = int(sim_player_info.get('Minutes played', 0))
+            _sim_age_raw = sim_player_info.get('Age', None)
+            sim_player_age = int(_sim_age_raw) if _sim_age_raw is not None and pd.notnull(_sim_age_raw) else '—'
 
             st.markdown(f"""
             <div style="background:#1a1f2e; border:1px solid #2d3748; border-radius:12px;
@@ -1421,7 +1536,9 @@ with tab_similar:
               <div>
                 <div style="font-size:1.4rem; font-weight:800; color:#f1f5f9;">{sim_player}</div>
                 <div style="color:#9ca3af; font-size:0.9rem; margin-top:4px;">
-                  {sim_player_team} &nbsp;·&nbsp; {sim_pos} &nbsp;·&nbsp; {sim_player_mins:,} mins
+                  {sim_player_team} &nbsp;·&nbsp; {sim_pos}
+                  &nbsp;·&nbsp; <span style="color:#a78bfa; font-weight:700;">{sim_player_age} años</span>
+                  &nbsp;·&nbsp; {sim_player_mins:,} mins
                 </div>
               </div>
             </div>
@@ -1435,6 +1552,33 @@ with tab_similar:
             st.markdown("---")
 
             _render_similarity_table(sim_results, sim_pool, sim_team_col, sim_top_n)
+
+            # Tarjeta descargable
+            fig_card = _create_similarity_card(
+                player_name=sim_player,
+                player_team=sim_player_team,
+                player_age=sim_player_age,
+                player_pos=sim_pos,
+                player_mins=sim_player_mins,
+                results=sim_results,
+                pool_df=sim_pool,
+                team_col=sim_team_col,
+                n_comp=sim_n_comp,
+                var_explained=sim_var,
+                top_n=sim_top_n,
+                logo_path=LOGO_BLANCO,
+            )
+            buf_card = io.BytesIO()
+            fig_card.savefig(buf_card, format='png', dpi=180, bbox_inches='tight',
+                             facecolor=fig_card.get_facecolor())
+            plt.close(fig_card)
+            st.download_button(
+                "⬇️ Descargar tarjeta",
+                buf_card.getvalue(),
+                file_name=f"similares_{sim_player.replace(' ', '_')}.png",
+                mime="image/png",
+                key="dl_sim_card",
+            )
 
 # ---------------------------------------------------------------------------
 # Footer — contador de visitas
