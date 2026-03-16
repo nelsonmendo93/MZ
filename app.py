@@ -5,8 +5,10 @@ import numpy as np
 import io
 import os
 import json
+import urllib.request
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.font_manager as _fm
 from collections import defaultdict
 
 from utils.data_processing import load_and_process_data
@@ -19,6 +21,45 @@ from utils.translations import translate
 _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_NEGRO = os.path.join(_APP_DIR, 'assets', 'logo_negro.png')
 LOGO_BLANCO = os.path.join(_APP_DIR, 'assets', 'logo_blanco.png')
+
+# ---------------------------------------------------------------------------
+# Fuente Cousine — descarga y registra automáticamente si no está disponible
+# ---------------------------------------------------------------------------
+def _setup_cousine_font():
+    """Registra la fuente Cousine en matplotlib.
+    Primero busca en assets/fonts/, luego intenta descargarla de Google Fonts."""
+    already = [f.name for f in _fm.fontManager.ttflist]
+    if 'Cousine' in already:
+        return 'Cousine'
+
+    font_dir = os.path.join(_APP_DIR, 'assets', 'fonts')
+    os.makedirs(font_dir, exist_ok=True)
+
+    _cousine_files = {
+        'Cousine-Regular.ttf': (
+            'https://github.com/google/fonts/raw/main/apache/cousine/Cousine-Regular.ttf'
+        ),
+        'Cousine-Bold.ttf': (
+            'https://github.com/google/fonts/raw/main/apache/cousine/Cousine-Bold.ttf'
+        ),
+    }
+    registered = False
+    for fname, url in _cousine_files.items():
+        fpath = os.path.join(font_dir, fname)
+        if not os.path.exists(fpath):
+            try:
+                urllib.request.urlretrieve(url, fpath)
+            except Exception:
+                continue
+        if os.path.exists(fpath):
+            _fm.fontManager.addfont(fpath)
+            registered = True
+
+    return 'Cousine' if registered else 'DejaVu Sans'
+
+_CHART_FONT = _setup_cousine_font()
+matplotlib.rcParams['font.family'] = _CHART_FONT
+matplotlib.rcParams['font.sans-serif'] = [_CHART_FONT, 'DejaVu Sans', 'Arial']
 
 # ---------------------------------------------------------------------------
 # Bar chart metrics — 4 categories for the comparison chart
@@ -712,10 +753,9 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
         title_text = player_name
         title_fs   = 15
     ax.text(0, 1.88, title_text, ha='center', va='top',
-            fontsize=title_fs, fontweight='bold', color='white',
-            fontfamily='sans-serif')
+            fontsize=title_fs, fontweight='bold', color='white')
     ax.text(0, 1.70, f'{team}  ·  {subtitle}', ha='center', va='top',
-            fontsize=9.5, color='#6b7280', fontfamily='sans-serif')
+            fontsize=9.5, color='#6b7280')
 
     # Leyenda
     if compare_mode:
