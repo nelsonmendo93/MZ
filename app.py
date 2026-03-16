@@ -1286,6 +1286,8 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
         team  = str(player_info[team_col].values[0]) if not player_info.empty else '—'
         pos   = str(player_info['Position Group'].values[0]) if not player_info.empty else '—'
         mins  = int(player_info['Minutes played'].values[0]) if not player_info.empty else 0
+        age_raw = player_info['Age'].values[0] if (not player_info.empty and 'Age' in player_info.columns) else None
+        age   = int(age_raw) if age_raw is not None and pd.notnull(age_raw) else '—'
 
         # Color de barra según similitud
         if sim >= 85:
@@ -1304,6 +1306,7 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
           <td class="pname">{pname}</td>
           <td class="team">{team}</td>
           <td class="pos">{pos}</td>
+          <td class="age">{age}</td>
           <td class="mins">{mins:,}</td>
           <td class="bar-cell">
             <div class="bar-bg">
@@ -1332,6 +1335,7 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
     .pname {{ font-weight: 700; color: #f1f5f9; min-width: 160px; }}
     .team  {{ color: #9ca3af; min-width: 130px; }}
     .pos   {{ color: #6b7280; font-size: 11px; min-width: 80px; }}
+    .age   {{ color: #a78bfa; font-size: 12px; font-weight: 700; text-align: center; min-width: 40px; }}
     .mins  {{ color: #6b7280; font-size: 11px; text-align: right; min-width: 60px; }}
     .bar-cell {{ width: 220px; }}
     .bar-bg {{
@@ -1346,6 +1350,7 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
       <thead>
         <tr>
           <th>#</th><th>Jugador</th><th>Equipo</th><th>Posición</th>
+          <th style="text-align:center">Edad</th>
           <th style="text-align:right">Mins</th><th>Similitud</th>
         </tr>
       </thead>
