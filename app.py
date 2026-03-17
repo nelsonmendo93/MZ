@@ -947,6 +947,7 @@ with tab_xy:
                            facecolor=fig_xy.get_facecolor())
             st.download_button("⬇️ Descargar grafica", buf.getvalue(),
                                file_name="grafico_xy_marcazonal.png", mime="image/png")
+            st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 3: Resumen Pentágono estilo Sofascore ----------------------------
 with tab_bar:
@@ -1062,6 +1063,7 @@ with tab_bar:
                     file_name=dl_fname,
                     mime="image/png", key="dl_pent"
                 )
+                st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
 
             # Tabla resumen de puntajes debajo del gráfico
             st.markdown("#### Detalle de puntajes")
@@ -1197,6 +1199,7 @@ with tab_pizza:
                     st.download_button("⬇️ Descargar gráfica", buf3.getvalue(),
                                        file_name="radial_marcazonal.png", mime="image/png",
                                        key="dl_pizza")
+                    st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 5: Jugadores Similares -------------------------------------------
 def _get_similarity_cols(df):
@@ -1579,6 +1582,7 @@ with tab_similar:
                 mime="image/png",
                 key="dl_sim_card",
             )
+            st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 6: Rankings ------------------------------------------------------
 # Columnas "Total" excluidas del ranking (no son métricas de rendimiento)
@@ -1880,6 +1884,7 @@ with tab_ranking:
             mime="image/png",
             key="dl_rk_card",
         )
+        st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---------------------------------------------------------------------------
 # Footer — contador de visitas
