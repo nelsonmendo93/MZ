@@ -1671,6 +1671,131 @@ def _render_ranking_table(ranking_df, metric_col, team_col):
     components.html(html, height=height, scrolling=True)
 
 
+def _create_ranking_card(ranking_df, metric_col, team_col,
+                         metric_label, tipo_label, pos_label, min_minutes,
+                         top_n=15, logo_path=None):
+    """Genera una figura matplotlib descargable con el ranking top-N."""
+    import matplotlib.image as mpimg
+    from matplotlib.patches import FancyBboxPatch
+
+    top = ranking_df.head(top_n).copy()
+    n_rows = len(top)
+    max_val = top[metric_col].max() if not top.empty else 1
+    if max_val == 0:
+        max_val = 1
+
+    fig_h = 3.2 + n_rows * 0.52
+    fig, ax = plt.subplots(figsize=(10, fig_h), facecolor='#0e1117')
+    ax.set_facecolor('#0e1117')
+    ax.axis('off')
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, fig_h)
+
+    y = fig_h
+
+    # ── Header con filtros ───────────────────────────────────────────────────
+    header_h = 1.1
+    header_box = FancyBboxPatch((0.15, y - header_h - 0.15), 9.7, header_h,
+                                boxstyle="round,pad=0.08",
+                                facecolor='#1a1f2e', edgecolor='#2d3748', linewidth=1)
+    ax.add_patch(header_box)
+    ax.text(0.45, y - 0.35, metric_label, fontsize=17, fontweight='bold',
+            color='#f1f5f9', va='top')
+
+    # Chips de filtro
+    chips = [
+        (tipo_label,   '#1e3a5f', '#60a5fa'),
+        (pos_label,    '#1a2e1a', '#4ade80'),
+    ]
+    if min_minutes > 0:
+        chips.append((f'+{min_minutes} min', '#2d1f3d', '#a78bfa'))
+    cx = 0.45
+    for chip_txt, bg, fg in chips:
+        chip_w = len(chip_txt) * 0.095 + 0.30
+        chip_box = FancyBboxPatch((cx, y - 0.88), chip_w, 0.30,
+                                  boxstyle="round,pad=0.04",
+                                  facecolor=bg, edgecolor='none')
+        ax.add_patch(chip_box)
+        ax.text(cx + chip_w / 2, y - 0.72, chip_txt,
+                fontsize=8.5, color=fg, va='center', ha='center', fontweight='bold')
+        cx += chip_w + 0.18
+
+    ax.text(9.65, y - 0.35, 'MARCA ZONAL', fontsize=9, color='#6b7280',
+            va='top', ha='right', fontstyle='italic')
+    ax.text(9.65, y - 0.62, 'Rankings · Apertura 2026', fontsize=7.5,
+            color='#4b5563', va='top', ha='right')
+    y -= (header_h + 0.35)
+
+    # ── Encabezado de columnas ───────────────────────────────────────────────
+    ax.axhline(y, color='#2d3748', linewidth=0.8)
+    for txt, xpos, align in [
+        ('#',        0.35, 'center'),
+        ('Jugador',  0.65, 'left'),
+        ('Equipo',   3.80, 'left'),
+        ('Posición', 6.10, 'left'),
+        ('Valor',    9.65, 'right'),
+    ]:
+        ax.text(xpos, y - 0.08, txt.upper(), fontsize=7.5, color='#6b7280',
+                fontweight='bold', va='top', ha=align)
+    y -= 0.42
+    ax.axhline(y + 0.22, color='#2d3748', linewidth=0.5)
+
+    # ── Filas ────────────────────────────────────────────────────────────────
+    for i, (_, row) in enumerate(top.iterrows(), start=1):
+        pname = row['Player']
+        team  = str(row.get(team_col, '—'))
+        pos   = str(row.get('Position Group', '—'))
+        val   = row[metric_col]
+        val_fmt = f"{val:.2f}" if isinstance(val, float) else str(val)
+        bar_w_frac = (val / max_val)
+
+        # Colores por posición
+        if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
+        elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
+        elif i == 3: rank_color, bar_color = '#b45309', '#cd7c2f'
+        else:        rank_color, bar_color = '#4b5563', '#3b82f6'
+
+        row_y = y - 0.08
+        # Barra fondo
+        bar_bg = FancyBboxPatch((5.95, row_y - 0.26), 3.55, 0.34,
+                                boxstyle="round,pad=0.02",
+                                facecolor='#1f2937', edgecolor='none')
+        ax.add_patch(bar_bg)
+        # Barra relleno
+        bar_fill = FancyBboxPatch((5.95, row_y - 0.26), 3.55 * bar_w_frac, 0.34,
+                                  boxstyle="round,pad=0.02",
+                                  facecolor=bar_color, edgecolor='none', alpha=0.85)
+        ax.add_patch(bar_fill)
+
+        ax.text(0.35,  row_y, str(i),      fontsize=9,   color=rank_color, va='center', ha='center', fontweight='bold')
+        ax.text(0.65,  row_y, pname[:26],  fontsize=9.5, color='#f1f5f9',  va='center', ha='left',   fontweight='bold')
+        ax.text(3.80,  row_y, team[:22],   fontsize=8.5, color='#9ca3af',  va='center', ha='left')
+        ax.text(6.10,  row_y, pos[:14],    fontsize=7.5, color='#6b7280',  va='center', ha='left')
+        ax.text(9.65,  row_y, val_fmt,     fontsize=10,  color='#fff',     va='center', ha='right',  fontweight='bold')
+
+        y -= 0.52
+        ax.axhline(y + 0.28, color='#1a1f2e', linewidth=0.5)
+
+    # ── Footer / branding ────────────────────────────────────────────────────
+    ax.axhline(0.32, color='#2d3748', linewidth=0.8)
+    ax.text(5.0, 0.14, 'MARCA ZONAL · Rankings · Portal de Datos del Fútbol Paraguayo',
+            fontsize=7.5, color='#374151', va='center', ha='center', fontstyle='italic')
+
+    # Logo watermark
+    if logo_path and os.path.exists(logo_path):
+        try:
+            logo = mpimg.imread(logo_path)
+            logo_ax = fig.add_axes([0.80, 0.01, 0.14, 0.06])
+            logo_ax.imshow(logo, alpha=0.25)
+            logo_ax.axis('off')
+            logo_ax.patch.set_alpha(0)
+        except Exception:
+            pass
+
+    plt.tight_layout(pad=0.4)
+    return fig
+
+
 with tab_ranking:
     st.subheader("Rankings de métricas")
 
@@ -1728,6 +1853,33 @@ with tab_ranking:
         st.markdown("---")
 
         _render_ranking_table(rk_data, rk_metric, rank_team_col)
+
+        # ── Tarjeta descargable (top 15) ────────────────────────────────────
+        _rk_tipo_label  = rk_tipo
+        _rk_pos_label   = rk_pos if rk_pos != "Todas las posiciones" else "Todas las posiciones"
+        fig_rk_card = _create_ranking_card(
+            ranking_df=rk_data,
+            metric_col=rk_metric,
+            team_col=rank_team_col,
+            metric_label=translate(rk_metric),
+            tipo_label=_rk_tipo_label,
+            pos_label=_rk_pos_label,
+            min_minutes=rk_min_minutes,
+            top_n=15,
+            logo_path=LOGO_BLANCO,
+        )
+        buf_rk = io.BytesIO()
+        fig_rk_card.savefig(buf_rk, format='png', dpi=180, bbox_inches='tight',
+                            facecolor=fig_rk_card.get_facecolor())
+        plt.close(fig_rk_card)
+        _rk_fname = f"ranking_{translate(rk_metric).replace(' ', '_')[:30]}.png"
+        st.download_button(
+            "⬇️ Descargar ranking (top 15)",
+            buf_rk.getvalue(),
+            file_name=_rk_fname,
+            mime="image/png",
+            key="dl_rk_card",
+        )
 
 # ---------------------------------------------------------------------------
 # Footer — contador de visitas
