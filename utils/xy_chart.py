@@ -104,24 +104,8 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
         spine.set_color('white')
         spine.set_linewidth(1)
 
-    # Watermark — logo centrado en el área del gráfico con opacidad 70%
-    import os
-    if logo_path and os.path.exists(logo_path):
-        try:
-            logo = mpimg.imread(logo_path)
-            # Centrado, 30% más grande, opacidad 10%
-            logo_ax = fig.add_axes([0.21, 0.27, 0.57, 0.47])
-            logo_ax.imshow(logo, alpha=0.1)
-            logo_ax.axis('off')
-            logo_ax.patch.set_alpha(0)   # fondo del axes transparente
-        except Exception:
-            fig.text(0.5, 0.5, '@marca_zonal', size=28, color='#ffffff',
-                     ha='center', va='center', alpha=0.7, fontstyle='italic',
-                     rotation=0)
-    else:
-        fig.text(0.5, 0.5, '@marca_zonal', size=28, color='#ffffff',
-                 ha='center', va='center', alpha=0.7, fontstyle='italic',
-                 rotation=0)
+    fig.text(0.5, 0.003, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+             size=9, color='#aaaaaa', ha='center', va='bottom', fontstyle='italic')
 
     fig.tight_layout()
     return fig

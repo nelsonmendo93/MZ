@@ -125,7 +125,8 @@ def create_pizza_chart(player_name, player_team, subtitle, params, values,
 
     # Credits
     fig.text(0.99, 0.02,
-             "DATAVIZ DE MARCA ZONAL\nMétricas per 90. Barras relativas\nal grupo de posición.",
+             "DATAVIZ DE MARCA ZONAL\nMétricas per 90. Barras relativas al grupo de posición.\n"
+             "𝕏: @marca_zonal  ·  Instagram: @marca.zonal",
              size=9, color="#F2F2F2", ha="right", fontstyle='italic')
 
     # Category legend: dots well spaced from their labels

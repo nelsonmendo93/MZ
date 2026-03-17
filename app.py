@@ -785,19 +785,8 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
 
     plt.tight_layout(pad=0.3)
 
-    # Watermark — logo encima de la leyenda con opacidad 20%
-    import matplotlib.image as mpimg
-    if os.path.exists(LOGO_BLANCO):
-        try:
-            logo = mpimg.imread(LOGO_BLANCO)
-            # Posición: centrado horizontalmente, 20% más arriba de la leyenda
-            logo_ax = fig.add_axes([0.115, 0.19, 0.77, 0.084])
-            logo_ax.imshow(logo, alpha=0.14)
-            logo_ax.axis('off')
-            logo_ax.patch.set_alpha(0)   # fondo transparente
-        except Exception:
-            fig.text(0.5, 0.06, '@marca_zonal', size=8, color='#ffffff',
-                     ha='center', alpha=0.2, fontstyle='italic')
+    fig.text(0.5, 0.02, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+             size=7.5, color='#6b7280', ha='center', fontstyle='italic')
 
     return fig
 
@@ -1373,19 +1362,10 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
 
     # ── Footer / branding ───────────────────────────────────────────────────
     ax.axhline(0.32, color='#2d3748', linewidth=0.8)
-    ax.text(5.0, 0.14, 'MARCA ZONAL · Jugadores Similares · PCA + Distancia Euclídea',
+    ax.text(5.0, 0.22, 'MARCA ZONAL · Jugadores Similares · PCA + Distancia Euclídea',
             fontsize=7.5, color='#374151', va='center', ha='center', fontstyle='italic')
-
-    # Logo watermark
-    if logo_path and os.path.exists(logo_path):
-        try:
-            logo = mpimg.imread(logo_path)
-            logo_ax = fig.add_axes([0.80, 0.01, 0.14, 0.06])
-            logo_ax.imshow(logo, alpha=0.25)
-            logo_ax.axis('off')
-            logo_ax.patch.set_alpha(0)
-        except Exception:
-            pass
+    ax.text(5.0, 0.07, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+            fontsize=7.5, color='#4b5563', va='center', ha='center', fontstyle='italic')
 
     plt.tight_layout(pad=0.4)
     return fig
@@ -1782,19 +1762,10 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
 
     # ── Footer / branding ────────────────────────────────────────────────────
     ax.axhline(0.32, color='#2d3748', linewidth=0.8)
-    ax.text(5.0, 0.14, 'MARCA ZONAL · Rankings · Portal de Datos del Fútbol Paraguayo',
+    ax.text(5.0, 0.22, 'MARCA ZONAL · Rankings · Portal de Datos del Fútbol Paraguayo',
             fontsize=7.5, color='#374151', va='center', ha='center', fontstyle='italic')
-
-    # Logo watermark
-    if logo_path and os.path.exists(logo_path):
-        try:
-            logo = mpimg.imread(logo_path)
-            logo_ax = fig.add_axes([0.80, 0.01, 0.14, 0.06])
-            logo_ax.imshow(logo, alpha=0.25)
-            logo_ax.axis('off')
-            logo_ax.patch.set_alpha(0)
-        except Exception:
-            pass
+    ax.text(5.0, 0.07, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+            fontsize=7.5, color='#4b5563', va='center', ha='center', fontstyle='italic')
 
     plt.tight_layout(pad=0.4)
     return fig
