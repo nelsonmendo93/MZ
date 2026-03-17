@@ -1580,7 +1580,7 @@ _TOTAL_COLS = sorted([
 _PER90_COLS = sorted([c for c in df.columns if c.endswith(' per 90')])
 
 
-def _render_ranking_table(ranking_df, metric_col, team_col):
+def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
     """Renderiza el ranking como tabla HTML con barras proporcionales al máximo."""
     max_val = ranking_df[metric_col].max()
     if max_val == 0:
@@ -1592,7 +1592,7 @@ def _render_ranking_table(ranking_df, metric_col, team_col):
         team  = str(row.get(team_col, '—'))
         pos   = str(row.get('Position Group', '—'))
         val   = row[metric_col]
-        val_fmt = f"{val:.2f}" if isinstance(val, float) else str(val)
+        val_fmt = str(int(val)) if is_total else (f"{val:.2f}" if isinstance(val, float) else str(val))
         bar_w = max(int((val / max_val) * 100), 1)
 
         # Color del top 3
@@ -1657,7 +1657,7 @@ def _render_ranking_table(ranking_df, metric_col, team_col):
 
 def _create_ranking_card(ranking_df, metric_col, team_col,
                          metric_label, tipo_label, pos_label, min_minutes,
-                         top_n=15, logo_path=None):
+                         top_n=15, logo_path=None, is_total=False):
     """Genera una figura matplotlib descargable con el ranking top-N."""
     import matplotlib.image as mpimg
     from matplotlib.patches import FancyBboxPatch
@@ -1730,7 +1730,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
         team  = str(row.get(team_col, '—'))
         pos   = str(row.get('Position Group', '—'))
         val   = row[metric_col]
-        val_fmt = f"{val:.2f}" if isinstance(val, float) else str(val)
+        val_fmt = str(int(val)) if is_total else (f"{val:.2f}" if isinstance(val, float) else str(val))
         bar_w_frac = (val / max_val)
 
         # Colores por posición
@@ -1827,7 +1827,7 @@ with tab_ranking:
         )
         st.markdown("---")
 
-        _render_ranking_table(rk_data, rk_metric, rank_team_col)
+        _render_ranking_table(rk_data, rk_metric, rank_team_col, is_total=(rk_tipo == "Total"))
 
         # ── Tarjeta descargable (top 15) ────────────────────────────────────
         _rk_tipo_label  = rk_tipo
@@ -1842,6 +1842,7 @@ with tab_ranking:
             min_minutes=rk_min_minutes,
             top_n=15,
             logo_path=LOGO_BLANCO,
+            is_total=(rk_tipo == "Total"),
         )
         buf_rk = io.BytesIO()
         fig_rk_card.savefig(buf_rk, format='png', dpi=180, bbox_inches='tight',
