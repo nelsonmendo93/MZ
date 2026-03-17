@@ -785,7 +785,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
 
     plt.tight_layout(pad=0.3)
 
-    fig.text(0.5, 0.02, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+    fig.text(0.5, 0.1, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
              size=7.5, color='#6b7280', ha='center', fontstyle='italic')
 
     return fig
