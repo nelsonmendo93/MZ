@@ -420,8 +420,8 @@ st.markdown(f"""
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_table, tab_xy, tab_bar, tab_pizza, tab_similar = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares"]
+tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking = st.tabs(
+    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -1579,6 +1579,155 @@ with tab_similar:
                 mime="image/png",
                 key="dl_sim_card",
             )
+
+# ---- Tab 6: Rankings ------------------------------------------------------
+# Columnas "Total" excluidas del ranking (no son métricas de rendimiento)
+_RANKING_EXCLUDE = {'Age', 'Height', 'Weight'}
+
+_TOTAL_COLS = sorted([
+    c for c in df.columns
+    if not c.endswith(' per 90')
+    and not c.endswith(', %')
+    and c not in NON_METRIC_COLS
+    and c not in _RANKING_EXCLUDE
+    and pd.api.types.is_numeric_dtype(df[c])
+])
+
+_PER90_COLS = sorted([c for c in df.columns if c.endswith(' per 90')])
+
+
+def _render_ranking_table(ranking_df, metric_col, team_col):
+    """Renderiza el ranking como tabla HTML con barras proporcionales al máximo."""
+    max_val = ranking_df[metric_col].max()
+    if max_val == 0:
+        max_val = 1
+
+    rows_html = ''
+    for i, (_, row) in enumerate(ranking_df.iterrows(), start=1):
+        pname = row['Player']
+        team  = str(row.get(team_col, '—'))
+        pos   = str(row.get('Position Group', '—'))
+        val   = row[metric_col]
+        val_fmt = f"{val:.2f}" if isinstance(val, float) else str(val)
+        bar_w = max(int((val / max_val) * 100), 1)
+
+        # Color del top 3
+        if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
+        elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
+        elif i == 3: rank_color, bar_color = '#b45309', '#b45309'
+        else:        rank_color, bar_color = '#4b5563', '#3b82f6'
+
+        rows_html += f"""
+        <tr>
+          <td class="rank" style="color:{rank_color};">{i}</td>
+          <td class="pname">{pname}</td>
+          <td class="team">{team}</td>
+          <td class="pos">{pos}</td>
+          <td class="bar-cell">
+            <div class="bar-bg">
+              <div class="bar-fill" style="width:{bar_w}%; background:{bar_color};"></div>
+              <span class="bar-label">{val_fmt}</span>
+            </div>
+          </td>
+        </tr>"""
+
+    n_rows = len(ranking_df)
+    height = n_rows * 42 + 80
+
+    html = f"""<!DOCTYPE html><html><head><style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ font-family: 'Cousine', monospace; background: #0e1117; color: #b0b8c8; padding: 6px 2px; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th {{
+        font-size: 10px; font-weight: 700; color: #6b7280;
+        text-transform: uppercase; letter-spacing: 1px;
+        padding: 8px 10px; border-bottom: 1px solid #2d3748; text-align: left;
+    }}
+    td {{ padding: 6px 10px; border-bottom: 1px solid #1a1f2e; font-size: 13px; vertical-align: middle; }}
+    tr:hover td {{ background: #1a1f2e; }}
+    .rank  {{ width: 36px; font-weight: 800; font-size: 15px; text-align: center; }}
+    .pname {{ font-weight: 700; color: #f1f5f9; min-width: 160px; }}
+    .team  {{ color: #9ca3af; min-width: 130px; }}
+    .pos   {{ color: #6b7280; font-size: 11px; min-width: 90px; }}
+    .bar-cell {{ width: 260px; }}
+    .bar-bg {{
+        position: relative; background: rgba(255,255,255,0.07);
+        border-radius: 4px; height: 26px; overflow: hidden;
+        display: flex; align-items: center;
+    }}
+    .bar-fill {{ position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; opacity: 0.80; }}
+    .bar-label {{ position: relative; z-index: 1; padding-left: 10px; font-size: 13px; font-weight: 800; color: #fff; }}
+    </style></head><body>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Jugador</th><th>Equipo</th><th>Posición</th><th>Valor</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}</tbody>
+    </table>
+    </body></html>"""
+
+    components.html(html, height=height, scrolling=True)
+
+
+with tab_ranking:
+    st.subheader("Rankings de métricas")
+
+    rank_team_col = 'Team within selected timeframe' if 'Team within selected timeframe' in df.columns else 'Team'
+
+    # ── Fila 1: tipo de métrica + posición (opcional) ──────────────────────
+    rk_col1, rk_col2 = st.columns([1, 1])
+    with rk_col1:
+        rk_tipo = st.selectbox("Tipo de métrica", ["Por 90", "Total"], key="rk_tipo")
+    with rk_col2:
+        rk_pos_opts = ["Todas las posiciones"] + sorted(df['Position Group'].dropna().unique())
+        rk_pos = st.selectbox("Posición (opcional)", rk_pos_opts, key="rk_pos")
+
+    # ── Slider de minutos solo para Por 90 ─────────────────────────────────
+    if rk_tipo == "Por 90":
+        rk_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
+        rk_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
+        rk_min_minutes = st.slider(
+            "Minutos mínimos jugados", rk_min_v, rk_max_v,
+            value=min(200, rk_max_v), key="rk_min_minutes"
+        )
+    else:
+        rk_min_minutes = 0
+
+    # ── Selector de métrica ─────────────────────────────────────────────────
+    rk_metric_cols = _PER90_COLS if rk_tipo == "Por 90" else _TOTAL_COLS
+    rk_metric = st.selectbox(
+        "Métrica", rk_metric_cols,
+        format_func=translate,
+        key="rk_metric"
+    )
+
+    # ── Construir pool ──────────────────────────────────────────────────────
+    rk_pool = df.copy()
+    if rk_pos != "Todas las posiciones":
+        rk_pool = rk_pool[rk_pool['Position Group'] == rk_pos]
+    if rk_min_minutes > 0 and 'Minutes played' in rk_pool.columns:
+        rk_pool = rk_pool[rk_pool['Minutes played'] >= rk_min_minutes]
+
+    if rk_metric not in rk_pool.columns:
+        st.warning("La métrica seleccionada no está disponible en los datos.")
+    elif rk_pool.empty:
+        st.warning("No hay jugadores que cumplan los filtros seleccionados.")
+    else:
+        rk_data = rk_pool[['Player', rank_team_col, 'Position Group', rk_metric]].copy()
+        rk_data = rk_data.dropna(subset=[rk_metric])
+        rk_data = rk_data.sort_values(rk_metric, ascending=False).reset_index(drop=True)
+
+        n_ranked = len(rk_data)
+        pos_label = rk_pos if rk_pos != "Todas las posiciones" else "todos los jugadores"
+        mins_label = f" · +{rk_min_minutes} min" if rk_min_minutes > 0 else ""
+        st.caption(
+            f"**{translate(rk_metric)}** · {n_ranked} jugadores · {pos_label}{mins_label} · Apertura 2026"
+        )
+        st.markdown("---")
+
+        _render_ranking_table(rk_data, rk_metric, rank_team_col)
 
 # ---------------------------------------------------------------------------
 # Footer — contador de visitas
