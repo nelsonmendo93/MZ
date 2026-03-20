@@ -171,22 +171,30 @@ st.markdown("""
 col1, col2 = st.columns(2, gap="large")
 
 with col1:
-    if st.button("📊  Estadísticas de Jugadores\n\nAnálisis individual, radares, XY y rankings", use_container_width=True):
+    if st.button("ESTADÍSTICAS\nFÚTBOL PARAGUAYO", use_container_width=True):
         st.switch_page("pages/1_📊_Jugadores.py")
 
 with col2:
-    if st.button("⚽  Predictor de Partidos\n\nProbabilidades, xG, corners y tarjetas", use_container_width=True):
+    if st.button("ÍNDICE DE PROBABILIDADES\nFÚTBOL PARAGUAYO", use_container_width=True):
         st.switch_page("pages/2_⚽_Predictor.py")
 
 # ---------------------------------------------------------------------------
-# Contador
+# Footer — contador + redes sociales
 # ---------------------------------------------------------------------------
-st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-_, cc, _ = st.columns([2, 1, 2])
-with cc:
-    st.markdown(f"""
-    <div class="counter-wrap">
-        <div class="counter-num">{_visit_count:,}</div>
-        <div class="counter-label">👁 Visitas totales</div>
+st.markdown("---")
+st.markdown(f"""
+<div style="display:flex;align-items:center;justify-content:space-between;
+            padding:0.6rem 0.2rem;flex-wrap:wrap;gap:0.5rem;">
+    <div style="font-size:0.78rem;color:#64748b;font-family:'Cousine',monospace;">
+        👁️ Visitas a la app: <strong style="color:#0ea5e9;">{_visit_count:,}</strong>
+        &nbsp;·&nbsp; Marca Zonal · Apertura 2026
     </div>
-    """, unsafe_allow_html=True)
+    <div style="font-size:0.78rem;color:#64748b;font-family:'Cousine',monospace;">
+        𝕏 <a href="https://x.com/marca_zonal" target="_blank"
+              style="color:#64748b;text-decoration:none;">@marca_zonal</a>
+        &nbsp;·&nbsp;
+        📷 <a href="https://instagram.com/marca.zonal" target="_blank"
+               style="color:#64748b;text-decoration:none;">@marca.zonal</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
