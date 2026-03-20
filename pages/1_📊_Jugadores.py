@@ -243,7 +243,7 @@ h1, h2, h3 {
 
 # Botón volver al inicio
 if st.button("← Volver al inicio"):
-    st.switch_page("Inicio.py")
+    st.switch_page("app.py")
 
 st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
 

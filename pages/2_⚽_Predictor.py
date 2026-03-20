@@ -739,7 +739,7 @@ teams = sorted(set(matches["home_team"].tolist() + matches["away_team"].tolist()
 
 # --- BOTÓN VOLVER ---
 if st.button("← Volver al inicio"):
-    st.switch_page("Inicio.py")
+    st.switch_page("app.py")
 st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
 
 # --- HEADER ---
