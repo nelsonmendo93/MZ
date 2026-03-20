@@ -20,7 +20,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# CSS — Marca Zonal dark theme
+# CSS
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -37,140 +37,98 @@ h1, h2, h3 {
     font-weight: 700 !important;
 }
 
-footer { visibility: hidden; }
-#MainMenu { visibility: hidden; }
-header { visibility: hidden; }
+/* Ocultar sidebar y botón de colapso completamente */
+[data-testid="stSidebar"]          { display: none !important; }
+[data-testid="collapsedControl"]   { display: none !important; }
+footer                             { visibility: hidden; }
+#MainMenu                          { visibility: hidden; }
+header                             { visibility: hidden; }
 
 .block-container {
-    padding-top: 1.5rem !important;
+    padding-top: 2rem !important;
     padding-bottom: 2rem !important;
-    max-width: 900px !important;
+    max-width: 820px !important;
 }
 
-/* Hero card */
-.hero-wrap {
+/* Bienvenida */
+.bienvenida-wrap {
     text-align: center;
-    padding: 3rem 2rem 2.5rem;
+    padding: 3rem 2rem 2rem;
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     border-radius: 20px;
     border: 1px solid rgba(14,165,233,0.2);
     margin-bottom: 2.5rem;
 }
 
-.hero-title {
+.bienvenida-title {
     font-family: 'Poppins', sans-serif !important;
-    font-size: 2.8rem;
+    font-size: 1.6rem;
     font-weight: 800;
     color: #e2e8f0;
-    margin: 1rem 0 0.5rem;
-    letter-spacing: -1px;
+    letter-spacing: 1px;
+    line-height: 1.3;
+    margin: 1.2rem 0 0.6rem;
 }
 
-.hero-sub {
-    font-size: 1rem;
-    color: #94a3b8;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 1.5rem;
-}
-
-.hero-badge {
-    display: inline-block;
-    background: rgba(14,165,233,0.12);
-    border: 1px solid rgba(14,165,233,0.35);
-    color: #0ea5e9;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 0.3rem 1rem;
-    border-radius: 20px;
-    margin-bottom: 0.5rem;
-}
-
-/* Module cards */
-.mod-card {
-    background: rgba(30,41,59,0.7);
-    border: 1px solid rgba(148,163,184,0.1);
-    border-radius: 16px;
-    padding: 2rem 1.5rem;
-    text-align: center;
-    transition: border-color 0.2s;
-    height: 100%;
-}
-
-.mod-card:hover {
-    border-color: rgba(14,165,233,0.4);
-}
-
-.mod-icon {
-    font-size: 2.5rem;
-    margin-bottom: 0.8rem;
-}
-
-.mod-title {
-    font-family: 'Poppins', sans-serif !important;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #e2e8f0;
-    margin-bottom: 0.5rem;
-}
-
-.mod-desc {
-    font-size: 0.82rem;
+.bienvenida-sub {
+    font-size: 0.95rem;
     color: #64748b;
-    line-height: 1.6;
+    letter-spacing: 1px;
+    margin-bottom: 0.2rem;
 }
 
-.mod-tag {
-    display: inline-block;
-    margin-top: 1rem;
-    background: rgba(14,165,233,0.1);
-    color: #38bdf8;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    padding: 0.2rem 0.7rem;
-    border-radius: 12px;
+/* Botones de navegación */
+.stButton > button {
+    width: 100%;
+    padding: 1.6rem 1rem !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px;
+    background: rgba(30,41,59,0.8) !important;
+    color: #e2e8f0 !important;
+    border: 1px solid rgba(148,163,184,0.15) !important;
+    border-radius: 14px !important;
+    transition: all 0.2s ease !important;
+    margin-top: 0.2rem;
 }
 
-/* Visit counter */
+.stButton > button:hover {
+    background: rgba(14,165,233,0.12) !important;
+    border-color: rgba(14,165,233,0.45) !important;
+    color: #0ea5e9 !important;
+    transform: translateY(-2px);
+}
+
+/* Contador */
 .counter-wrap {
     text-align: center;
-    padding: 1.2rem;
-    background: rgba(30,41,59,0.5);
+    padding: 1rem;
+    background: rgba(30,41,59,0.4);
     border-radius: 12px;
-    border: 1px solid rgba(148,163,184,0.08);
+    border: 1px solid rgba(148,163,184,0.07);
     margin-top: 2rem;
 }
 
 .counter-num {
     font-family: 'Poppins', sans-serif !important;
-    font-size: 2rem;
+    font-size: 1.8rem;
     font-weight: 800;
     color: #0ea5e9;
 }
 
 .counter-label {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #475569;
+    color: #334155;
     margin-top: 0.2rem;
-}
-
-/* divider */
-.mz-divider {
-    border: none;
-    border-top: 1px solid rgba(148,163,184,0.1);
-    margin: 2rem 0;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Visit counter
+# Contador de visitas
 # ---------------------------------------------------------------------------
 _visit_count = count_visit()
 
@@ -185,78 +143,50 @@ if os.path.exists(LOGO_PATH):
 
 logo_html = (
     f'<img src="data:image/png;base64,{logo_b64}" '
-    f'style="height:90px;margin-bottom:0.5rem;" alt="Marca Zonal">'
-    if logo_b64 else ""
+    f'style="height:100px;margin-bottom:0.2rem;" alt="Marca Zonal">'
+    if logo_b64 else '<div style="font-size:3rem;">⚽</div>'
 )
 
 # ---------------------------------------------------------------------------
-# Hero
+# Hero — bienvenida
 # ---------------------------------------------------------------------------
 st.markdown(f"""
-<div class="hero-wrap">
+<div class="bienvenida-wrap">
     {logo_html}
-    <div class="hero-title">Marca Zonal</div>
-    <div class="hero-sub">Portal de análisis · División Profesional de Paraguay</div>
-    <div class="hero-badge">⚽ Apertura 2026</div>
+    <div class="bienvenida-title">BIENVENIDOS AL PORTAL DE DATOS<br>DE MARCA ZONAL</div>
+    <div class="bienvenida-sub">División Profesional de Paraguay · Apertura 2026</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Module cards
+# Selector de función
 # ---------------------------------------------------------------------------
+st.markdown("""
+<p style="text-align:center;font-family:'Poppins',sans-serif;font-size:1rem;
+          font-weight:700;color:#94a3b8;letter-spacing:1px;margin-bottom:1.2rem;">
+    Seleccione qué función le gustaría observar
+</p>
+""", unsafe_allow_html=True)
+
 col1, col2 = st.columns(2, gap="large")
 
 with col1:
-    st.markdown("""
-    <div class="mod-card">
-        <div class="mod-icon">📊</div>
-        <div class="mod-title">Portal de Jugadores</div>
-        <div class="mod-desc">
-            Explorá estadísticas individuales, gráficos XY, radares de rendimiento,
-            rankings y comparativas de similares para todos los jugadores del torneo.
-        </div>
-        <div class="mod-tag">Wyscout · Player Stats</div>
-    </div>
-    """, unsafe_allow_html=True)
+    if st.button("📊  Estadísticas de Jugadores\n\nAnálisis individual, radares, XY y rankings", use_container_width=True):
+        st.switch_page("pages/1_📊_Jugadores.py")
 
 with col2:
-    st.markdown("""
-    <div class="mod-card">
-        <div class="mod-icon">⚽</div>
-        <div class="mod-title">Predictor de Partidos</div>
-        <div class="mod-desc">
-            Modelo Poisson basado en xG, forma reciente y estadísticas de equipo.
-            Probabilidades 1X2, marcadores esperados, corners, tarjetas y panel comparativo.
-        </div>
-        <div class="mod-tag">Poisson · xG · Team Stats</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("""
-<p style="text-align:center;color:#475569;font-size:0.78rem;margin-top:1rem;">
-    Usá el menú lateral ← para navegar entre secciones
-</p>
-""", unsafe_allow_html=True)
+    if st.button("⚽  Predictor de Partidos\n\nProbabilidades, xG, corners y tarjetas", use_container_width=True):
+        st.switch_page("pages/2_⚽_Predictor.py")
 
 # ---------------------------------------------------------------------------
-# Visit counter display
+# Contador
 # ---------------------------------------------------------------------------
-st.markdown('<hr class="mz-divider">', unsafe_allow_html=True)
-
-c1, c2, c3 = st.columns([2, 1, 2])
-with c2:
+st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+_, cc, _ = st.columns([2, 1, 2])
+with cc:
     st.markdown(f"""
     <div class="counter-wrap">
         <div class="counter-num">{_visit_count:,}</div>
-        <div class="counter-label">👁️ Visitas totales</div>
+        <div class="counter-label">👁 Visitas totales</div>
     </div>
     """, unsafe_allow_html=True)
-
-# ---------------------------------------------------------------------------
-# Footer
-# ---------------------------------------------------------------------------
-st.markdown("""
-<p style="text-align:center;color:#1e293b;font-size:0.7rem;margin-top:2rem;">
-    Marca Zonal · Datos: Wyscout · Apertura 2026
-</p>
-""", unsafe_allow_html=True)

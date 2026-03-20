@@ -55,7 +55,8 @@ h1, h2, h3 {
 }
 
 /* Hide sidebar and top bar */
-[data-testid="stSidebar"] { display: none !important; }
+[data-testid="stSidebar"]        { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 header { visibility: hidden; }
@@ -735,6 +736,11 @@ except Exception as e:
     st.stop()
 
 teams = sorted(set(matches["home_team"].tolist() + matches["away_team"].tolist()))
+
+# --- BOTÓN VOLVER ---
+if st.button("← Volver al inicio"):
+    st.switch_page("Inicio.py")
+st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
 
 # --- HEADER ---
 logo_data = logo_b64()

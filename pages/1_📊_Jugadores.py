@@ -234,9 +234,18 @@ h1, h2, h3 {
     border-radius: 10px;
     overflow: hidden;
 }
+
+/* Ocultar sidebar completamente */
+[data-testid="stSidebar"]        { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
+# Botón volver al inicio
+if st.button("← Volver al inicio"):
+    st.switch_page("Inicio.py")
+
+st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # Load data
