@@ -137,6 +137,9 @@ NON_METRIC_COLS = {
 HIDDEN_TABLE_COLS = {
     'Position', 'Position Group', 'Contract expires', 'Market value',
     'Team within selected timeframe', 'Passport country', 'On loan',
+    # Excluidas del pentágono y tabla: penales tienen mucho ruido (0 cuando no hay intentos)
+    'Penalty conversion, %',
+    'Direct free kicks on target, %',
 }
 
 # ---------------------------------------------------------------------------
@@ -284,7 +287,7 @@ def categorize_metric(col_name):
         return '\u2197\ufe0f Centros'
     if 'penalty area' in cl:
         return '\U0001f4d0 Pases'
-    if any(k in cl for k in ['goal', 'shot', 'xg', 'penalty', 'conversion']):
+    if any(k in cl for k in ['goal', 'shot', 'xg', 'conversion']):
         return '\u26bd Goles y Remates'
     if 'cross' in cl or 'flank' in cl:
         return '\u2197\ufe0f Centros'
