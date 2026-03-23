@@ -7,7 +7,16 @@ echo.
 cd /d "%~dp0"
 
 git pull origin main
-git push origin main
+
+git add -A
+
+git diff --cached --quiet
+if %ERRORLEVEL% == 0 (
+    echo No hay cambios nuevos para subir.
+) else (
+    git commit -m "update: actualizacion de datos"
+    git push origin main
+)
 
 echo.
 echo ================================================
