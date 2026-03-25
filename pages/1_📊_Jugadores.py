@@ -343,17 +343,15 @@ CATEGORY_ORDER = [
     '\u26bd Goles y Remates', '\U0001f3af Creaci\u00f3n', '\U0001f4d0 Pases',
     '\u2197\ufe0f Centros', '\u26a1 Posesi\u00f3n', '\U0001f4aa Duelos',
     '\U0001f6e1\ufe0f Defensa', '\U0001f4e5 Recepci\u00f3n',
-    '\U0001f4cb Disciplina', '\U0001f4ca Otros',
+    '\U0001f4cb Disciplina',
 ]
 
 GK_CATEGORY_ORDER = [
     '\U0001f945 Porter\u00eda',
     '\U0001f4d0 Distribuci\u00f3n',
-    '\U0001f6e1\ufe0f Acciones Def.',
     '\U0001f4aa Duelos A\u00e9reos',
     '\U0001f4e5 Recepci\u00f3n',
     '\U0001f4cb Disciplina',
-    '\U0001f4ca Otros',
 ]
 
 # ---------------------------------------------------------------------------
@@ -415,11 +413,6 @@ _GK_DISPLAY_COLS = [
     # Duelos aéreos
     'Aerial duels per 90',
     'Aerial duels won, %',
-    # Acciones defensivas
-    'Successful defensive actions per 90',
-    'Interceptions per 90',
-    'Shots blocked per 90',
-    'Sliding tackles per 90',
     # Disciplina
     'Yellow cards per 90',
 ]
@@ -457,6 +450,16 @@ def _get_display_cols_gk(df):
 
 # Métricas GK donde menor valor = mejor rendimiento → percentil invertido
 _GK_LOWER_IS_BETTER = {'Conceded goals', 'Conceded goals per 90'}
+
+# Métricas exclusivas de portero — solo visibles en XY cuando se selecciona Portero
+_GK_ONLY_METRICS = {
+    'Conceded goals per 90',
+    'xG against per 90',
+    'Prevented goals per 90',
+    'Shots against per 90',
+    'Exits per 90',
+    'Back passes received as GK per 90',
+}
 
 
 # ---------------------------------------------------------------------------
@@ -736,18 +739,15 @@ CATEGORY_COLORS = {
     '\U0001f4e5 Recepci\u00f3n':     '#38bdf8',   # sky claro
     '\U0001f4cb Disciplina':         '#6b7280',   # gris
     '\U0001f945 Pelota Parada':      '#f59e0b',   # amber
-    '\U0001f4ca Otros':              '#94a3b8',   # slate
 }
 
 # Colores para categorías de portero
 GK_CATEGORY_COLORS = {
     '\U0001f945 Porter\u00eda':       '#10b981',   # emerald verde
     '\U0001f4d0 Distribuci\u00f3n':  '#0ea5e9',   # sky blue
-    '\U0001f6e1\ufe0f Acciones Def.':'#f97316',   # naranja
     '\U0001f4aa Duelos A\u00e9reos': '#a78bfa',   # violeta
     '\U0001f4e5 Recepci\u00f3n':     '#38bdf8',   # sky claro
     '\U0001f4cb Disciplina':         '#6b7280',   # gris
-    '\U0001f4ca Otros':              '#94a3b8',   # slate
 }
 
 
@@ -1307,8 +1307,13 @@ with tab_xy:
     with xy_sel2:
         xy_selected_player = st.selectbox("Jugador destacado", xy_players, key="xy_player")
 
-    # Only per-90 metrics
-    per90_columns = sorted([c for c in metric_columns if c.endswith(' per 90')])
+    # Only per-90 metrics — métricas GK exclusivas solo si se selecciona Portero
+    xy_is_gk = (xy_pos_group == 'Portero')
+    per90_columns = sorted([
+        c for c in metric_columns
+        if c.endswith(' per 90')
+        and (xy_is_gk or c not in _GK_ONLY_METRICS)
+    ])
     if not per90_columns:
         st.warning("No se encontraron métricas 'por 90' en los datos.")
     else:
