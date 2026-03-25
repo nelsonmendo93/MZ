@@ -272,7 +272,7 @@ metric_columns = sorted([
 # Metric categorization for organized display
 # ---------------------------------------------------------------------------
 def categorize_metric(col_name):
-    """Group a metric into a display category."""
+    """Group a metric into a display category (outfield players)."""
     cl = col_name.lower()
     if 'shots blocked' in cl:
         return '\U0001f6e1\ufe0f Defensa'
@@ -305,11 +305,55 @@ def categorize_metric(col_name):
         return '\U0001f945 Pelota Parada'
     return '\U0001f4ca Otros'
 
+
+def categorize_metric_gk(col_name):
+    """Group a metric into a display category for goalkeepers."""
+    cl = col_name.lower()
+    # Portería — métricas bajo palos (va primero para evitar conflictos)
+    if any(k in cl for k in ['conceded', 'xg against', 'prevented', 'shots against',
+                               'clean sheet', 'save rate', 'exits']):
+        return '\U0001f945 Porter\u00eda'
+    # Distribución — métricas de pase/salida con balón
+    if any(k in cl for k in ['long pass', 'average pass', 'average long', 'progressive pass',
+                               'forward pass', 'pass to final', 'pass length']):
+        return '\U0001f4d0 Distribuci\u00f3n'
+    if any(k in cl for k in ['short / medium pass', 'accurate pass', 'pass per 90',
+                               'lateral pass', 'back pass', 'accurate back', 'accurate lateral',
+                               'accurate short', 'accurate forward']):
+        return '\U0001f4d0 Distribuci\u00f3n'
+    # Recepción — balones recibidos
+    if 'received' in cl:
+        return '\U0001f4e5 Recepci\u00f3n'
+    # Duelos aéreos y generales
+    if 'aerial' in cl:
+        return '\U0001f4aa Duelos A\u00e9reos'
+    if 'duel' in cl:
+        return '\U0001f4aa Duelos A\u00e9reos'
+    # Acciones defensivas
+    if any(k in cl for k in ['defensive', 'sliding', 'intercept', 'shots blocked', 'cbit',
+                               'successful defensive']):
+        return '\U0001f6e1\ufe0f Acciones Def.'
+    # Disciplina
+    if any(k in cl for k in ['foul', 'card', 'yellow', 'red']):
+        return '\U0001f4cb Disciplina'
+    return '\U0001f4ca Otros'
+
+
 CATEGORY_ORDER = [
     '\u26bd Goles y Remates', '\U0001f3af Creaci\u00f3n', '\U0001f4d0 Pases',
     '\u2197\ufe0f Centros', '\u26a1 Posesi\u00f3n', '\U0001f4aa Duelos',
     '\U0001f6e1\ufe0f Defensa', '\U0001f4e5 Recepci\u00f3n',
     '\U0001f4cb Disciplina', '\U0001f4ca Otros',
+]
+
+GK_CATEGORY_ORDER = [
+    '\U0001f945 Porter\u00eda',
+    '\U0001f4d0 Distribuci\u00f3n',
+    '\U0001f6e1\ufe0f Acciones Def.',
+    '\U0001f4aa Duelos A\u00e9reos',
+    '\U0001f4e5 Recepci\u00f3n',
+    '\U0001f4cb Disciplina',
+    '\U0001f4ca Otros',
 ]
 
 # ---------------------------------------------------------------------------
@@ -325,10 +369,57 @@ _ALWAYS_COLS = {
     'Received long passes per 90',
 }
 
+# Columnas GK curadas: portería, distribución, duelos aéreos, acciones defensivas
+_GK_DISPLAY_COLS = [
+    # Portería — rendimiento bajo palos
+    'Conceded goals',
+    'Conceded goals per 90',
+    'xG against',
+    'xG against per 90',
+    'Prevented goals',
+    'Prevented goals per 90',
+    'Shots against',
+    'Shots against per 90',
+    'Clean sheets',
+    'Save rate, %',
+    'Exits per 90',
+    # Distribución — calidad de pase
+    'Accurate passes, %',
+    'Accurate long passes, %',
+    'Accurate forward passes, %',
+    'Accurate short / medium passes, %',
+    'Accurate progressive passes, %',
+    'Accurate passes to final third, %',
+    'Long passes per 90',
+    'Progressive passes per 90',
+    'Passes to final third per 90',
+    'Forward passes per 90',
+    'Average pass length, m',
+    'Average long pass length, m',
+    # Recepción
+    'Received passes per 90',
+    'Received long passes per 90',
+    # Duelos aéreos
+    'Aerial duels per 90',
+    'Aerial duels won, %',
+    'Duels per 90',
+    'Duels won, %',
+    # Acciones defensivas
+    'Successful defensive actions per 90',
+    'Interceptions per 90',
+    'Defensive duels per 90',
+    'Defensive duels won, %',
+    'Shots blocked per 90',
+    'Sliding tackles per 90',
+    # Disciplina
+    'Yellow cards per 90',
+]
+
 
 def _get_display_cols(df):
     """Devuelve las columnas curadas para barras de percentiles y pentágono OVERALL.
-    Solo métricas de calidad: %, Accurate, won y categorías completas."""
+    Solo métricas de calidad: %, Accurate, won y categorías completas.
+    Excluye porteros — usar _get_display_cols_gk() para ellos."""
     return [
         c for c in df.columns
         if (c.endswith(' per 90') or c.endswith(', %'))
@@ -347,6 +438,12 @@ def _get_display_cols(df):
             c in _ALWAYS_COLS
         )
     ]
+
+
+def _get_display_cols_gk(df):
+    """Devuelve las columnas curadas para porteros."""
+    return [c for c in _GK_DISPLAY_COLS if c in df.columns
+            and pd.api.types.is_numeric_dtype(df[c])]
 
 
 # ---------------------------------------------------------------------------
@@ -629,6 +726,17 @@ CATEGORY_COLORS = {
     '\U0001f4ca Otros':              '#94a3b8',   # slate
 }
 
+# Colores para categorías de portero
+GK_CATEGORY_COLORS = {
+    '\U0001f945 Porter\u00eda':       '#10b981',   # emerald verde
+    '\U0001f4d0 Distribuci\u00f3n':  '#0ea5e9',   # sky blue
+    '\U0001f6e1\ufe0f Acciones Def.':'#f97316',   # naranja
+    '\U0001f4aa Duelos A\u00e9reos': '#a78bfa',   # violeta
+    '\U0001f4e5 Recepci\u00f3n':     '#38bdf8',   # sky claro
+    '\U0001f4cb Disciplina':         '#6b7280',   # gris
+    '\U0001f4ca Otros':              '#94a3b8',   # slate
+}
+
 
 def _compute_percentile(player_val, series):
     """Return 0-99 percentile of player_val within series.
@@ -745,6 +853,22 @@ PENTAGON_LABELS_ES = {
     'DEF': 'Defensa',
 }
 
+# Pentágono GK — 5 ejes con datos disponibles en el dataset
+GK_PENTAGON_GROUPS = {
+    'DIST': ['\U0001f4d0 Distribuci\u00f3n'],
+    'DUE':  ['\U0001f4aa Duelos A\u00e9reos'],
+    'DEF':  ['\U0001f6e1\ufe0f Acciones Def.'],
+    'REC':  ['\U0001f4e5 Recepci\u00f3n'],
+    'JUE':  ['\U0001f4d0 Distribuci\u00f3n', '\U0001f4e5 Recepci\u00f3n'],  # juego con balón global
+}
+GK_PENTAGON_LABELS_ES = {
+    'DIST': 'Distribución',
+    'DUE':  'Duelos',
+    'DEF':  'Acciones Def.',
+    'REC':  'Recepción',
+    'JUE':  'Juego',
+}
+
 
 def _compute_pentagon_scores(player_data, comparison_df, all_cols):
     """Calcula los 5 puntajes del pentágono promediando percentiles por macro-categoría."""
@@ -821,14 +945,90 @@ def _compute_avg_pentagon_scores(comparison_df, all_cols):
     }
 
 
+def _compute_pentagon_scores_gk(player_data, comparison_df, all_cols):
+    """Calcula los 5 puntajes del pentágono para porteros.
+    Ejes: DIST (distribución), DUE (duelos aéreos), DEF (acc. defensivas), REC (recepción), JUE (juego)."""
+    pcts_by_cat = defaultdict(list)
+    for c in all_cols:
+        val = player_data.get(c, None)
+        if pd.isnull(val):
+            continue
+        pv = float(val)
+        pct = _compute_percentile(pv, comparison_df[c]) if c in comparison_df.columns else 0
+        cat = categorize_metric_gk(c)
+        pcts_by_cat[cat].append(pct)
+
+    def avg_cats(*cats):
+        vals = []
+        for cat in cats:
+            vals.extend(pcts_by_cat.get(cat, []))
+        return float(np.mean(vals)) if vals else 0.0
+
+    dist = avg_cats('\U0001f4d0 Distribuci\u00f3n')
+    due  = avg_cats('\U0001f4aa Duelos A\u00e9reos')
+    defd = avg_cats('\U0001f6e1\ufe0f Acciones Def.')
+    rec  = avg_cats('\U0001f4e5 Recepci\u00f3n')
+    jue  = float(np.mean([dist, rec])) if (dist or rec) else 0.0
+    # penalización leve por disciplina
+    disc = avg_cats('\U0001f4cb Disciplina')
+    defd = float(np.clip(defd - disc * 0.20, 0, 99))
+
+    return {
+        'DIST': int(round(dist)),
+        'DUE':  int(round(due)),
+        'DEF':  int(round(defd)),
+        'REC':  int(round(rec)),
+        'JUE':  int(round(jue)),
+    }
+
+
+def _compute_avg_pentagon_scores_gk(comparison_df, all_cols):
+    """Puntaje promedio del pentágono GK para el pool de comparación."""
+    avg_pcts_by_cat = defaultdict(list)
+    for c in all_cols:
+        if c not in comparison_df.columns:
+            continue
+        cat = categorize_metric_gk(c)
+        col_vals = pd.to_numeric(comparison_df[c], errors='coerce').dropna()
+        if len(col_vals) == 0:
+            continue
+        pcts = [0 if v == 0.0 else int(np.sum(col_vals <= v) / len(col_vals) * 99)
+                for v in col_vals]
+        avg_pcts_by_cat[cat].append(float(np.mean(pcts)))
+
+    def avg_cats(*cats):
+        vals = []
+        for cat in cats:
+            vals.extend(avg_pcts_by_cat.get(cat, []))
+        return float(np.mean(vals)) if vals else 0.0
+
+    dist = avg_cats('\U0001f4d0 Distribuci\u00f3n')
+    due  = avg_cats('\U0001f4aa Duelos A\u00e9reos')
+    defd = avg_cats('\U0001f6e1\ufe0f Acciones Def.')
+    rec  = avg_cats('\U0001f4e5 Recepci\u00f3n')
+    jue  = float(np.mean([dist, rec])) if (dist or rec) else 0.0
+    disc = avg_cats('\U0001f4cb Disciplina')
+    defd = float(np.clip(defd - disc * 0.20, 0, 99))
+
+    return {
+        'DIST': int(round(dist)),
+        'DUE':  int(round(due)),
+        'DEF':  int(round(defd)),
+        'REC':  int(round(rec)),
+        'JUE':  int(round(jue)),
+    }
+
+
 def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
-                           pos_label='', scores2=None, player2_name=''):
+                           pos_label='', scores2=None, player2_name='',
+                           custom_labels=None):
     """Dibuja el gráfico pentágono estilo Sofascore con matplotlib.
-    Si scores2 se provee, dibuja dos polígonos (verde P1, azul P2) y badges apilados."""
+    Si scores2 se provee, dibuja dos polígonos (verde P1, azul P2) y badges apilados.
+    custom_labels: lista de 5 claves si se usan ejes distintos (ej. GK)."""
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
 
-    labels     = ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
+    labels     = custom_labels if custom_labels else ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
     angles     = [np.radians(90 - i * 72) for i in range(5)]
     score_vals = [scores.get(l, 0) for l in labels]
     norm_vals  = [s / 99.0 for s in score_vals]
@@ -1041,8 +1241,18 @@ with tab_table:
         )
         st.markdown("---")
 
-        # Métricas curadas — usa la misma función compartida con el pentágono OVERALL
-        show_cols = _get_display_cols(df)
+        # Métricas curadas — rama portero vs. outfield
+        is_gk = (selected_pos == 'Portero')
+        if is_gk:
+            show_cols   = _get_display_cols_gk(df)
+            cat_fn      = categorize_metric_gk
+            cat_order   = GK_CATEGORY_ORDER
+            cat_colors  = GK_CATEGORY_COLORS
+        else:
+            show_cols   = _get_display_cols(df)
+            cat_fn      = categorize_metric
+            cat_order   = CATEGORY_ORDER
+            cat_colors  = CATEGORY_COLORS
 
         # Group and compute percentiles
         categorized = defaultdict(list)
@@ -1053,7 +1263,7 @@ with tab_table:
             player_val = float(val)
             pct = _compute_percentile(player_val, comparison_df[c]) if c in comparison_df.columns else 0
             formatted = f"{player_val:.2f}"
-            cat = categorize_metric(c)
+            cat = cat_fn(c)
             categorized[cat].append({
                 'metric': translate(c),
                 'value':  formatted,
@@ -1062,7 +1272,7 @@ with tab_table:
 
         # Render bars — all categories in one component call
         if categorized:
-            _render_all_bars(categorized, CATEGORY_ORDER, CATEGORY_COLORS)
+            _render_all_bars(categorized, cat_order, cat_colors)
         else:
             st.info("No hay métricas disponibles para mostrar.")
     elif players_list:
@@ -1140,9 +1350,12 @@ with tab_bar:
         pent_team_col = 'Team'
 
     pent_col1, pent_col2, pent_col3 = st.columns(3)
-    pent_pos_groups = sorted(df['Position Group'].dropna().unique())
+    pent_pos_groups = sorted([p for p in df['Position Group'].dropna().unique()
+                               if p != 'Portero'])
+    pent_pos_groups_all = ['Portero'] + pent_pos_groups   # GK al final del selectbox
+    pent_pos_groups_all = sorted(df['Position Group'].dropna().unique())
     with pent_col1:
-        pent_pos = st.selectbox("Posición", pent_pos_groups, key="pent_pos")
+        pent_pos = st.selectbox("Posición", pent_pos_groups_all, key="pent_pos")
     pent_pos_df = df[df['Position Group'] == pent_pos]
     pent_clubs  = sorted(pent_pos_df[pent_team_col].dropna().unique())
     with pent_col2:
@@ -1197,13 +1410,34 @@ with tab_bar:
         if pent_comparison_df[pent_comparison_df['Player'] == pent_player].empty:
             st.warning("El jugador no alcanza el mínimo de minutos. Reducí el slider.")
         else:
-            # Métricas curadas — las mismas que Tab 1 (calidad, no volumen)
-            all_pent_cols = _get_display_cols(df)
-
-            scores = _compute_pentagon_scores(
-                pent_player_data, pent_comparison_df, all_pent_cols
-            )
-            avg_scores = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
+            # Rama portero vs. outfield
+            is_pent_gk = (pent_pos == 'Portero')
+            if is_pent_gk:
+                all_pent_cols  = _get_display_cols_gk(df)
+                scores         = _compute_pentagon_scores_gk(
+                    pent_player_data, pent_comparison_df, all_pent_cols)
+                avg_scores     = _compute_avg_pentagon_scores_gk(pent_comparison_df, all_pent_cols)
+                pent_axes      = ['DIST', 'DUE', 'DEF', 'REC', 'JUE']
+                pent_group_desc = {
+                    'DIST': 'Distribución (precisión de pase)',
+                    'DUE':  'Duelos aéreos y generales',
+                    'DEF':  'Acciones defensivas (intercepciones, tiros bloqueados…)',
+                    'REC':  'Recepción (balones recibidos)',
+                    'JUE':  'Juego general con balón',
+                }
+            else:
+                all_pent_cols  = _get_display_cols(df)
+                scores         = _compute_pentagon_scores(
+                    pent_player_data, pent_comparison_df, all_pent_cols)
+                avg_scores     = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
+                pent_axes      = ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']
+                pent_group_desc = {
+                    'ATQ': 'Goles y Remates',
+                    'POS': 'Posesión (Dribbling, Recepción, Acciones ofensivas)',
+                    'PAS': 'Pases y Centros',
+                    'CRE': 'Creatividad',
+                    'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
+                }
 
             # Calcular scores del jugador 2 si el comparador está activo
             scores2 = None
@@ -1211,7 +1445,10 @@ with tab_bar:
                 p2_rows = pent_pos_df[pent_pos_df['Player'] == pent_player2]
                 if not p2_rows.empty:
                     p2_data = p2_rows.iloc[0]
-                    scores2 = _compute_pentagon_scores(p2_data, pent_comparison_df, all_pent_cols)
+                    if is_pent_gk:
+                        scores2 = _compute_pentagon_scores_gk(p2_data, pent_comparison_df, all_pent_cols)
+                    else:
+                        scores2 = _compute_pentagon_scores(p2_data, pent_comparison_df, all_pent_cols)
 
             team_display = str(pent_player_data.get(pent_team_col, ''))
             subtitle_pent = f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min · Apertura 2026"
@@ -1223,6 +1460,7 @@ with tab_bar:
                     scores, pent_player, team_display, subtitle_pent,
                     avg_scores=avg_scores, pos_label=pent_pos,
                     scores2=scores2, player2_name=pent_player2 or '',
+                    custom_labels=pent_axes if is_pent_gk else None,
                 )
                 st.pyplot(fig_pent)
 
@@ -1243,19 +1481,12 @@ with tab_bar:
 
             # Tabla resumen de puntajes debajo del gráfico
             st.markdown("#### Detalle de puntajes")
-            group_desc = {
-                'ATQ': 'Goles y Remates',
-                'POS': 'Posesión (Dribbling, Recepción, Acciones ofensivas)',
-                'PAS': 'Pases y Centros',
-                'CRE': 'Creatividad',
-                'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
-            }
             summary_rows = []
-            for key in ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']:
+            for key in pent_axes:
                 diff = scores[key] - avg_scores[key]
                 row = {
                     'Categoría': key,
-                    'Descripción': group_desc[key],
+                    'Descripción': pent_group_desc[key],
                     pent_player[:20]: scores[key],
                     f'Prom. {pent_pos}': avg_scores[key],
                     'Dif. P1': f"+{diff}" if diff >= 0 else str(diff),
