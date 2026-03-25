@@ -467,29 +467,160 @@ def _aggregate_form(s, weights):
     }
 
 
-def get_team_form(matches_df, team, n=5):
-    """Form general del equipo (local + visitante) con pesos por recencia."""
+# ---------------------------------------------------------------------------
+# Jerarquía de equipos — Apertura 2026 APF
+# Usado como prior bayesiano: con pocos partidos el prior domina;
+# con más datos el modelo se apoya en el rendimiento real de la temporada.
+# ---------------------------------------------------------------------------
+import unicodedata as _ud
+
+def _norm(name):
+    """Minúsculas + elimina tildes para comparación robusta de nombres."""
+    nfkd = _ud.normalize("NFKD", str(name).lower())
+    return "".join(c for c in nfkd if not _ud.combining(c))
+
+# Tier 1 = élite  →  Tier 5 = nivel más bajo
+TEAM_TIERS = {
+    _norm("Libertad"):           1,
+    _norm("Olimpia"):            1,
+    _norm("Cerro Porteño"):      1,
+    _norm("Guaraní"):            2,
+    _norm("Nacional"):           2,
+    _norm("Sportivo Ameliano"):  3,
+    _norm("Trinidense"):         3,
+    _norm("2 de Mayo"):          3,
+    _norm("Sportivo Luqueño"):   4,
+    _norm("Recoleta"):           4,
+    _norm("San Lorenzo"):        5,
+    _norm("Rubio Ñu"):           5,
+}
+
+# Multiplicadores att/def por tier (relativos a la media de la liga = 1.00)
+# Tier 1 anota ~40% más que la liga y concede ~32% menos
+TIER_ATT = {1: 1.40, 2: 1.15, 3: 1.00, 4: 0.85, 5: 0.70}
+TIER_DEF = {1: 0.68, 2: 0.85, 3: 1.00, 4: 1.18, 5: 1.38}
+
+# Peso del prior: equivale a "N partidos fantasma".
+# Con 6 partidos reales el blend es 50/50; con 12 reales, 67% datos.
+PRIOR_WEIGHT = 6
+
+
+def compute_team_ratings(matches_df):
+    """
+    Pre-computa el índice ofensivo y defensivo de cada equipo.
+    Combina datos reales de la temporada con un prior bayesiano basado en
+    la jerarquía conocida de equipos (TEAM_TIERS). Con pocos partidos el
+    prior domina; a medida que hay más datos, el rendimiento real toma peso.
+
+    Retorna (ratings_dict, league_eff):
+      ratings[team] = {'att': índice_ataque, 'def': índice_defensa}
+      league_eff    = promedio efectivo de la liga
+    """
+    XG_W, GL_W = 0.60, 0.40
+    league_eff_h = XG_W * matches_df["h_xg"].mean() + GL_W * matches_df["home_goals"].mean()
+    league_eff_a = XG_W * matches_df["a_xg"].mean() + GL_W * matches_df["away_goals"].mean()
+    league_eff   = max((league_eff_h + league_eff_a) / 2, 0.01)
+
+    all_teams = set(matches_df["home_team"].unique()) | set(matches_df["away_team"].unique())
+    ratings = {}
+    for team in all_teams:
+        h = matches_df[matches_df["home_team"] == team]
+        a = matches_df[matches_df["away_team"] == team]
+        scored_vals = list(h["h_xg"] * XG_W + h["home_goals"] * GL_W) + \
+                      list(a["a_xg"] * XG_W + a["away_goals"] * GL_W)
+        conceded_vals = list(h["a_xg"] * XG_W + h["away_goals"] * GL_W) + \
+                        list(a["h_xg"] * XG_W + a["home_goals"] * GL_W)
+
+        n = len(scored_vals)
+        att_data = float(np.mean(scored_vals))   if n > 0 else league_eff
+        def_data = float(np.mean(conceded_vals)) if n > 0 else league_eff
+
+        # Prior según jerarquía conocida (tier 3 = equipo promedio si no está en la lista)
+        tier     = TEAM_TIERS.get(_norm(team), 3)
+        att_prior = league_eff * TIER_ATT[tier]
+        def_prior = league_eff * TIER_DEF[tier]
+
+        # Blend bayesiano: más partidos → menos prior
+        data_w  = n / (n + PRIOR_WEIGHT)
+        prior_w = PRIOR_WEIGHT / (n + PRIOR_WEIGHT)
+        att = data_w * att_data + prior_w * att_prior
+        dfs = data_w * def_data + prior_w * def_prior
+
+        ratings[team] = {"att": max(att, 0.01), "def": max(dfs, 0.01)}
+    return ratings, league_eff
+
+
+def get_team_form(matches_df, team, n=5, ratings=None, league_eff=1.0):
+    """Form general del equipo (local + visitante) con pesos por recencia.
+    Si se pasan ratings, los stats ofensivos/defensivos se ajustan
+    por la calidad del rival en cada partido (mejora B)."""
     team_matches = matches_df[
         (matches_df["home_team"] == team) | (matches_df["away_team"] == team)
     ].tail(n)
-    stats = [_build_stats_row(r, r["home_team"] == team) for _, r in team_matches.iterrows()]
+    stats = []
+    for _, r in team_matches.iterrows():
+        is_home = r["home_team"] == team
+        row = _build_stats_row(r, is_home)
+        if ratings:
+            opp = r["away_team"] if is_home else r["home_team"]
+            opp_r = ratings.get(opp, {"att": league_eff, "def": league_eff})
+            # Goles anotados contra defensa fuerte → ampliar; contra defensa débil → reducir
+            off_adj = float(np.clip(league_eff / opp_r["def"], 0.65, 1.55))
+            # Goles recibidos de ataque fuerte → reducir penalización; de ataque débil → ampliar
+            def_adj = float(np.clip(league_eff / opp_r["att"], 0.65, 1.55))
+            row["xg_scored"]      *= off_adj
+            row["goals_scored"]   *= off_adj
+            row["xg_conceded"]    *= def_adj
+            row["goals_conceded"] *= def_adj
+        stats.append(row)
     if not stats:
         return {}
     s = pd.DataFrame(stats)
     return _aggregate_form(s, _recency_weights(len(s)))
 
 
-def get_location_form(matches_df, team, as_home, n=5):
-    """Form específica cuando el equipo juega de local o visitante."""
+def get_location_form(matches_df, team, as_home, n=5, ratings=None, league_eff=1.0):
+    """Form específica cuando el equipo juega de local o visitante.
+    Si se pasan ratings, ajusta stats por calidad del rival (mejora B)."""
     if as_home:
         team_matches = matches_df[matches_df["home_team"] == team].tail(n)
     else:
         team_matches = matches_df[matches_df["away_team"] == team].tail(n)
-    stats = [_build_stats_row(r, as_home) for _, r in team_matches.iterrows()]
+    stats = []
+    for _, r in team_matches.iterrows():
+        row = _build_stats_row(r, as_home)
+        if ratings:
+            opp = r["away_team"] if as_home else r["home_team"]
+            opp_r = ratings.get(opp, {"att": league_eff, "def": league_eff})
+            off_adj = float(np.clip(league_eff / opp_r["def"], 0.65, 1.55))
+            def_adj = float(np.clip(league_eff / opp_r["att"], 0.65, 1.55))
+            row["xg_scored"]      *= off_adj
+            row["goals_scored"]   *= off_adj
+            row["xg_conceded"]    *= def_adj
+            row["goals_conceded"] *= def_adj
+        stats.append(row)
     if not stats:
         return {}
     s = pd.DataFrame(stats)
     return _aggregate_form(s, _recency_weights(len(s)))
+
+
+def _dixon_coles_tau(h, a, lh, la, rho=-0.13):
+    """
+    Factor de corrección Dixon-Coles para marcadores de baja frecuencia.
+    Corrige la sobreestimación de empates 0-0 y marcadores 1-0 / 0-1 / 1-1
+    que Poisson independiente genera. rho=-0.13 es un valor estándar
+    calibrado en ligas europeas y adaptable.
+    """
+    if h == 0 and a == 0:
+        return max(1.0 - lh * la * rho, 0.0)
+    elif h == 1 and a == 0:
+        return 1.0 + la * rho
+    elif h == 0 and a == 1:
+        return 1.0 + lh * rho
+    elif h == 1 and a == 1:
+        return 1.0 - rho
+    return 1.0
 
 
 def predict(matches_df, home_team, away_team, n_form=5, max_goals=7):
@@ -497,25 +628,31 @@ def predict(matches_df, home_team, away_team, n_form=5, max_goals=7):
     Predicts 1/X/2 probabilities and score probabilities using a Poisson model.
     Mejoras aplicadas:
     - Form ponderada por recencia (últimos partidos pesan más)
-    - Split local/visitante: se usa el rendimiento específico del equipo según condición
-    - xG mezclado con goles reales (60% xG + 40% goles) para calibrar con eficiencia real
-    - PPDA como ajuste de presión
+    - Split local/visitante 55/45: rendimiento específico según condición
+    - xG mezclado con goles reales (60% xG + 40% goles)
+    - Ajuste por calidad de rival (B): stats escalan según la fuerza del oponente
+    - Corrección Dixon-Coles (C): corrige sesgo en marcadores de baja frecuencia
+    - Componente defensivo shots-on-target (D): señal adicional de presión defensiva
+    - PPDA como ajuste de intensidad de presión
     """
-    # ── Form general (ponderada por recencia) ──────────────────────────────
-    home_form = get_team_form(matches_df, home_team, n=n_form)
-    away_form = get_team_form(matches_df, away_team, n=n_form)
+    # ── Ratings de calidad de rival (mejora B) ─────────────────────────────
+    ratings, league_eff = compute_team_ratings(matches_df)
+
+    # ── Form general (ponderada por recencia + ajuste de rival) ────────────
+    home_form = get_team_form(matches_df, home_team, n=n_form, ratings=ratings, league_eff=league_eff)
+    away_form = get_team_form(matches_df, away_team, n=n_form, ratings=ratings, league_eff=league_eff)
     if not home_form or not away_form:
         return None
 
-    # ── Form específica por locación ───────────────────────────────────────
-    home_loc  = get_location_form(matches_df, home_team, as_home=True,  n=n_form)
-    away_loc  = get_location_form(matches_df, away_team, as_home=False, n=n_form)
+    # ── Form específica por locación (+ ajuste de rival) ───────────────────
+    home_loc  = get_location_form(matches_df, home_team, as_home=True,  n=n_form, ratings=ratings, league_eff=league_eff)
+    away_loc  = get_location_form(matches_df, away_team, as_home=False, n=n_form, ratings=ratings, league_eff=league_eff)
 
-    LOC_BLEND = 0.65   # peso para la forma específica (local/visitante)
+    LOC_BLEND = 0.55   # peso para la forma específica (local/visitante)
     MIN_LOC   = 3      # mínimo de partidos en esa condición para usar la forma específica
 
     def loc_or_gen(loc, gen, key):
-        """Mezcla forma específica (65%) con forma general (35%) si hay suficientes datos."""
+        """Mezcla forma específica (55%) con forma general (45%) si hay suficientes datos."""
         if loc and loc.get("n", 0) >= MIN_LOC:
             return LOC_BLEND * loc[key] + (1 - LOC_BLEND) * gen[key]
         return gen[key]
@@ -542,6 +679,23 @@ def predict(matches_df, home_team, away_team, n_form=5, max_goals=7):
     h_eff_con = XG_W * h_xg_con + GL_W * h_g_con
     a_eff_sc  = XG_W * a_xg_sc  + GL_W * a_g_sc
     a_eff_con = XG_W * a_xg_con + GL_W * a_g_con
+
+    # ── Mejora D: componente defensivo shots-on-target en contra ───────────
+    # Tiros al arco recibidos como señal de presión defensiva adicional.
+    # Un equipo que recibe muchos tiros al arco, incluso sin conceder todavía,
+    # muestra señales de fragilidad que el xG/goles puros no capturan.
+    league_sot_against = max(
+        matches_df[["h_shots_against_ot", "a_shots_against_ot"]].values.mean(), 0.1
+    )
+    h_sot_against = loc_or_gen(home_loc, home_form, "avg_shots_against_ot")
+    a_sot_against = loc_or_gen(away_loc, away_form, "avg_shots_against_ot")
+    h_def_pressure = float(np.clip(h_sot_against / league_sot_against, 0.50, 2.00))
+    a_def_pressure = float(np.clip(a_sot_against / league_sot_against, 0.50, 2.00))
+
+    # Mezcla 85% xG/goles concedidos + 15% señal de presión defensiva
+    DEF_SOT_W = 0.15
+    h_eff_con = h_eff_con * (1.0 - DEF_SOT_W + DEF_SOT_W * h_def_pressure)
+    a_eff_con = a_eff_con * (1.0 - DEF_SOT_W + DEF_SOT_W * a_def_pressure)
 
     # Liga: promedios efectivos (misma mezcla para mantener consistencia de los índices)
     home_avg_eff = XG_W * matches_df["h_xg"].mean() + GL_W * matches_df["home_goals"].mean()
@@ -570,7 +724,9 @@ def predict(matches_df, home_team, away_team, n_form=5, max_goals=7):
     lambda_home = max(0.3, min(4.5, lambda_home))
     lambda_away = max(0.3, min(4.5, lambda_away))
 
-    # ── Matriz de marcadores (Poisson) ─────────────────────────────────────
+    # ── Matriz de marcadores (Poisson + corrección Dixon-Coles) ────────────
+    # La corrección ajusta los marcadores de baja frecuencia (0-0, 1-0, 0-1, 1-1)
+    # que Poisson independiente tiende a sobreestimar. rho=-0.13 es estándar.
     scores = {}
     prob_home_win = 0.0
     prob_draw     = 0.0
@@ -578,10 +734,11 @@ def predict(matches_df, home_team, away_team, n_form=5, max_goals=7):
 
     for i in range(max_goals + 1):
         for j in range(max_goals + 1):
-            p = poisson_pmf(i, lambda_home) * poisson_pmf(j, lambda_away)
+            tau = _dixon_coles_tau(i, j, lambda_home, lambda_away, rho=-0.13)
+            p = poisson_pmf(i, lambda_home) * poisson_pmf(j, lambda_away) * tau
             scores[(i, j)] = p
-            if i > j:   prob_home_win += p
-            elif i == j: prob_draw    += p
+            if i > j:    prob_home_win += p
+            elif i == j: prob_draw     += p
             else:        prob_away_win += p
 
     total = prob_home_win + prob_draw + prob_away_win
