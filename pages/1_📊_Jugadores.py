@@ -1346,7 +1346,7 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         ax.text(0.65, row_y, pname[:26],   fontsize=9.5, color='#f1f5f9', va='center', ha='left', fontweight='bold')
         ax.text(3.80, row_y, team[:22],    fontsize=8.5, color='#9ca3af', va='center', ha='left')
         ax.text(6.00, row_y, pos[:14],     fontsize=7.5, color='#6b7280', va='center', ha='left')
-        ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#a78bfa', va='center', ha='center', fontweight='bold')
+        ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#4ade80', va='center', ha='center', fontweight='bold')
         ax.text(7.75, row_y, f'{mins:,}',  fontsize=7.5, color='#6b7280', va='center', ha='right')
         ax.text(9.65, row_y, f'{sim:.1f}%', fontsize=9.5, color='#fff',   va='center', ha='right', fontweight='bold')
 
@@ -1424,7 +1424,7 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
     .pname {{ font-weight: 700; color: #f1f5f9; min-width: 160px; }}
     .team  {{ color: #9ca3af; min-width: 130px; }}
     .pos   {{ color: #6b7280; font-size: 11px; min-width: 80px; }}
-    .age   {{ color: #a78bfa; font-size: 12px; font-weight: 700; text-align: center; min-width: 40px; }}
+    .age   {{ color: #4ade80; font-size: 12px; font-weight: 700; text-align: center; min-width: 40px; }}
     .mins  {{ color: #6b7280; font-size: 11px; text-align: right; min-width: 60px; }}
     .bar-cell {{ width: 220px; }}
     .bar-bg {{
@@ -1513,7 +1513,7 @@ with tab_similar:
                 <div style="font-size:1.4rem; font-weight:800; color:#f1f5f9;">{sim_player}</div>
                 <div style="color:#9ca3af; font-size:0.9rem; margin-top:4px;">
                   {sim_player_team} &nbsp;·&nbsp; {sim_pos}
-                  &nbsp;·&nbsp; <span style="color:#a78bfa; font-weight:700;">{sim_player_age} años</span>
+                  &nbsp;·&nbsp; <span style="color:#4ade80; font-weight:700;">{sim_player_age} años</span>
                   &nbsp;·&nbsp; {sim_player_mins:,} mins
                 </div>
               </div>
@@ -1592,7 +1592,7 @@ def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
         if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
         elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
         elif i == 3: rank_color, bar_color = '#b45309', '#b45309'
-        else:        rank_color, bar_color = '#4b5563', '#3b82f6'
+        else:        rank_color, bar_color = '#4b5563', '#16a34a'
 
         rows_html += f"""
         <tr>
@@ -1681,11 +1681,11 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
 
     # Chips de filtro
     chips = [
-        (tipo_label,   '#1e3a5f', '#60a5fa'),
+        (tipo_label,   '#0f2d14', '#22c55e'),
         (pos_label,    '#1a2e1a', '#4ade80'),
     ]
     if min_minutes > 0:
-        chips.append((f'+{min_minutes} min', '#2d1f3d', '#a78bfa'))
+        chips.append((f'+{min_minutes} min', '#1a2e1a', '#4ade80'))
     cx = 0.45
     for chip_txt, bg, fg in chips:
         chip_w = len(chip_txt) * 0.095 + 0.30
@@ -1730,7 +1730,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
         if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
         elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
         elif i == 3: rank_color, bar_color = '#b45309', '#cd7c2f'
-        else:        rank_color, bar_color = '#4b5563', '#3b82f6'
+        else:        rank_color, bar_color = '#4b5563', '#16a34a'
 
         row_y = y - 0.08
         # Barra fondo
