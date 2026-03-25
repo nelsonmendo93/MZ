@@ -421,16 +421,16 @@ tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking = st.tabs(
 
 # Color map per metric category
 CATEGORY_COLORS = {
-    '\U0001f6e1\ufe0f Defensa':      '#166534',   # verde oscuro
-    '\U0001f4aa Duelos':             '#15803d',   # verde bosque
-    '\u26a1 Posesi\u00f3n':          '#22c55e',   # verde césped
-    '\u26bd Goles y Remates':        '#4ade80',   # verde brillante
-    '\U0001f3af Creaci\u00f3n':      '#a3e635',   # lima
-    '\u2197\ufe0f Centros':          '#65a30d',   # oliva/lima oscuro
-    '\U0001f4d0 Pases':              '#34d399',   # esmeralda
-    '\U0001f4e5 Recepci\u00f3n':     '#86efac',   # menta pálido
+    '\U0001f6e1\ufe0f Defensa':      '#f97316',   # naranja
+    '\U0001f4aa Duelos':             '#fb923c',   # naranja claro
+    '\u26a1 Posesi\u00f3n':          '#22c55e',   # verde
+    '\u26bd Goles y Remates':        '#ef4444',   # rojo
+    '\U0001f3af Creaci\u00f3n':      '#a78bfa',   # violeta
+    '\u2197\ufe0f Centros':          '#60a5fa',   # azul claro
+    '\U0001f4d0 Pases':              '#0ea5e9',   # sky blue
+    '\U0001f4e5 Recepci\u00f3n':     '#38bdf8',   # sky claro
     '\U0001f4cb Disciplina':         '#6b7280',   # gris
-    '\U0001f945 Pelota Parada':      '#84cc16',   # lima-verde
+    '\U0001f945 Pelota Parada':      '#f59e0b',   # amber
     '\U0001f4ca Otros':              '#94a3b8',   # slate
 }
 
@@ -686,20 +686,20 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
         pl2_x = [v * np.cos(a) for v, a in zip(norm2_vals, angles)]
         pl2_y = [v * np.sin(a) for v, a in zip(norm2_vals, angles)]
         pl2_poly = plt.Polygon(list(zip(pl2_x, pl2_y)), closed=True,
-                               facecolor='#a3e63525', edgecolor='#a3e635', linewidth=2.5,
+                               facecolor='#f9731625', edgecolor='#f97316', linewidth=2.5,
                                zorder=4)
         ax.add_patch(pl2_poly)
 
-    # Polígono jugador 1 (verde, encima)
+    # Polígono jugador 1 (sky blue, encima)
     pl_poly = plt.Polygon(list(zip(pl_x, pl_y)), closed=True,
-                          facecolor='#16a34a25', edgecolor='#22c55e', linewidth=2.5,
+                          facecolor='#0ea5e925', edgecolor='#0ea5e9', linewidth=2.5,
                           zorder=5)
     ax.add_patch(pl_poly)
 
     # Punto central
-    ax.plot(0, 0, 'o', color='#22c55e', markersize=5, zorder=7)
+    ax.plot(0, 0, 'o', color='#0ea5e9', markersize=5, zorder=7)
     if compare_mode:
-        ax.plot(0, 0, 'o', color='#a3e635', markersize=3, zorder=8)
+        ax.plot(0, 0, 'o', color='#f97316', markersize=3, zorder=8)
 
     # Badges en vértices
     offset = 1.36
@@ -710,15 +710,15 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
 
         if compare_mode:
             sc2 = scores2.get(label, 0)
-            # Badge P1 siempre verde (color de referencia)
+            # Badge P1 siempre sky blue (color de referencia)
             ax.text(bx, by + 0.20, str(score), ha='center', va='center',
                     fontsize=13, fontweight='bold', color='#fff',
-                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#166534', edgecolor='none'),
+                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#0369a1', edgecolor='none'),
                     zorder=9)
-            # Badge P2 siempre lima (color de referencia)
+            # Badge P2 siempre naranja (color de referencia)
             ax.text(bx, by - 0.02, str(sc2), ha='center', va='center',
-                    fontsize=13, fontweight='bold', color='#052e16',
-                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#a3e635', edgecolor='none'),
+                    fontsize=13, fontweight='bold', color='#fff',
+                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#c2410c', edgecolor='none'),
                     zorder=9)
             ax.text(bx, by - 0.26, label, ha='center', va='center',
                     fontsize=10, fontweight='bold', color='#9ca3af', zorder=9)
@@ -727,7 +727,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
             if score >= 70 and score > avg_val:
                 badge_col, txt_col = '#ca8a04', '#fff'
             elif score >= avg_val:
-                badge_col, txt_col = '#166534', '#fff'
+                badge_col, txt_col = '#0369a1', '#fff'
             else:
                 badge_col, txt_col = '#374151', '#d1d5db'
 

@@ -6,7 +6,7 @@ from mplsoccer import PyPizza
 
 
 # Colors for the 3 metric groups (5 metrics each)
-GROUP_COLORS = ["#15803d", "#4ade80", "#166534"]
+GROUP_COLORS = ["#0ea5e9", "#f97316", "#a78bfa"]
 GROUP_LABELS = ["Defensa", "Ataque", "Distribución"]
 
 
@@ -68,12 +68,8 @@ def create_pizza_chart(player_name, player_team, subtitle, params, values,
     for i, color in enumerate(GROUP_COLORS):
         count = n_per_group if i < 2 else (n_params - 2 * n_per_group)
         slice_colors.extend([color] * count)
-        # Group 0 (#15803d dark) and Group 2 (#166534 dark) → white text
-        # Group 1 (#4ade80 light) → dark green text
-        if i == 1:
-            text_colors.extend(["#052e16"] * count)
-        else:
-            text_colors.extend(["#F2F2F2"] * count)
+        # All 3 group colors are dark/medium → white text
+        text_colors.extend(["#F2F2F2"] * count)
 
     baker = PyPizza(
         params=params,
