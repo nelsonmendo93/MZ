@@ -369,16 +369,11 @@ _ALWAYS_COLS = {
 
 # Columnas GK curadas: portería, distribución, duelos aéreos, acciones defensivas
 _GK_DISPLAY_COLS = [
-    # Portería — rendimiento bajo palos
-    'Conceded goals',
+    # Portería — solo métricas por 90 y % (comparables entre porteros con distinto tiempo)
     'Conceded goals per 90',
-    'xG against',
     'xG against per 90',
-    'Prevented goals',
     'Prevented goals per 90',
-    'Shots against',
     'Shots against per 90',
-    'Clean sheets',
     'Save rate, %',
     'Exits per 90',
     # Distribución — porcentajes de precisión
@@ -1215,12 +1210,15 @@ with tab_table:
     with col_player:
         selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
 
-    # Min-minutes slider for the comparison pool
-    t1_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
-    t1_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
+    # Min-minutes slider — rango calculado sobre la posición seleccionada
+    _mp = pos_df['Minutes played'] if 'Minutes played' in pos_df.columns else None
+    t1_min_v = int(_mp.min()) if _mp is not None and len(pos_df) > 0 else 0
+    t1_max_v = int(_mp.max()) if _mp is not None and len(pos_df) > 0 else 100
+    if t1_min_v >= t1_max_v:
+        t1_max_v = t1_min_v + 1
     tab1_min_minutes = st.slider(
         "Minutos mínimos (para percentiles)", t1_min_v, t1_max_v,
-        value=min(200, t1_max_v), key="tab1_min_minutes"
+        value=min(200, t1_max_v), key=f"tab1_min_minutes_{selected_pos}"
     )
 
     # Display selected player data
