@@ -174,8 +174,8 @@ h1, h2, h3 {
 
 /* Metric cards */
 [data-testid="stMetric"] {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(6, 182, 212, 0.04));
-    border: 1px solid rgba(14, 165, 233, 0.2);
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(22, 163, 74, 0.04));
+    border: 1px solid rgba(34, 197, 94, 0.2);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -229,7 +229,7 @@ h1, h2, h3 {
 
 .stDownloadButton > button:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3) !important;
 }
 
 /* Dataframe */
@@ -421,16 +421,16 @@ tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking = st.tabs(
 
 # Color map per metric category
 CATEGORY_COLORS = {
-    '\U0001f6e1\ufe0f Defensa':      '#eab308',   # amarillo
-    '\U0001f4aa Duelos':             '#eab308',   # amarillo
-    '\u26a1 Posesi\u00f3n':                 '#ef4444',   # rojo
-    '\u26bd Goles y Remates':        '#ef4444',   # rojo
-    '\U0001f3af Creaci\u00f3n':      '#f97316',   # naranja
-    '\u2197\ufe0f Centros':          '#8b5cf6',   # violeta
-    '\U0001f4d0 Pases':              '#3b82f6',   # azul
-    '\U0001f4e5 Recepci\u00f3n':     '#14b8a6',   # teal
+    '\U0001f6e1\ufe0f Defensa':      '#166534',   # verde oscuro
+    '\U0001f4aa Duelos':             '#15803d',   # verde bosque
+    '\u26a1 Posesi\u00f3n':          '#22c55e',   # verde césped
+    '\u26bd Goles y Remates':        '#4ade80',   # verde brillante
+    '\U0001f3af Creaci\u00f3n':      '#a3e635',   # lima
+    '\u2197\ufe0f Centros':          '#65a30d',   # oliva/lima oscuro
+    '\U0001f4d0 Pases':              '#34d399',   # esmeralda
+    '\U0001f4e5 Recepci\u00f3n':     '#86efac',   # menta pálido
     '\U0001f4cb Disciplina':         '#6b7280',   # gris
-    '\U0001f945 Pelota Parada':      '#10b981',   # verde
+    '\U0001f945 Pelota Parada':      '#84cc16',   # lima-verde
     '\U0001f4ca Otros':              '#94a3b8',   # slate
 }
 
@@ -686,7 +686,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
         pl2_x = [v * np.cos(a) for v, a in zip(norm2_vals, angles)]
         pl2_y = [v * np.sin(a) for v, a in zip(norm2_vals, angles)]
         pl2_poly = plt.Polygon(list(zip(pl2_x, pl2_y)), closed=True,
-                               facecolor='#0ea5e925', edgecolor='#38bdf8', linewidth=2.5,
+                               facecolor='#a3e63525', edgecolor='#a3e635', linewidth=2.5,
                                zorder=4)
         ax.add_patch(pl2_poly)
 
@@ -699,7 +699,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     # Punto central
     ax.plot(0, 0, 'o', color='#22c55e', markersize=5, zorder=7)
     if compare_mode:
-        ax.plot(0, 0, 'o', color='#38bdf8', markersize=3, zorder=8)
+        ax.plot(0, 0, 'o', color='#a3e635', markersize=3, zorder=8)
 
     # Badges en vértices
     offset = 1.36
@@ -715,10 +715,10 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
                     fontsize=13, fontweight='bold', color='#fff',
                     bbox=dict(boxstyle='round,pad=0.26', facecolor='#166534', edgecolor='none'),
                     zorder=9)
-            # Badge P2 siempre azul (color de referencia)
+            # Badge P2 siempre lima (color de referencia)
             ax.text(bx, by - 0.02, str(sc2), ha='center', va='center',
-                    fontsize=13, fontweight='bold', color='#fff',
-                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#0369a1', edgecolor='none'),
+                    fontsize=13, fontweight='bold', color='#052e16',
+                    bbox=dict(boxstyle='round,pad=0.26', facecolor='#a3e635', edgecolor='none'),
                     zorder=9)
             ax.text(bx, by - 0.26, label, ha='center', va='center',
                     fontsize=10, fontweight='bold', color='#9ca3af', zorder=9)
@@ -757,7 +757,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     if compare_mode:
         legend_items = [
             mpatches.Patch(color='#22c55e', label=f'■ {player_name[:18]}'),
-            mpatches.Patch(color='#38bdf8', label=f'■ {player2_name[:18]}'),
+            mpatches.Patch(color='#a3e635', label=f'■ {player2_name[:18]}'),
             mpatches.Patch(facecolor='none', edgecolor='#94a3b8',
                            linestyle='--', label=f'Prom. {pos_label}'),
             mpatches.Patch(color='#ca8a04', label='Dest. P1 (≥70 y sobre prom.)'),

@@ -56,7 +56,7 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
 
     # Plot all other players
     ax.scatter(others[x_col].astype(float), others[y_col].astype(float),
-               c='#6a994e', alpha=0.6, s=120, zorder=5, edgecolors='white', linewidths=0.5)
+               c='#22c55e', alpha=0.6, s=120, zorder=5, edgecolors='white', linewidths=0.5)
 
     # Plot highlighted player
     if player_row is not None:
@@ -97,8 +97,8 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
     ax.set_ylim(y_min - y_pad, y_max + y_pad)
 
     ax.grid(True, linestyle=':', alpha=0.3, color='white')
-    ax.set_facecolor('#222222')
-    fig.set_facecolor('#222222')
+    ax.set_facecolor('#0f1117')
+    fig.set_facecolor('#0f1117')
     ax.tick_params(colors='white', labelsize=9)
     for spine in ax.spines.values():
         spine.set_color('white')

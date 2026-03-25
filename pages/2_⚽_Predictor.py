@@ -72,7 +72,7 @@ header { visibility: hidden; }
 .mz-header {
     text-align: center;
     padding: 2rem 0 1.5rem 0;
-    border-bottom: 1px solid rgba(14, 165, 233, 0.2);
+    border-bottom: 1px solid rgba(34, 197, 94, 0.2);
     margin-bottom: 2rem;
 }
 
@@ -82,7 +82,7 @@ header { visibility: hidden; }
     font-weight: 700;
     letter-spacing: 3px;
     text-transform: uppercase;
-    color: #0ea5e9;
+    color: #22c55e;
     margin: 0.8rem 0 0.2rem 0;
 }
 
@@ -100,7 +100,7 @@ header { visibility: hidden; }
     font-family: 'Poppins', sans-serif !important;
     font-size: 2rem;
     font-weight: 700;
-    color: #0ea5e9;
+    color: #22c55e;
     text-align: center;
     line-height: 1;
     padding-top: 1.8rem;
@@ -108,8 +108,8 @@ header { visibility: hidden; }
 
 /* Result cards */
 .result-card {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(6, 182, 212, 0.04));
-    border: 1px solid rgba(14, 165, 233, 0.25);
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.10), rgba(22, 163, 74, 0.04));
+    border: 1px solid rgba(34, 197, 94, 0.25);
     border-radius: 14px;
     padding: 1.4rem 1rem;
     text-align: center;
@@ -163,8 +163,8 @@ header { visibility: hidden; }
     font-weight: 700;
     letter-spacing: 2.5px;
     text-transform: uppercase;
-    color: #0ea5e9;
-    border-bottom: 1px solid rgba(14, 165, 233, 0.2);
+    color: #22c55e;
+    border-bottom: 1px solid rgba(34, 197, 94, 0.2);
     padding-bottom: 0.5rem;
     margin: 1.8rem 0 1rem 0;
 }
@@ -182,7 +182,7 @@ header { visibility: hidden; }
     font-family: 'Poppins', sans-serif !important;
     font-size: 2rem;
     font-weight: 700;
-    color: #0ea5e9;
+    color: #22c55e;
 }
 
 .xg-label {
@@ -217,7 +217,7 @@ header { visibility: hidden; }
     font-family: 'Poppins', sans-serif !important;
     font-size: 0.95rem;
     font-weight: 700;
-    color: #0ea5e9;
+    color: #22c55e;
 }
 
 /* Form bar */
@@ -236,8 +236,8 @@ header { visibility: hidden; }
 
 /* Metric cards */
 [data-testid="stMetric"] {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(6, 182, 212, 0.04));
-    border: 1px solid rgba(14, 165, 233, 0.2);
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(22, 163, 74, 0.04));
+    border: 1px solid rgba(34, 197, 94, 0.2);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -248,12 +248,12 @@ header { visibility: hidden; }
     font-size: 0.78rem !important;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #94a3b8 !important;
+    color: #86efac !important;
 }
 
 /* Divider */
 hr {
-    border-color: rgba(14, 165, 233, 0.15) !important;
+    border-color: rgba(34, 197, 94, 0.15) !important;
     margin: 1.5rem 0 !important;
 }
 
@@ -775,7 +775,7 @@ def form_badge(char):
     return f'<span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:{c};color:#fff;font-size:0.65rem;font-weight:700;text-align:center;line-height:22px;margin:0 2px;">{labels.get(char, char)}</span>'
 
 
-def render_progress_bar(pct, color="#0ea5e9"):
+def render_progress_bar(pct, color="#22c55e"):
     return f"""
     <div class="form-bar-container">
         <div class="form-bar-fill" style="width:{pct*100:.1f}%;background:{color};"></div>
@@ -789,7 +789,7 @@ def result_card(label, pct, is_best=False):
     <div class="{card_class}">
         <div class="result-label">{label}</div>
         <div class="{pct_class}">{pct*100:.1f}%</div>
-        {render_progress_bar(pct, "#22c55e" if is_best else "#0ea5e9")}
+        {render_progress_bar(pct, "#22c55e" if is_best else "#16a34a")}
     </div>"""
 
 
@@ -961,8 +961,8 @@ if valid:
         else:
             pct_h = val_h / total * 100
             pct_a = val_a / total * 100
-        color_h = "#0ea5e9" if (val_h >= val_a) == higher_is_better else "#334155"
-        color_a = "#0ea5e9" if (val_a > val_h)  == higher_is_better else "#334155"
+        color_h = "#22c55e" if (val_h >= val_a) == higher_is_better else "#334155"
+        color_a = "#22c55e" if (val_a > val_h)  == higher_is_better else "#334155"
         txt_h = fmt.format(val_h) + unit
         txt_a = fmt.format(val_a) + unit
         return f"""
@@ -992,10 +992,10 @@ if valid:
     <div style="display:grid;grid-template-columns:90px 1fr 90px;gap:0.6rem;
                 padding:0.3rem 0.8rem 0.5rem;">
         <div style="font-size:0.72rem;font-weight:700;letter-spacing:1.5px;
-                    text-transform:uppercase;color:#0ea5e9;">{home_team}</div>
+                    text-transform:uppercase;color:#22c55e;">{home_team}</div>
         <div></div>
         <div style="font-size:0.72rem;font-weight:700;letter-spacing:1.5px;
-                    text-transform:uppercase;color:#0ea5e9;text-align:right;">{away_team}</div>
+                    text-transform:uppercase;color:#22c55e;text-align:right;">{away_team}</div>
     </div>""", unsafe_allow_html=True)
 
     st.markdown(compare_row("Posesión", hf["avg_poss"], af["avg_poss"],
@@ -1042,8 +1042,8 @@ if valid:
         max_val = max(val_h, val_a, 0.01)
         pct_h = val_h / max_val
         pct_a = val_a / max_val
-        color_h = "#0ea5e9" if (val_h >= val_a) == higher_is_better else "#64748b"
-        color_a = "#0ea5e9" if (val_a > val_h)  == higher_is_better else "#64748b"
+        color_h = "#22c55e" if (val_h >= val_a) == higher_is_better else "#64748b"
+        color_a = "#22c55e" if (val_a > val_h)  == higher_is_better else "#64748b"
         bar_h = f'<div style="height:5px;background:{color_h};border-radius:3px;width:{pct_h*100:.0f}%;margin-top:3px;"></div>'
         bar_a = f'<div style="height:5px;background:{color_a};border-radius:3px;width:{pct_a*100:.0f}%;margin-top:3px;"></div>'
         return f"""
@@ -1070,10 +1070,10 @@ if valid:
     <div style="display:grid;grid-template-columns:1fr 160px 1fr;gap:0.5rem;
                 padding:0.4rem 0.8rem;margin-bottom:0.2rem;">
         <div style="font-size:0.72rem;font-weight:700;letter-spacing:1.5px;
-                    text-transform:uppercase;color:#0ea5e9;">{home_team}</div>
+                    text-transform:uppercase;color:#22c55e;">{home_team}</div>
         <div></div>
         <div style="font-size:0.72rem;font-weight:700;letter-spacing:1.5px;
-                    text-transform:uppercase;color:#0ea5e9;text-align:right;">{away_team}</div>
+                    text-transform:uppercase;color:#22c55e;text-align:right;">{away_team}</div>
     </div>""", unsafe_allow_html=True)
 
     # ── Ofensiva
@@ -1314,11 +1314,11 @@ if valid:
                         <div style="font-size:0.65rem;letter-spacing:1.5px;color:#64748b;text-transform:uppercase;">Derrotas</div>
                     </div>
                     <div>
-                        <div style="font-size:1.3rem;font-weight:700;color:#0ea5e9;">{form['avg_xg_scored']:.2f}</div>
+                        <div style="font-size:1.3rem;font-weight:700;color:#4ade80;">{form['avg_xg_scored']:.2f}</div>
                         <div style="font-size:0.65rem;letter-spacing:1.5px;color:#64748b;text-transform:uppercase;">xG prom.</div>
                     </div>
                     <div>
-                        <div style="font-size:1.3rem;font-weight:700;color:#a78bfa;">{form['avg_ppda']:.1f}</div>
+                        <div style="font-size:1.3rem;font-weight:700;color:#34d399;">{form['avg_ppda']:.1f}</div>
                         <div style="font-size:0.65rem;letter-spacing:1.5px;color:#64748b;text-transform:uppercase;">PPDA</div>
                     </div>
                 </div>

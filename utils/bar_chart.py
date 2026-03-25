@@ -5,10 +5,10 @@ import numpy as np
 
 # Colors for the 4 metric categories
 CATEGORY_COLORS = {
-    'Defensa': '#2a6f97',
-    'Ataque': '#e63946',
-    'Posesión': '#588b8b',
-    'Distribución': '#f4a261',
+    'Defensa': '#166534',
+    'Ataque': '#22c55e',
+    'Posesión': '#4ade80',
+    'Distribución': '#84cc16',
 }
 
 
@@ -93,8 +93,8 @@ def create_bar_chart(player_name, player_team, subtitle, categories_data):
         ax.axvline(x, color='white', linestyle=':', linewidth=0.5, alpha=0.3, zorder=1)
 
     # Styling
-    ax.set_facecolor('#222222')
-    fig.set_facecolor('#222222')
+    ax.set_facecolor('#0f1117')
+    fig.set_facecolor('#0f1117')
     ax.tick_params(colors='white', labelsize=9)
     ax.xaxis.label.set_color('white')
     for spine in ['top', 'right']:
