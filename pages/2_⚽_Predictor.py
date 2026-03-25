@@ -18,6 +18,25 @@ from utils.counter import count_visit
 def poisson_pmf(k, lam):
     return math.exp(-lam) * (lam ** k) / math.factorial(k)
 
+
+def _xpts_from_xg(h_xg, a_xg, max_g=7):
+    """
+    Calcula xPTS (puntos esperados) para local y visitante usando
+    una distribución de Poisson con λ = xG de cada equipo.
+    xPTS refleja cuántos puntos 'merecía' cada equipo según sus oportunidades,
+    independientemente del resultado real.
+    """
+    ph = pd_v = pa = 0.0
+    lh = max(float(h_xg), 0.10)
+    la = max(float(a_xg), 0.10)
+    for i in range(max_g + 1):
+        for j in range(max_g + 1):
+            p = poisson_pmf(i, lh) * poisson_pmf(j, la)
+            if i > j:    ph  += p
+            elif i == j: pd_v += p
+            else:        pa  += p
+    return ph * 3.0 + pd_v, pa * 3.0 + pd_v  # xPTS local, xPTS visitante
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -380,6 +399,29 @@ def parse_all_matches(combined):
             "a_reds":    float(a["Red cards"])    if pd.notna(a["Red cards"])    else 0.0,
             "h_fouls":   float(h["Fouls"])        if pd.notna(h["Fouls"])        else 12.0,
             "a_fouls":   float(a["Fouls"])        if pd.notna(a["Fouls"])        else 12.0,
+            # ── Nuevas métricas de alto impacto ───────────────────────────────
+            # Contragolpes con tiro (Unnamed: 33 = sub-columna de Counterattacks)
+            "h_counter_shots": float(h["Unnamed: 33"]) if pd.notna(h.get("Unnamed: 33")) else 0.0,
+            "a_counter_shots": float(a["Unnamed: 33"]) if pd.notna(a.get("Unnamed: 33")) else 0.0,
+            # Pelota parada con tiro (Unnamed: 36 = sub-columna de Set pieces)
+            "h_sp_shots": float(h["Unnamed: 36"]) if pd.notna(h.get("Unnamed: 36")) else 0.0,
+            "a_sp_shots": float(a["Unnamed: 36"]) if pd.notna(a.get("Unnamed: 36")) else 0.0,
+            # Pases al área completados
+            "h_deep_passes": float(h["Deep completed passes"]) if pd.notna(h.get("Deep completed passes")) else 0.0,
+            "a_deep_passes": float(a["Deep completed passes"]) if pd.notna(a.get("Deep completed passes")) else 0.0,
+            # % duelos aéreos ganados (Unnamed: 69 = sub-columna de Aerial duels)
+            "h_aerial_pct": float(h["Unnamed: 69"]) if pd.notna(h.get("Unnamed: 69")) else 50.0,
+            "a_aerial_pct": float(a["Unnamed: 69"]) if pd.notna(a.get("Unnamed: 69")) else 50.0,
+            # Intercepciones (defensa proactiva)
+            "h_interceptions": float(h["Interceptions"]) if pd.notna(h.get("Interceptions")) else 0.0,
+            "a_interceptions": float(a["Interceptions"]) if pd.notna(a.get("Interceptions")) else 0.0,
+            # Tempo del partido (acciones por minuto)
+            "match_tempo": float(h["Match tempo"]) if pd.notna(h.get("Match tempo")) else 12.0,
+            # xPTS (puntos esperados calculados desde xG via Poisson)
+            **dict(zip(
+                ["h_xpts", "a_xpts"],
+                _xpts_from_xg(float(h["xG"]), float(a["xG"]))
+            )),
         })
 
     return pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
@@ -411,6 +453,13 @@ def _build_stats_row(r, is_home):
         "yellows": r["h_yellows"]  if is_home else r["a_yellows"],
         "reds":    r["h_reds"]     if is_home else r["a_reds"],
         "fouls":   r["h_fouls"]    if is_home else r["a_fouls"],
+        # Nuevas métricas
+        "counter_shots": r["h_counter_shots"] if is_home else r["a_counter_shots"],
+        "sp_shots":      r["h_sp_shots"]      if is_home else r["a_sp_shots"],
+        "deep_passes":   r["h_deep_passes"]   if is_home else r["a_deep_passes"],
+        "aerial_pct":    r["h_aerial_pct"]    if is_home else r["a_aerial_pct"],
+        "interceptions": r["h_interceptions"] if is_home else r["a_interceptions"],
+        "xpts":          r["h_xpts"]          if is_home else r["a_xpts"],
         "won":  (r["result"] == "H") if is_home else (r["result"] == "A"),
         "drew": r["result"] == "D",
     }
@@ -464,6 +513,13 @@ def _aggregate_form(s, weights):
         "avg_yellows": wavg("yellows"),
         "avg_reds":    wavg("reds"),
         "avg_fouls":   wavg("fouls"),
+        # Nuevas métricas
+        "avg_counter_shots": wavg("counter_shots"),
+        "avg_sp_shots":      wavg("sp_shots"),
+        "avg_deep_passes":   wavg("deep_passes"),
+        "avg_aerial_pct":    wavg("aerial_pct"),
+        "avg_interceptions": wavg("interceptions"),
+        "avg_xpts":          wavg("xpts"),
         "wins": wins, "draws": draws, "losses": losses,
         "n": len(s),
         "form_string": "".join(["W" if r["won"] else ("D" if r["drew"] else "L") for _, r in s.iterrows()]),
@@ -715,14 +771,62 @@ def predict(matches_df, home_team, away_team, n_form=5, max_goals=7):
 
     # ── Índices de ataque y defensa (relativos a la media de la liga) ──────
     home_attack  = h_eff_sc  / home_avg_eff
-    home_defense = h_eff_con / away_avg_eff
     away_attack  = a_eff_sc  / away_avg_eff
-    away_defense = a_eff_con / home_avg_eff
 
-    # ── Lambda (goles esperados) con ventaja local ─────────────────────────
+    # Clamp defensivo: evita que muestras pequeñas generen índices extremos
+    # (ej: Olimpia con 0.20 goles/partido concedidos suprimía al rival a λ≈0.75)
+    MIN_DEF_INDEX = 0.50
+    home_defense = max(h_eff_con / away_avg_eff, MIN_DEF_INDEX)
+    away_defense = max(a_eff_con / home_avg_eff, MIN_DEF_INDEX)
+
+    # ── Lambda base (goles esperados) con ventaja local ────────────────────
     home_advantage = 1.10
     lambda_home = home_attack * away_defense * home_avg_eff * home_advantage
     lambda_away = away_attack * home_defense * away_avg_eff
+
+    # ── Ajuste 1: Contragolpes ─────────────────────────────────────────────
+    # Equipos con más tiros desde contra tienen mayor peligro real, especialmente
+    # el visitante (que defiende más y contraataca).
+    league_avg_counter = max(
+        (matches_df["h_counter_shots"].mean() + matches_df["a_counter_shots"].mean()) / 2, 0.1
+    )
+    home_counter = loc_or_gen(home_loc, home_form, "avg_counter_shots")
+    away_counter = loc_or_gen(away_loc, away_form, "avg_counter_shots")
+    COUNTER_W = 0.10
+    lambda_home *= float(np.clip(1.0 + (home_counter / league_avg_counter - 1.0) * COUNTER_W, 0.92, 1.12))
+    lambda_away *= float(np.clip(1.0 + (away_counter / league_avg_counter - 1.0) * COUNTER_W, 0.92, 1.12))
+
+    # ── Ajuste 2: Pelota parada + duelos aéreos ────────────────────────────
+    # Equipos con más tiros desde pelota parada y mejor juego aéreo generan
+    # más peligro real del que refleja su xG dinámico.
+    league_avg_sp     = max((matches_df["h_sp_shots"].mean()    + matches_df["a_sp_shots"].mean())    / 2, 0.1)
+    league_avg_aerial = max((matches_df["h_aerial_pct"].mean()  + matches_df["a_aerial_pct"].mean())  / 2, 1.0)
+    home_sp     = loc_or_gen(home_loc, home_form, "avg_sp_shots")
+    away_sp     = loc_or_gen(away_loc, away_form, "avg_sp_shots")
+    home_aerial = loc_or_gen(home_loc, home_form, "avg_aerial_pct")
+    away_aerial = loc_or_gen(away_loc, away_form, "avg_aerial_pct")
+    SP_W = 0.12;  AERIAL_W = 0.05
+    lambda_home *= float(np.clip(
+        1.0 + (home_sp / league_avg_sp - 1.0) * SP_W + (home_aerial / league_avg_aerial - 1.0) * AERIAL_W,
+        0.90, 1.15
+    ))
+    lambda_away *= float(np.clip(
+        1.0 + (away_sp / league_avg_sp - 1.0) * SP_W + (away_aerial / league_avg_aerial - 1.0) * AERIAL_W,
+        0.90, 1.15
+    ))
+
+    # ── Ajuste 3: Intercepciones (defensa proactiva) ───────────────────────
+    # Un equipo que intercepta más corta el juego antes de que se generen tiros,
+    # lo que reduce los goles esperados del rival más allá de lo que capta el xG.
+    league_avg_interc = max(
+        (matches_df["h_interceptions"].mean() + matches_df["a_interceptions"].mean()) / 2, 1.0
+    )
+    home_interc = loc_or_gen(home_loc, home_form, "avg_interceptions")
+    away_interc = loc_or_gen(away_loc, away_form, "avg_interceptions")
+    INTERC_W = 0.08
+    # Las intercepciones del equipo local reducen el λ visitante y viceversa
+    lambda_away *= float(np.clip(1.0 - (home_interc / league_avg_interc - 1.0) * INTERC_W, 0.92, 1.08))
+    lambda_home *= float(np.clip(1.0 - (away_interc / league_avg_interc - 1.0) * INTERC_W, 0.92, 1.08))
 
     # ── Ajuste PPDA (presión) ──────────────────────────────────────────────
     league_avg_ppda = matches_df[["h_ppda", "a_ppda"]].values.mean()
@@ -775,6 +879,8 @@ def predict(matches_df, home_team, away_team, n_form=5, max_goals=7):
         "prob_away":  prob_away_win,
         "lambda_home": lambda_home,
         "lambda_away": lambda_away,
+        "home_xpts":  home_form.get("avg_xpts", 1.5),
+        "away_xpts":  away_form.get("avg_xpts", 1.5),
         "top_scores":  top_scores,
         "best_hw_score":   best_hw_score,
         "best_draw_score": best_draw_score,
