@@ -315,7 +315,7 @@ def categorize_metric_gk(col_name):
         return '\U0001f945 Porter\u00eda'
     # Distribución — métricas de pase/salida con balón
     if any(k in cl for k in ['long pass', 'average pass', 'average long', 'progressive pass',
-                               'forward pass', 'pass to final', 'pass length']):
+                               'forward pass', 'final third', 'pass length']):
         return '\U0001f4d0 Distribuci\u00f3n'
     if any(k in cl for k in ['short / medium pass', 'accurate pass', 'pass per 90',
                                'lateral pass', 'back pass', 'accurate back', 'accurate lateral',
@@ -383,32 +383,41 @@ _GK_DISPLAY_COLS = [
     'Clean sheets',
     'Save rate, %',
     'Exits per 90',
-    # Distribución — calidad de pase
+    # Distribución — porcentajes de precisión
     'Accurate passes, %',
-    'Accurate long passes, %',
     'Accurate forward passes, %',
+    'Accurate back passes, %',
+    'Accurate lateral passes, %',
     'Accurate short / medium passes, %',
-    'Accurate progressive passes, %',
+    'Accurate long passes, %',
+    'Accurate smart passes, %',
     'Accurate passes to final third, %',
-    'Long passes per 90',
-    'Progressive passes per 90',
-    'Passes to final third per 90',
-    'Forward passes per 90',
+    'Accurate passes to penalty area, %',
+    'Accurate through passes, %',
+    'Accurate progressive passes, %',
+    # Distribución — volumen preciso por 90 (calculado: totales precisos / minutos * 90)
+    'Accurate passes per 90',
+    'Accurate forward passes per 90',
+    'Accurate back passes per 90',
+    'Accurate lateral passes per 90',
+    'Accurate short / medium passes per 90',
+    'Accurate long passes per 90',
+    'Accurate smart passes per 90',
+    'Accurate passes to final third per 90',
+    'Accurate passes to penalty area per 90',
+    'Accurate through passes per 90',
+    'Accurate progressive passes per 90',
+    # Promedios de longitud
     'Average pass length, m',
     'Average long pass length, m',
     # Recepción
     'Received passes per 90',
-    'Received long passes per 90',
     # Duelos aéreos
     'Aerial duels per 90',
     'Aerial duels won, %',
-    'Duels per 90',
-    'Duels won, %',
     # Acciones defensivas
     'Successful defensive actions per 90',
     'Interceptions per 90',
-    'Defensive duels per 90',
-    'Defensive duels won, %',
     'Shots blocked per 90',
     'Sliding tackles per 90',
     # Disciplina
@@ -444,6 +453,10 @@ def _get_display_cols_gk(df):
     """Devuelve las columnas curadas para porteros."""
     return [c for c in _GK_DISPLAY_COLS if c in df.columns
             and pd.api.types.is_numeric_dtype(df[c])]
+
+
+# Métricas GK donde menor valor = mejor rendimiento → percentil invertido
+_GK_LOWER_IS_BETTER = {'Conceded goals', 'Conceded goals per 90'}
 
 
 # ---------------------------------------------------------------------------
@@ -1262,6 +1275,8 @@ with tab_table:
                 continue
             player_val = float(val)
             pct = _compute_percentile(player_val, comparison_df[c]) if c in comparison_df.columns else 0
+            if c in _GK_LOWER_IS_BETTER:
+                pct = max(0, 99 - pct)
             formatted = f"{player_val:.2f}"
             cat = cat_fn(c)
             categorized[cat].append({
