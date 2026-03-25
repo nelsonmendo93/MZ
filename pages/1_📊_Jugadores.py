@@ -1240,54 +1240,66 @@ with tab_table:
             height=210,
         )
 
-        # Comparison pool info
-        comparison_df = df[
-            (df['Position Group'] == selected_pos) &
-            (df['Minutes played'] >= tab1_min_minutes)
-        ].copy()
-        n_comp = len(comparison_df)
-        st.caption(
-            f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
-            f"con \u2265 {tab1_min_minutes} min · Apertura 2026"
-        )
-        st.markdown("---")
+        # Bloqueo por minutos — el jugador seleccionado también debe cumplir el mínimo
+        _player_mins = player_data.get('Minutes played', None)
+        _player_mins_val = float(_player_mins) if _player_mins is not None and pd.notnull(_player_mins) else 0
+        _below_threshold = _player_mins_val < tab1_min_minutes
+        if _below_threshold:
+            st.warning(
+                f"⚠️ **{selected_player_tab1}** tiene **{int(_player_mins_val)} minutos** jugados, "
+                f"por debajo del mínimo de **{tab1_min_minutes} min** del filtro. "
+                f"Bajá el slider para ver sus percentiles."
+            )
 
-        # Métricas curadas — rama portero vs. outfield
-        is_gk = (selected_pos == 'Portero')
-        if is_gk:
-            show_cols   = _get_display_cols_gk(df)
-            cat_fn      = categorize_metric_gk
-            cat_order   = GK_CATEGORY_ORDER
-            cat_colors  = GK_CATEGORY_COLORS
-        else:
-            show_cols   = _get_display_cols(df)
-            cat_fn      = categorize_metric
-            cat_order   = CATEGORY_ORDER
-            cat_colors  = CATEGORY_COLORS
+        if not _below_threshold:
+            # Comparison pool info
+            comparison_df = df[
+                (df['Position Group'] == selected_pos) &
+                (df['Minutes played'] >= tab1_min_minutes)
+            ].copy()
+            n_comp = len(comparison_df)
+            st.caption(
+                f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
+                f"con \u2265 {tab1_min_minutes} min · Apertura 2026"
+            )
+            st.markdown("---")
 
-        # Group and compute percentiles
-        categorized = defaultdict(list)
-        for c in show_cols:
-            val = player_data.get(c, None)
-            if pd.isnull(val):
-                continue
-            player_val = float(val)
-            pct = _compute_percentile(player_val, comparison_df[c]) if c in comparison_df.columns else 0
-            if c in _GK_LOWER_IS_BETTER:
-                pct = max(0, 99 - pct)
-            formatted = f"{player_val:.2f}"
-            cat = cat_fn(c)
-            categorized[cat].append({
-                'metric': translate(c),
-                'value':  formatted,
-                'pct':    pct,
-            })
+            # Métricas curadas — rama portero vs. outfield
+            is_gk = (selected_pos == 'Portero')
+            if is_gk:
+                show_cols   = _get_display_cols_gk(df)
+                cat_fn      = categorize_metric_gk
+                cat_order   = GK_CATEGORY_ORDER
+                cat_colors  = GK_CATEGORY_COLORS
+            else:
+                show_cols   = _get_display_cols(df)
+                cat_fn      = categorize_metric
+                cat_order   = CATEGORY_ORDER
+                cat_colors  = CATEGORY_COLORS
 
-        # Render bars — all categories in one component call
-        if categorized:
-            _render_all_bars(categorized, cat_order, cat_colors)
-        else:
-            st.info("No hay métricas disponibles para mostrar.")
+            # Group and compute percentiles
+            categorized = defaultdict(list)
+            for c in show_cols:
+                val = player_data.get(c, None)
+                if pd.isnull(val):
+                    continue
+                player_val = float(val)
+                pct = _compute_percentile(player_val, comparison_df[c]) if c in comparison_df.columns else 0
+                if c in _GK_LOWER_IS_BETTER:
+                    pct = max(0, 99 - pct)
+                formatted = f"{player_val:.2f}"
+                cat = cat_fn(c)
+                categorized[cat].append({
+                    'metric': translate(c),
+                    'value':  formatted,
+                    'pct':    pct,
+                })
+
+            # Render bars — all categories in one component call
+            if categorized:
+                _render_all_bars(categorized, cat_order, cat_colors)
+            else:
+                st.info("No hay métricas disponibles para mostrar.")
     elif players_list:
         st.info("Selecciona un jugador para ver sus datos.")
 
