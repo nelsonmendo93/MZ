@@ -411,6 +411,201 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
+# Campo de juego — mapa de posiciones
+# ---------------------------------------------------------------------------
+
+# Coordenadas (x%, y%) sobre el campo SVG.
+# y=0 → arco rival (ataque) · y=100 → arco propio (defensa)
+_POS_XY = {
+    'GK':   (50, 88),
+    'LCB':  (32, 78),  'RCB':  (68, 78),
+    'LB':   (13, 68),  'RB':   (87, 68),
+    'LWB':  ( 8, 58),  'RWB':  (92, 58),
+    'LDMF': (34, 52),  'RDMF': (66, 52),  'DMF': (50, 52),
+    'LCMF': (32, 42),  'RCMF': (68, 42),
+    'LAMF': (26, 32),  'RAMF': (74, 32),  'AMF': (50, 30),
+    'LW':   (11, 22),  'RW':   (89, 22),
+    'LWF':  (15, 18),  'RWF':  (85, 18),
+    'CF':   (50, 14),
+}
+
+
+def _field_html(position_code: str) -> str:
+    """Genera un SVG de campo táctico (fondo oscuro, líneas blancas) con
+    el punto de posición del jugador marcado en sky-blue."""
+    W, H = 120, 168          # píxeles del SVG
+    M = 6                    # margen exterior
+    fw = W - 2 * M           # ancho campo = 108
+    fh = H - 2 * M           # alto campo  = 156
+
+    def fx(xp): return M + xp / 100 * fw   # % → px X
+    def fy(yp): return M + yp / 100 * fh   # % → px Y
+
+    # Coordenadas del jugador
+    px, py = _POS_XY.get(position_code, (50, 50))
+    dot_x, dot_y = fx(px), fy(py)
+
+    # Colores del tema oscuro
+    bg      = '#0f172a'
+    line_c  = 'rgba(255,255,255,0.55)'
+    dot_c   = '#0ea5e9'
+    dot_rim = '#ffffff'
+
+    # Áreas (en %)
+    pa_w = 55   # ancho área penal (% del campo)
+    pa_h_pct = 22   # alto área penal (% del campo)
+    ga_w = 32   # ancho área chica
+    ga_h_pct = 10
+    # Goal (poste)
+    goal_w = 22
+    goal_h_pct = 4
+
+    # px equivalentes
+    pa_left  = fx(50 - pa_w / 2)
+    pa_right = fx(50 + pa_w / 2)
+    pa_h     = fh * pa_h_pct / 100
+
+    ga_left  = fx(50 - ga_w / 2)
+    ga_right = fx(50 + ga_w / 2)
+    ga_h     = fh * ga_h_pct / 100
+
+    goal_left  = fx(50 - goal_w / 2)
+    goal_right = fx(50 + goal_w / 2)
+    goal_h     = fh * goal_h_pct / 100
+
+    cy_center = fy(50)
+    r_circle  = fw * 0.155
+
+    lines = f"""
+    <svg xmlns="http://www.w3.org/2000/svg"
+         width="{W}" height="{H}"
+         viewBox="0 0 {W} {H}">
+
+      <!-- Fondo del campo -->
+      <rect width="{W}" height="{H}" fill="{bg}" rx="6"/>
+
+      <!-- Borde campo -->
+      <rect x="{M}" y="{M}" width="{fw}" height="{fh}"
+            fill="none" stroke="{line_c}" stroke-width="1.2" rx="2"/>
+
+      <!-- Línea de centro -->
+      <line x1="{M}" y1="{cy_center}" x2="{M+fw}" y2="{cy_center}"
+            stroke="{line_c}" stroke-width="0.9"/>
+
+      <!-- Círculo central -->
+      <circle cx="{fx(50)}" cy="{cy_center}" r="{r_circle}"
+              fill="none" stroke="{line_c}" stroke-width="0.9"/>
+      <circle cx="{fx(50)}" cy="{cy_center}" r="1.8"
+              fill="{line_c}"/>
+
+      <!-- Área penal arriba -->
+      <rect x="{pa_left}" y="{M}" width="{pa_right-pa_left}" height="{pa_h}"
+            fill="none" stroke="{line_c}" stroke-width="0.9"/>
+      <!-- Área chica arriba -->
+      <rect x="{ga_left}" y="{M}" width="{ga_right-ga_left}" height="{ga_h}"
+            fill="none" stroke="{line_c}" stroke-width="0.9"/>
+      <!-- Portería arriba -->
+      <rect x="{goal_left}" y="{M - goal_h}" width="{goal_right-goal_left}" height="{goal_h}"
+            fill="none" stroke="{line_c}" stroke-width="1.2"/>
+
+      <!-- Área penal abajo -->
+      <rect x="{pa_left}" y="{M+fh-pa_h}" width="{pa_right-pa_left}" height="{pa_h}"
+            fill="none" stroke="{line_c}" stroke-width="0.9"/>
+      <!-- Área chica abajo -->
+      <rect x="{ga_left}" y="{M+fh-ga_h}" width="{ga_right-ga_left}" height="{ga_h}"
+            fill="none" stroke="{line_c}" stroke-width="0.9"/>
+      <!-- Portería abajo -->
+      <rect x="{goal_left}" y="{M+fh}" width="{goal_right-goal_left}" height="{goal_h}"
+            fill="none" stroke="{line_c}" stroke-width="1.2"/>
+
+      <!-- Punto de penalty arriba -->
+      <circle cx="{fx(50)}" cy="{fy(14)}" r="1.5" fill="{line_c}"/>
+      <!-- Punto de penalty abajo -->
+      <circle cx="{fx(50)}" cy="{fy(86)}" r="1.5" fill="{line_c}"/>
+
+      <!-- Posición del jugador -->
+      <circle cx="{dot_x:.1f}" cy="{dot_y:.1f}" r="7"
+              fill="{dot_c}" stroke="{dot_rim}" stroke-width="1.5" opacity="0.92"/>
+      <text x="{dot_x:.1f}" y="{dot_y + 1:.1f}"
+            text-anchor="middle" dominant-baseline="middle"
+            font-family="Cousine,monospace" font-size="5.5" font-weight="700"
+            fill="#ffffff">{position_code}</text>
+    </svg>"""
+    return lines
+
+
+def _player_header_html(player_name, position_code, pos_group,
+                         team, age, matches, minutes) -> str:
+    """Tarjeta completa: campo a la izquierda, nombre + stats a la derecha."""
+    field_svg = _field_html(position_code)
+    age_str     = str(int(age))     if age     and str(age)     != 'nan' else '—'
+    matches_str = str(int(matches)) if matches and str(matches) != 'nan' else '—'
+    minutes_str = str(int(minutes)) if minutes and str(minutes) != 'nan' else '—'
+
+    return f"""
+<link href="https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{background:transparent;font-family:'Cousine',monospace}}
+  .card{{
+    display:flex;align-items:center;gap:20px;
+    padding:14px 18px;
+    background:rgba(30,41,59,0.55);
+    border:1px solid rgba(148,163,184,0.13);
+    border-radius:14px;
+  }}
+  .field-wrap{{flex-shrink:0}}
+  .info{{flex:1;min-width:0}}
+  .pname{{
+    font-family:'Poppins',sans-serif;font-size:1.35rem;
+    font-weight:700;color:#e2e8f0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-bottom:5px;
+  }}
+  .pbadge{{
+    display:inline-block;
+    background:rgba(14,165,233,0.14);
+    border:1px solid rgba(14,165,233,0.38);
+    color:#38bdf8;font-size:0.68rem;font-weight:700;
+    letter-spacing:1.5px;text-transform:uppercase;
+    padding:2px 9px;border-radius:20px;margin-bottom:13px;
+  }}
+  .sgrid{{display:grid;grid-template-columns:1fr 1fr;gap:8px}}
+  .sitem{{
+    background:rgba(15,23,42,0.55);
+    border:1px solid rgba(148,163,184,0.09);
+    border-radius:9px;padding:8px 12px;
+  }}
+  .slabel{{
+    font-size:0.6rem;letter-spacing:1.5px;
+    text-transform:uppercase;color:#475569;margin-bottom:3px;
+  }}
+  .sval{{
+    font-family:'Poppins',sans-serif;font-size:1rem;
+    font-weight:700;color:#e2e8f0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }}
+</style>
+<div class="card">
+  <div class="field-wrap">{field_svg}</div>
+  <div class="info">
+    <div class="pname">{player_name}</div>
+    <div class="pbadge">{position_code} &nbsp;·&nbsp; {pos_group}</div>
+    <div class="sgrid">
+      <div class="sitem"><div class="slabel">Club</div>
+        <div class="sval" title="{team}">{team}</div></div>
+      <div class="sitem"><div class="slabel">Edad</div>
+        <div class="sval">{age_str}</div></div>
+      <div class="sitem"><div class="slabel">Partidos</div>
+        <div class="sval">{matches_str}</div></div>
+      <div class="sitem"><div class="slabel">Minutos</div>
+        <div class="sval">{minutes_str}</div></div>
+    </div>
+  </div>
+</div>"""
+
+
+# ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
 tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking = st.tabs(
@@ -820,20 +1015,19 @@ with tab_table:
     if not player_rows.empty:
         player_data = player_rows.iloc[0]
 
-        # Player header
-        st.subheader(selected_player_tab1)
-        pos_display = player_data.get('Position', '')
-        st.caption(f"\U0001f4cd {pos_display}  ·  {selected_pos}")
-
-        # Basic info cards
-        ic1, ic2, ic3, ic4 = st.columns(4)
-        ic1.metric("Equipo", str(player_data.get(team_col_tab1, '')))
-        age_val = player_data.get('Age', None)
-        ic2.metric("Edad", int(age_val) if pd.notnull(age_val) else '\u2014')
-        mp_val = player_data.get('Matches played', None)
-        ic3.metric("PJ", int(mp_val) if pd.notnull(mp_val) else '\u2014')
-        mins_val = player_data.get('Minutes played', None)
-        ic4.metric("Minutos", int(mins_val) if pd.notnull(mins_val) else '\u2014')
+        # Player header card (campo táctico + stats)
+        components.html(
+            _player_header_html(
+                player_name=selected_player_tab1,
+                position_code=str(player_data.get('Position', '')),
+                pos_group=selected_pos,
+                team=str(player_data.get(team_col_tab1, '')),
+                age=player_data.get('Age', None),
+                matches=player_data.get('Matches played', None),
+                minutes=player_data.get('Minutes played', None),
+            ),
+            height=210,
+        )
 
         # Comparison pool info
         comparison_df = df[
