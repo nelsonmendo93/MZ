@@ -143,6 +143,15 @@ _TRANSLATIONS = {
     'Direct free kicks on target, %': 'Tiros libres directos al arco, %',
     'Corners': 'Córners',
 
+    # ── Portería ─────────────────────────────────────────────────────────
+    'Conceded goals': 'Goles concedidos',
+    'xG against': 'xG en contra',
+    'Prevented goals': 'Goles evitados',
+    'Shots against': 'Remates recibidos',
+    'Clean sheets': 'Porterías en cero',
+    'Save rate, %': 'Efectividad de atajadas, %',
+    'Exits': 'Salidas',
+
     # ── Derivadas ────────────────────────────────────────────────────────
     'Progressive actions': 'Acciones progresivas',
     'Off Def Successful actions': 'Acciones exitosas Of/Def',
