@@ -418,17 +418,20 @@ def _build_stats_row(r, is_home):
 
 def _recency_weights(n):
     """
-    Pesos decrecientes por recencia para n partidos.
-    El partido más reciente recibe el mayor peso.
-    Últimos 5: [0.08, 0.12, 0.20, 0.25, 0.35] (de más antiguo a más reciente).
-    Partidos anteriores al 5º: peso fijo = 0.04 (normalizado después).
+    Pesos decrecientes por recencia para n partidos — distribución suave.
+    El partido más reciente pesa apenas más que los anteriores, reconociendo
+    que la forma anímica reciente importa pero sin ignorar el historial.
+
+    Últimos 5 (de más antiguo a más reciente): [0.16, 0.18, 0.19, 0.195, 0.20]
+    Peso efectivo normalizado:  ~17%  ~19%  ~21%  ~21%  ~22%
+    Partidos anteriores al 5º: peso fijo = 0.12 (normalizado después).
     """
-    RECENT = [0.08, 0.12, 0.20, 0.25, 0.35]
+    RECENT = [0.16, 0.18, 0.19, 0.195, 0.20]
     if n <= 5:
         w = RECENT[5 - n:]
     else:
         extra = n - 5
-        w = [0.04] * extra + RECENT
+        w = [0.12] * extra + RECENT
     total = sum(w)
     return np.array([x / total for x in w])
 
@@ -480,19 +483,26 @@ def _norm(name):
     return "".join(c for c in nfkd if not _ud.combining(c))
 
 # Tier 1 = élite  →  Tier 5 = nivel más bajo
+# Se registran ambas variantes de nombre (corto y como aparece en los datos)
 TEAM_TIERS = {
-    _norm("Libertad"):           1,
-    _norm("Olimpia"):            1,
-    _norm("Cerro Porteño"):      1,
-    _norm("Guaraní"):            2,
-    _norm("Nacional"):           2,
-    _norm("Sportivo Ameliano"):  3,
-    _norm("Trinidense"):         3,
-    _norm("2 de Mayo"):          3,
-    _norm("Sportivo Luqueño"):   4,
-    _norm("Recoleta"):           4,
-    _norm("San Lorenzo"):        5,
-    _norm("Rubio Ñu"):           5,
+    _norm("Libertad"):             1,
+    _norm("Club Libertad"):        1,   # nombre real en los archivos xlsx
+    _norm("Olimpia"):              1,
+    _norm("Cerro Porteño"):        1,
+    _norm("Guaraní"):              2,
+    _norm("Nacional"):             2,
+    _norm("Nacional Asunción"):    2,   # nombre real en los archivos xlsx
+    _norm("Sportivo Ameliano"):    3,
+    _norm("Trinidense"):           3,
+    _norm("Sportivo Trinidense"):  3,   # nombre real en los archivos xlsx
+    _norm("2 de Mayo"):            3,
+    _norm("Sportivo Luqueño"):     4,
+    _norm("Recoleta"):             4,
+    _norm("Deportivo Recoleta"):   4,   # nombre real en los archivos xlsx
+    _norm("San Lorenzo"):          5,
+    _norm("Sportivo San Lorenzo"): 5,   # nombre real en los archivos xlsx
+    _norm("Rubio Ñu"):             5,
+    _norm("Rubio Ñú"):             5,   # variante con tilde en ú
 }
 
 # Multiplicadores att/def por tier (relativos a la media de la liga = 1.00)
