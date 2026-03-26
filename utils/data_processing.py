@@ -47,14 +47,14 @@ ACTION_PERCENTAGE_PAIRS = {
 
 # Position to group mapping
 POSITION_GROUP_MAPPING = {
-    'AMF': 'Delantero',
     'CF': 'Delantero',
     'RW': 'Extremo',
     'RWF': 'Extremo',
-    'RAMF': 'Extremo',
     'LWF': 'Extremo',
-    'LAMF': 'Extremo',
     'LW': 'Extremo',
+    'AMF': 'Volante Central',
+    'RAMF': 'Volante Central',
+    'LAMF': 'Volante Central',
     'RCMF': 'Volante Central',
     'LCMF': 'Volante Central',
     'RDMF': 'Volante Central',
