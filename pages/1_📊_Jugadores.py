@@ -1156,22 +1156,23 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     ax.text(0, 1.70, f'{team}  ·  {subtitle}', ha='center', va='top',
             fontsize=9.5, color='#6b7280')
 
-    # Leyenda
+    # Leyenda — colores alineados con los polígonos del gráfico
+    # P1: sky blue (#0ea5e9) · P2: naranja (#f97316)
     if compare_mode:
         legend_items = [
-            mpatches.Patch(color='#22c55e', label=f'■ {player_name[:18]}'),
-            mpatches.Patch(color='#a3e635', label=f'■ {player2_name[:18]}'),
+            mpatches.Patch(color='#0ea5e9', label=f'■ {player_name[:18]}'),
+            mpatches.Patch(color='#f97316', label=f'■ {player2_name[:18]}'),
             mpatches.Patch(facecolor='none', edgecolor='#94a3b8',
                            linestyle='--', label=f'Prom. {pos_label}'),
             mpatches.Patch(color='#ca8a04', label='Dest. P1 (≥70 y sobre prom.)'),
         ]
     else:
         legend_items = [
-            mpatches.Patch(color='#22c55e', label='Jugador'),
+            mpatches.Patch(color='#0ea5e9', label='Jugador'),
             mpatches.Patch(facecolor='none', edgecolor='#94a3b8',
                            linestyle='--', label=f'Promedio {pos_label}'),
             mpatches.Patch(color='#ca8a04', label='Destacado (≥70 y sobre prom.)'),
-            mpatches.Patch(color='#166534', label='Sobre el promedio'),
+            mpatches.Patch(color='#0369a1', label='Sobre el promedio'),
             mpatches.Patch(color='#374151', label='Bajo el promedio'),
         ]
     ax.legend(handles=legend_items, loc='lower center', ncol=2,
