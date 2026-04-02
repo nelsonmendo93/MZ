@@ -1190,7 +1190,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
 
     plt.tight_layout(pad=0.3)
 
-    fig.text(0.5, 0.1, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+    fig.text(0.5, 0.1, 'X: @marca_zonal  ·  Instagram: @marca.zonal',
              size=7.5, color='#6b7280', ha='center', fontstyle='italic')
 
     return fig
@@ -1372,7 +1372,7 @@ with tab_xy:
                            facecolor=fig_xy.get_facecolor())
             st.download_button("⬇️ Descargar grafica", buf.getvalue(),
                                file_name="grafico_xy_marcazonal.png", mime="image/png")
-            st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+            st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 3: Resumen Pentágono estilo Sofascore ----------------------------
 with tab_bar:
@@ -1516,7 +1516,7 @@ with tab_bar:
                     file_name=dl_fname,
                     mime="image/png", key="dl_pent"
                 )
-                st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+                st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
             # Tabla resumen de puntajes debajo del gráfico
             st.markdown("#### Detalle de puntajes")
@@ -1645,7 +1645,7 @@ with tab_pizza:
                     st.download_button("⬇️ Descargar gráfica", buf3.getvalue(),
                                        file_name="radial_marcazonal.png", mime="image/png",
                                        key="dl_pizza")
-                    st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+                    st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 5: Jugadores Similares -------------------------------------------
 def _get_similarity_cols(df):
@@ -1821,7 +1821,7 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
     ax.axhline(0.32, color='#2d3748', linewidth=0.8)
     ax.text(5.0, 0.22, 'MARCA ZONAL · Jugadores Similares · PCA + Distancia Euclídea',
             fontsize=7.5, color='#374151', va='center', ha='center', fontstyle='italic')
-    ax.text(5.0, 0.07, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+    ax.text(5.0, 0.07, 'X: @marca_zonal  ·  Instagram: @marca.zonal',
             fontsize=7.5, color='#4b5563', va='center', ha='center', fontstyle='italic')
 
     plt.tight_layout(pad=0.4)
@@ -2019,7 +2019,7 @@ with tab_similar:
                 mime="image/png",
                 key="dl_sim_card",
             )
-            st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+            st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 6: Rankings ------------------------------------------------------
 # Columnas "Total" excluidas del ranking (no son métricas de rendimiento)
@@ -2247,7 +2247,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
     ax.axhline(0.32, color='#2d3748', linewidth=0.8)
     ax.text(5.0, 0.22, 'MARCA ZONAL · Rankings · Portal de Datos del Fútbol Paraguayo',
             fontsize=7.5, color='#374151', va='center', ha='center', fontstyle='italic')
-    ax.text(5.0, 0.07, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+    ax.text(5.0, 0.07, 'X: @marca_zonal  ·  Instagram: @marca.zonal',
             fontsize=7.5, color='#4b5563', va='center', ha='center', fontstyle='italic')
 
     plt.tight_layout(pad=0.4)
@@ -2345,7 +2345,7 @@ with tab_ranking:
             mime="image/png",
             key="dl_rk_card",
         )
-        st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+        st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---------------------------------------------------------------------------
 # Tab 7: Swarm
@@ -2476,7 +2476,7 @@ def _create_swarm_chart(player_data, comparison_df, metrics5, player_name, team,
 
     # ── Branding redes sociales (esquina superior derecha) ─────────────────
     fig.text(0.99, 1.02,
-             "𝕏 @marca_zonal   |   Instagram @marca.zonal",
+             "X @marca_zonal   |   Instagram @marca.zonal",
              color='#e2e8f0', fontsize=10, fontweight='bold',
              ha='right', va='bottom',
              path_effects=[pe.withStroke(linewidth=2, foreground='#0e1117')])
@@ -2633,7 +2633,7 @@ with tab_swarm:
                             mime="image/png",
                             key="dl_sw",
                         )
-                        st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+                        st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 
 # ---------------------------------------------------------------------------
