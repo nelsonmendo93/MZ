@@ -2036,6 +2036,16 @@ _TOTAL_COLS = sorted([
 
 _PER90_COLS = sorted([c for c in df.columns if c.endswith(' per 90')])
 
+# Métricas permitidas en Rankings cuando se selecciona Portero:
+# todas las del pentágono GK + Received passes per 90
+_GK_RANKING_COLS = sorted([
+    c for c in (
+        list({col for cols in _GK_PENTAGON_COLS.values() for col in cols})
+        + ['Received passes per 90']
+    )
+    if c in df.columns
+])
+
 
 def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
     """Renderiza el ranking como tabla HTML con barras proporcionales al máximo."""
@@ -2235,11 +2245,18 @@ with tab_ranking:
 
     # ── Fila 1: tipo de métrica + posición (opcional) ──────────────────────
     rk_col1, rk_col2 = st.columns([1, 1])
-    with rk_col1:
-        rk_tipo = st.selectbox("Tipo de métrica", ["Por 90", "Total"], key="rk_tipo")
     with rk_col2:
         rk_pos_opts = ["Todas las posiciones"] + sorted(df['Position Group'].dropna().unique())
         rk_pos = st.selectbox("Posición (opcional)", rk_pos_opts, key="rk_pos")
+
+    _is_rk_gk = (rk_pos == "Portero")
+
+    with rk_col1:
+        if _is_rk_gk:
+            rk_tipo = "Por 90"
+            st.info("🥅 Portero: se muestran solo métricas del OVERALL")
+        else:
+            rk_tipo = st.selectbox("Tipo de métrica", ["Por 90", "Total"], key="rk_tipo")
 
     # ── Slider de minutos solo para Por 90 ─────────────────────────────────
     if rk_tipo == "Por 90":
@@ -2253,7 +2270,10 @@ with tab_ranking:
         rk_min_minutes = 0
 
     # ── Selector de métrica ─────────────────────────────────────────────────
-    rk_metric_cols = _PER90_COLS if rk_tipo == "Por 90" else _TOTAL_COLS
+    if _is_rk_gk:
+        rk_metric_cols = _GK_RANKING_COLS
+    else:
+        rk_metric_cols = _PER90_COLS if rk_tipo == "Por 90" else _TOTAL_COLS
     rk_metric = st.selectbox(
         "Métrica", rk_metric_cols,
         format_func=translate,
