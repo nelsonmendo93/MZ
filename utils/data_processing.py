@@ -15,11 +15,33 @@ PER_90_COLUMNS = [
     'Received passes per 90', 'Received long passes per 90', 'Fouls suffered per 90',
     'Passes per 90', 'Forward passes per 90', 'Back passes per 90', 'Lateral passes per 90',
     'Short / medium passes per 90', 'Long passes per 90', 'xA per 90',
-    'Shot assists per 90', 'Second assists per 90', 'Third assists per 90',
+    'Shot assists per 90',
     'Smart passes per 90', 'Key passes per 90', 'Passes to final third per 90',
     'Passes to penalty area per 90', 'Through passes per 90', 'Deep completions per 90',
     'Deep completed crosses per 90', 'Progressive passes per 90'
+    # Nota: 'Second assists per 90' y 'Third assists per 90' se excluyen intencionalmente
 ]
+
+# Columnas per-90 que se eliminan del df (no se muestran en la app)
+EXCLUDED_COLUMNS = [
+    'Second assists per 90',
+    'Third assists per 90',
+    'Second assists',
+    'Third assists',
+]
+
+# Overrides manuales de posición: se aplican sobre cualquier database descargada
+PLAYER_POSITION_OVERRIDES = {
+    'F. Cardozo':    'RCMF',
+    'L. Amarilla':   'CF',
+    'D. Rodríguez':  'LW',
+    'R. Prieto':     'LW',
+    'F. Carrizo':    'LW',
+    'Brahian Ayala': 'LCMF',
+    'C. Miño':       'RW',
+    'A. Benítez':    'RB',
+    'H. Fernández':    'LW'
+}
 
 # Action-percentage pairs for calculating successful actions
 ACTION_PERCENTAGE_PAIRS = {
@@ -80,6 +102,13 @@ def process_database(df):
 
     # Clean positions - keep only the first
     df['Position'] = df['Position'].astype(str).str.split(',').str[0].str.strip()
+
+    # Aplicar overrides manuales de posición (prevalecen sobre el dato descargado)
+    if 'Player' in df.columns:
+        for player, pos in PLAYER_POSITION_OVERRIDES.items():
+            mask = df['Player'] == player
+            if mask.any():
+                df.loc[mask, 'Position'] = pos
 
     # Drop PAdj columns
     padj_columns = [col for col in df.columns if 'PAdj' in col]
@@ -166,6 +195,9 @@ def process_database(df):
             df[f'{col} per 90'] = (
                 pd.to_numeric(df[col], errors='coerce') / per90_divisor
             ).round(2)
+
+    # Eliminar columnas excluidas de la app
+    df = df.drop(columns=[c for c in EXCLUDED_COLUMNS if c in df.columns], errors='ignore')
 
     # Position groups
     df['Position Group'] = df['Position'].map(POSITION_GROUP_MAPPING)
