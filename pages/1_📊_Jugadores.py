@@ -716,8 +716,8 @@ def _player_header_html(player_name, position_code, pos_group,
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings"]
+tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm = st.tabs(
+    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm Top Stats"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -2346,6 +2346,227 @@ with tab_ranking:
             key="dl_rk_card",
         )
         st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+
+# ---------------------------------------------------------------------------
+# Tab 7: Swarm Top Stats
+# ---------------------------------------------------------------------------
+
+def _get_top5_metrics(player_data, comparison_df, metric_cols):
+    """Devuelve las 5 métricas donde el jugador tiene mayor percentil."""
+    scored = []
+    for c in metric_cols:
+        if c not in comparison_df.columns:
+            continue
+        val = player_data.get(c, None)
+        if val is None or pd.isnull(val):
+            continue
+        pct = _compute_percentile(float(val), comparison_df[c])
+        scored.append((c, pct, float(val)))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:5]
+
+
+def _create_swarm_chart(player_data, comparison_df, top5, player_name, team, pos_label):
+    """
+    Gráfico tipo swarm: 5 paneles verticales, uno por métrica.
+    Cada panel muestra todos los jugadores del pool como puntos con jitter horizontal.
+    El jugador seleccionado se resalta en naranja.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.patheffects as pe
+
+    n = len(top5)
+    if n == 0:
+        return None
+
+    fig, axes = plt.subplots(1, n, figsize=(14, 7), facecolor='#0e1117')
+    if n == 1:
+        axes = [axes]
+
+    for i, (ax, (col, pct, player_val)) in enumerate(zip(axes, top5)):
+        series = pd.to_numeric(comparison_df[col], errors='coerce').dropna()
+        if len(series) == 0:
+            ax.axis('off')
+            continue
+
+        # ── Jitter horizontal ──────────────────────────────────────────────
+        rng = np.random.default_rng(seed=42 + i)
+        x_all = rng.uniform(-0.28, 0.28, len(series))
+
+        # Normalización para color gradiente (azul oscuro → azul claro)
+        s_min, s_max = series.min(), series.max()
+        norm = (series.values - s_min) / (s_max - s_min + 1e-9)
+        colors = plt.cm.Blues(0.25 + norm * 0.70)
+
+        ax.scatter(x_all, series.values, c=colors, s=18, alpha=0.65,
+                   zorder=2, linewidths=0)
+
+        # ── Jugador seleccionado ───────────────────────────────────────────
+        ax.scatter([0], [player_val],
+                   c='#f97316', s=110, zorder=6,
+                   edgecolors='#ffffff', linewidths=1.4)
+
+        # Valor del jugador anotado
+        val_str = f"{player_val:.2f}"
+        ax.text(0.34, player_val, val_str,
+                fontsize=9.5, color='#f97316', fontweight='bold',
+                va='center', ha='left',
+                path_effects=[pe.withStroke(linewidth=2, foreground='#0e1117')])
+
+        # ── Estilo del panel ───────────────────────────────────────────────
+        ax.set_facecolor('#0e1117')
+        ax.set_xlim(-0.60, 0.75)
+        ax.set_xticks([])
+        for spine in ['top', 'right', 'bottom']:
+            ax.spines[spine].set_visible(False)
+        ax.spines['left'].set_color('#2d3748')
+        ax.spines['left'].set_linewidth(0.8)
+        ax.tick_params(axis='y', colors='#4b5563', labelsize=7.5)
+
+        # Línea de referencia promedio
+        mean_val = float(series.mean())
+        ax.axhline(mean_val, color='#4b5563', linewidth=0.8,
+                   linestyle='--', zorder=1, alpha=0.7)
+
+        # Percentil del jugador como badge superior
+        badge_y = series.max() + (series.max() - series.min()) * 0.06
+        ax.text(0, badge_y, f"P{pct}",
+                fontsize=8, color='#fbbf24', fontweight='bold',
+                ha='center', va='bottom',
+                path_effects=[pe.withStroke(linewidth=2, foreground='#0e1117')])
+
+        # Nombre de la métrica debajo del panel
+        label_es = translate(col)
+        # Truncar si es muy largo
+        if len(label_es) > 28:
+            label_es = label_es[:26] + '…'
+        ax.set_xlabel(label_es, color='#9ca3af', fontsize=8,
+                      labelpad=8, wrap=False)
+
+    # ── Título principal ───────────────────────────────────────────────────
+    fig.suptitle(
+        f"{player_name}  ·  {team}",
+        color='#f1f5f9', fontsize=13, fontweight='bold', y=1.01,
+    )
+    fig.text(
+        0.5, 0.97,
+        f"Top 5 métricas · {pos_label} · Por 90 min",
+        color='#6b7280', fontsize=9, ha='center', va='top',
+    )
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    return fig
+
+
+with tab_swarm:
+    st.subheader("🐝 Swarm Top Stats")
+    st.caption("Las 5 mejores métricas del jugador en comparación con su grupo posicional.")
+
+    sw_team_col = ('Team within selected timeframe'
+                   if 'Team within selected timeframe' in df.columns else 'Team')
+
+    # ── Filtros ──────────────────────────────────────────────────────────────
+    sw_c1, sw_c2, sw_c3 = st.columns([1, 1, 1])
+
+    with sw_c1:
+        sw_pos_opts = sorted(df['Position Group'].dropna().unique())
+        sw_pos = st.selectbox("Posición", sw_pos_opts, key="sw_pos")
+
+    sw_pos_df = df[df['Position Group'] == sw_pos].copy()
+
+    with sw_c2:
+        sw_club_opts = sorted(sw_pos_df[sw_team_col].dropna().unique())
+        sw_club = st.selectbox("Club", sw_club_opts, key="sw_club")
+
+    sw_club_df = sw_pos_df[sw_pos_df[sw_team_col] == sw_club]
+
+    with sw_c3:
+        sw_player_opts = sorted(sw_club_df['Player'].dropna().unique())
+        if not sw_player_opts:
+            st.warning("No hay jugadores para este filtro.")
+            sw_player = None
+        else:
+            sw_player = st.selectbox("Jugador", sw_player_opts, key="sw_player")
+
+    # ── Slider de minutos mínimos para el pool de comparación ─────────────
+    if 'Minutes played' in sw_pos_df.columns and len(sw_pos_df) > 0:
+        _sw_mp_min = int(sw_pos_df['Minutes played'].min())
+        _sw_mp_max = int(sw_pos_df['Minutes played'].max())
+        if _sw_mp_min >= _sw_mp_max:
+            _sw_mp_max = _sw_mp_min + 1
+        sw_min_min = st.slider(
+            "Minutos mínimos del pool (percentiles)",
+            _sw_mp_min, _sw_mp_max,
+            value=min(200, _sw_mp_max),
+            key="sw_min_minutes",
+        )
+    else:
+        sw_min_min = 0
+
+    # Pool de comparación (misma posición + mínimo de minutos)
+    sw_comparison_df = sw_pos_df[sw_pos_df['Minutes played'] >= sw_min_min].copy() \
+        if 'Minutes played' in sw_pos_df.columns else sw_pos_df.copy()
+
+    # ── Métricas disponibles ──────────────────────────────────────────────
+    if sw_pos == 'Portero':
+        sw_metric_cols = [c for c in _GK_RANKING_COLS_PER90 if c in sw_comparison_df.columns]
+    else:
+        sw_metric_cols = [c for c in _PER90_COLS if c in sw_comparison_df.columns]
+
+    # ── Renderizado ───────────────────────────────────────────────────────
+    if sw_player and not sw_comparison_df.empty and sw_metric_cols:
+        sw_player_rows = sw_pos_df[sw_pos_df['Player'] == sw_player]
+        if sw_player_rows.empty:
+            st.warning("No se encontraron datos para el jugador seleccionado.")
+        else:
+            sw_player_data = sw_player_rows.iloc[0]
+            sw_team_name   = str(sw_player_data.get(sw_team_col, ''))
+
+            # Verificar minutos del jugador
+            _sw_player_mins = float(sw_player_data.get('Minutes played', 0) or 0)
+            if _sw_player_mins < sw_min_min:
+                st.warning(
+                    f"⚠️ **{sw_player}** tiene **{int(_sw_player_mins)} min** jugados, "
+                    f"por debajo del umbral de **{sw_min_min} min**. "
+                    "Reducí el slider para incluirlo en el análisis."
+                )
+            else:
+                top5 = _get_top5_metrics(sw_player_data, sw_comparison_df, sw_metric_cols)
+
+                if not top5:
+                    st.info("No hay suficientes datos para calcular las top 5 métricas.")
+                else:
+                    n_comp = len(sw_comparison_df)
+                    st.caption(
+                        f"Pool de comparación: **{n_comp} {sw_pos.lower()}s** "
+                        f"· +{sw_min_min} min · Apertura 2026"
+                    )
+
+                    _, col_center, _ = st.columns([0.5, 9, 0.5])
+                    with col_center:
+                        fig_sw = _create_swarm_chart(
+                            sw_player_data, sw_comparison_df, top5,
+                            sw_player, sw_team_name, sw_pos,
+                        )
+                        if fig_sw:
+                            st.pyplot(fig_sw)
+
+                            # Descarga
+                            buf_sw = io.BytesIO()
+                            fig_sw.savefig(buf_sw, format='png', dpi=180,
+                                           bbox_inches='tight',
+                                           facecolor=fig_sw.get_facecolor())
+                            plt.close(fig_sw)
+                            _sw_fname = f"swarm_{sw_player.replace(' ', '_')[:25]}.png"
+                            st.download_button(
+                                "⬇️ Descargar gráfico",
+                                buf_sw.getvalue(),
+                                file_name=_sw_fname,
+                                mime="image/png",
+                                key="dl_sw",
+                            )
+                            st.caption("𝕏: @marca_zonal  ·  Instagram: @marca.zonal")
+
 
 # ---------------------------------------------------------------------------
 # Footer — contador de visitas
