@@ -953,78 +953,86 @@ def _compute_avg_pentagon_scores(comparison_df, all_cols):
     }
 
 
+# ── Columnas explícitas por eje del pentágono GK ─────────────────────────────
+_GK_PENTAGON_COLS = {
+    'REF': [
+        'Shots against per 90',
+        'Save rate, %',
+    ],
+    'EFE': [
+        'Conceded goals per 90',   # invertido: menor = mejor
+        'xG against per 90',       # invertido: menor = mejor
+        'Prevented goals per 90',
+    ],
+    'DIS': [
+        'Accurate passes per 90',
+        'Accurate forward passes per 90',
+        'Accurate lateral passes per 90',
+        'Accurate short / medium passes per 90',
+        'Accurate long passes per 90',
+        'Accurate passes, %',
+        'Accurate forward passes, %',
+        'Accurate lateral passes, %',
+        'Accurate short / medium passes, %',
+        'Accurate long passes, %',
+    ],
+    'DISP': [
+        'Accurate passes to final third per 90',
+        'Accurate passes to penalty area per 90',
+        'Accurate progressive passes per 90',
+        'Accurate passes to final third, %',
+        'Accurate passes to penalty area, %',
+        'Accurate progressive passes, %',
+    ],
+    'ALCP': [
+        'Average pass length, m',
+        'Average long pass length, m',
+    ],
+}
+
+# Columnas donde percentil MENOR es MEJOR (se invierte)
+_GK_LOWER_IS_BETTER_PENT = {'Conceded goals per 90', 'xG against per 90'}
+
+
 def _compute_pentagon_scores_gk(player_data, comparison_df, all_cols):
     """Calcula los 5 puntajes del pentágono para porteros.
-    Ejes: DIST (distribución), DUE (duelos aéreos), DEF (acc. defensivas), REC (recepción), JUE (juego)."""
-    pcts_by_cat = defaultdict(list)
-    for c in all_cols:
-        val = player_data.get(c, None)
-        if pd.isnull(val):
-            continue
-        pv = float(val)
-        pct = _compute_percentile(pv, comparison_df[c]) if c in comparison_df.columns else 0
-        cat = categorize_metric_gk(c)
-        pcts_by_cat[cat].append(pct)
-
-    def avg_cats(*cats):
-        vals = []
-        for cat in cats:
-            vals.extend(pcts_by_cat.get(cat, []))
-        return float(np.mean(vals)) if vals else 0.0
-
-    dist = avg_cats('\U0001f4d0 Distribuci\u00f3n')
-    due  = avg_cats('\U0001f4aa Duelos A\u00e9reos')
-    defd = avg_cats('\U0001f6e1\ufe0f Acciones Def.')
-    rec  = avg_cats('\U0001f4e5 Recepci\u00f3n')
-    jue  = float(np.mean([dist, rec])) if (dist or rec) else 0.0
-    # penalización leve por disciplina
-    disc = avg_cats('\U0001f4cb Disciplina')
-    defd = float(np.clip(defd - disc * 0.20, 0, 99))
-
-    return {
-        'DIST': int(round(dist)),
-        'DUE':  int(round(due)),
-        'DEF':  int(round(defd)),
-        'REC':  int(round(rec)),
-        'JUE':  int(round(jue)),
-    }
+    Ejes: REF (reflejos), EFE (efectividad), DIS (distribución),
+          DISP (distribución de peligro), ALCP (alcance de pase)."""
+    axis_scores = {}
+    for axis, cols in _GK_PENTAGON_COLS.items():
+        pcts = []
+        for c in cols:
+            if c not in comparison_df.columns:
+                continue
+            val = player_data.get(c, None)
+            if val is None or pd.isnull(val):
+                continue
+            pct = _compute_percentile(float(val), comparison_df[c])
+            if c in _GK_LOWER_IS_BETTER_PENT:
+                pct = max(0, 99 - pct)
+            pcts.append(pct)
+        axis_scores[axis] = int(round(float(np.mean(pcts)))) if pcts else 0
+    return axis_scores
 
 
 def _compute_avg_pentagon_scores_gk(comparison_df, all_cols):
     """Puntaje promedio del pentágono GK para el pool de comparación."""
-    avg_pcts_by_cat = defaultdict(list)
-    for c in all_cols:
-        if c not in comparison_df.columns:
-            continue
-        cat = categorize_metric_gk(c)
-        col_vals = pd.to_numeric(comparison_df[c], errors='coerce').dropna()
-        if len(col_vals) == 0:
-            continue
-        pcts = [0 if v == 0.0 else int(np.sum(col_vals <= v) / len(col_vals) * 99)
-                for v in col_vals]
-        avg_pcts_by_cat[cat].append(float(np.mean(pcts)))
-
-    def avg_cats(*cats):
-        vals = []
-        for cat in cats:
-            vals.extend(avg_pcts_by_cat.get(cat, []))
-        return float(np.mean(vals)) if vals else 0.0
-
-    dist = avg_cats('\U0001f4d0 Distribuci\u00f3n')
-    due  = avg_cats('\U0001f4aa Duelos A\u00e9reos')
-    defd = avg_cats('\U0001f6e1\ufe0f Acciones Def.')
-    rec  = avg_cats('\U0001f4e5 Recepci\u00f3n')
-    jue  = float(np.mean([dist, rec])) if (dist or rec) else 0.0
-    disc = avg_cats('\U0001f4cb Disciplina')
-    defd = float(np.clip(defd - disc * 0.20, 0, 99))
-
-    return {
-        'DIST': int(round(dist)),
-        'DUE':  int(round(due)),
-        'DEF':  int(round(defd)),
-        'REC':  int(round(rec)),
-        'JUE':  int(round(jue)),
-    }
+    axis_scores = {}
+    for axis, cols in _GK_PENTAGON_COLS.items():
+        axis_pcts = []
+        for c in cols:
+            if c not in comparison_df.columns:
+                continue
+            col_vals = pd.to_numeric(comparison_df[c], errors='coerce').dropna()
+            if len(col_vals) == 0:
+                continue
+            pcts = [0 if v == 0.0 else int(np.sum(col_vals <= v) / len(col_vals) * 99)
+                    for v in col_vals]
+            if c in _GK_LOWER_IS_BETTER_PENT:
+                pcts = [max(0, 99 - p) for p in pcts]
+            axis_pcts.append(float(np.mean(pcts)))
+        axis_scores[axis] = int(round(float(np.mean(axis_pcts)))) if axis_pcts else 0
+    return axis_scores
 
 
 def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
@@ -1448,13 +1456,13 @@ with tab_bar:
                 scores         = _compute_pentagon_scores_gk(
                     pent_player_data, pent_comparison_df, all_pent_cols)
                 avg_scores     = _compute_avg_pentagon_scores_gk(pent_comparison_df, all_pent_cols)
-                pent_axes      = ['DIST', 'DUE', 'DEF', 'REC', 'JUE']
+                pent_axes      = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
                 pent_group_desc = {
-                    'DIST': 'Distribución (precisión de pase)',
-                    'DUE':  'Duelos aéreos y generales',
-                    'DEF':  'Acciones defensivas (intercepciones, tiros bloqueados…)',
-                    'REC':  'Recepción (balones recibidos)',
-                    'JUE':  'Juego general con balón',
+                    'REF':  'Reflejos (remates recibidos, efectividad de atajadas)',
+                    'EFE':  'Efectividad (goles concedidos, xG en contra, goles evitados)',
+                    'DIS':  'Distribución (precisión de pases generales)',
+                    'DISP': 'Distribución de peligro (pases al último tercio, área y progresivos)',
+                    'ALCP': 'Alcance de pase (longitud promedio de pases)',
                 }
             else:
                 all_pent_cols  = _get_display_cols(df)
