@@ -460,60 +460,20 @@ _GK_ONLY_METRICS = {
 # ---------------------------------------------------------------------------
 # Header / portada
 # ---------------------------------------------------------------------------
-_team_col_hdr = 'Team within selected timeframe' if 'Team within selected timeframe' in df.columns else 'Team'
-_n_players = len(df)
-_n_teams   = int(df[_team_col_hdr].nunique())
-_n_metrics = len(metric_columns)
-
 # Logo centrado
 _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
     st.image(LOGO_BLANCO, use_column_width=True)
 
-st.markdown(f"""
-<div style="text-align:center; padding: 4px 0 28px 0;">
-
-  <p style="
-    font-size: 2.1rem;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 6px 0;
-    font-family: 'Poppins', sans-serif;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-  ">Portal de Datos</p>
-
-  <p style="
-    font-size: 1.05rem;
-    color: #9ca3af;
-    margin: 0 0 24px 0;
-    letter-spacing: 1px;
-  ">Análisis de rendimiento del fútbol paraguayo · Apertura 2026</p>
-
-  <div style="
-    display: inline-flex;
-    gap: 48px;
-    background: #1a1f2e;
-    border: 1px solid #2d3748;
-    border-radius: 14px;
-    padding: 16px 40px;
-  ">
-    <div style="text-align:center;">
-      <div style="font-size:2rem; font-weight:700; color:#22c55e; line-height:1;">{_n_players}</div>
-      <div style="color:#6b7280; font-size:0.78rem; margin-top:4px; letter-spacing:1px; text-transform:uppercase;">Jugadores</div>
-    </div>
-    <div style="width:1px; background:#2d3748;"></div>
-    <div style="text-align:center;">
-      <div style="font-size:2rem; font-weight:700; color:#22c55e; line-height:1;">{_n_teams}</div>
-      <div style="color:#6b7280; font-size:0.78rem; margin-top:4px; letter-spacing:1px; text-transform:uppercase;">Equipos</div>
-    </div>
-    <div style="width:1px; background:#2d3748;"></div>
-    <div style="text-align:center;">
-      <div style="font-size:2rem; font-weight:700; color:#22c55e; line-height:1;">{_n_metrics}</div>
-      <div style="color:#6b7280; font-size:0.78rem; margin-top:4px; letter-spacing:1px; text-transform:uppercase;">Métricas</div>
-    </div>
-  </div>
-
+st.markdown("""
+<div style="text-align:center; padding: 4px 0 16px 0;">
+  <p style="font-size:2.1rem; font-weight:700; color:#ffffff; margin:0 0 6px 0;
+            font-family:'Poppins',sans-serif; letter-spacing:3px; text-transform:uppercase;">
+    Portal de Datos
+  </p>
+  <p style="font-size:1.05rem; color:#9ca3af; margin:0; letter-spacing:1px;">
+    Análisis de rendimiento del fútbol paraguayo · Apertura 2026
+  </p>
 </div>
 <hr style="border:none; border-top:1px solid #2d3748; margin:0 0 12px 0;">
 """, unsafe_allow_html=True)
