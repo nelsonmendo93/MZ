@@ -14,7 +14,7 @@ from collections import defaultdict
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from utils.data_processing import load_and_process_data, load_external_league
+from utils.data_processing import load_and_process_data, process_database
 from utils.xy_chart import create_xy_chart
 from utils.bar_chart import create_bar_chart
 from utils.pizza_chart import create_pizza_chart
@@ -251,6 +251,20 @@ if st.button("← Volver al inicio"):
 st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
+@st.cache_data
+def load_external_league(league_name: str):
+    """Carga y procesa una liga externa (ARG.xlsx, BRA.xlsx).
+    Retorna un DataFrame procesado, o None si el archivo no existe."""
+    possible_paths = [
+        os.path.join(_ROOT_DIR, 'data', f'{league_name}.xlsx'),
+        os.path.join('data', f'{league_name}.xlsx'),
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            _df = pd.read_excel(path)
+            return process_database(_df)
+    return None
+
 # Load data
 # ---------------------------------------------------------------------------
 try:
