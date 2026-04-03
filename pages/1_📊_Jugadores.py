@@ -1813,9 +1813,9 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
 def _render_similarity_table(results, pool_df, team_col, top_n):
     """Renderiza la tabla de similitud como HTML con barras de porcentaje."""
     _LIGA_COLORS = {
-        '🇵🇾 PAR': '#3b82f6',
-        '🇦🇷 ARG': '#60a5fa',
-        '🇧🇷 BRA': '#34d399',
+        '🇵🇾 PAR': '#ef4444',   # rojo
+        '🇦🇷 ARG': '#38bdf8',   # celeste
+        '🇧🇷 BRA': '#34d399',   # verde
     }
     _has_liga = 'Liga' in pool_df.columns
 
