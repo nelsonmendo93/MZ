@@ -27,6 +27,19 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&family=Poppins:wght@600;700;800&display=swap');
 
+/* ── Prevenir overflow horizontal en móvil ─────────────────────────────── */
+html, body {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+}
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+section[data-testid="stMain"] > div,
+[data-testid="stVerticalBlock"] {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+}
+
 html, body, *, [class*="css"], [class*="st-"],
 button, input, select, textarea, label,
 .stButton > button, p, span, div {
@@ -45,10 +58,15 @@ footer                             { visibility: hidden; }
 #MainMenu                          { visibility: hidden; }
 header                             { visibility: hidden; }
 
+/* Contenedor principal — responsive */
 .block-container {
     padding-top: 2rem !important;
     padding-bottom: 2rem !important;
-    max-width: 820px !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    max-width: min(820px, 100vw) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 /* Bienvenida */
@@ -58,7 +76,9 @@ header                             { visibility: hidden; }
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     border-radius: 20px;
     border: 1px solid rgba(14,165,233,0.2);
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .bienvenida-title {
@@ -76,6 +96,45 @@ header                             { visibility: hidden; }
     color: #64748b;
     letter-spacing: 1px;
     margin-bottom: 0.2rem;
+}
+
+/* ── Stats bar: CSS Grid — siempre 3 columnas iguales, no desborda ─────── */
+.stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 2rem 0;
+}
+
+.stat-card {
+    min-width: 0;           /* crítico: evita que el grid item desborde */
+    text-align: center;
+    padding: 1rem 0.4rem;
+    background: rgba(30,41,59,0.7);
+    border: 1px solid rgba(14,165,233,0.18);
+    border-radius: 14px;
+    box-sizing: border-box;
+}
+
+.stat-num {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: clamp(1.4rem, 5vw, 2rem);   /* escala con el viewport */
+    font-weight: 800;
+    color: #22c55e;
+    line-height: 1;
+}
+
+.stat-lbl {
+    font-size: clamp(0.5rem, 2vw, 0.65rem);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-top: 0.35rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Botones de navegación */
@@ -109,6 +168,8 @@ header                             { visibility: hidden; }
     border-radius: 12px;
     border: 1px solid rgba(148,163,184,0.07);
     margin-top: 2rem;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 .counter-num {
@@ -124,42 +185,6 @@ header                             { visibility: hidden; }
     text-transform: uppercase;
     color: #334155;
     margin-top: 0.2rem;
-}
-
-/* Stats bar — responsive */
-.stats-bar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.8rem;
-    margin: 1.5rem 0 2rem;
-}
-
-.stat-card {
-    flex: 1 1 120px;
-    min-width: 100px;
-    max-width: 200px;
-    text-align: center;
-    padding: 1.1rem 0.8rem;
-    background: rgba(30,41,59,0.7);
-    border: 1px solid rgba(14,165,233,0.18);
-    border-radius: 14px;
-}
-
-.stat-num {
-    font-family: 'Poppins', sans-serif !important;
-    font-size: 2rem;
-    font-weight: 800;
-    color: #22c55e;
-    line-height: 1;
-}
-
-.stat-lbl {
-    font-size: 0.6rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #64748b;
-    margin-top: 0.35rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -258,12 +283,11 @@ with col2:
 # ---------------------------------------------------------------------------
 # Contador
 # ---------------------------------------------------------------------------
-st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-_, cc, _ = st.columns([2, 1, 2])
-with cc:
-    st.markdown(f"""
-    <div class="counter-wrap">
+st.markdown(f"""
+<div style="display:flex;justify-content:center;margin-top:0.5rem;">
+    <div class="counter-wrap" style="max-width:220px;">
         <div class="counter-num">{_visit_count:,}</div>
         <div class="counter-label">👁 Visitas totales</div>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
