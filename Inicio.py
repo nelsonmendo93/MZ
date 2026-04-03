@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import sys as _sys
 import base64
-import pandas as pd
 
 _ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _ROOT_DIR not in _sys.path:
@@ -98,45 +97,6 @@ header                             { visibility: hidden; }
     margin-bottom: 0.2rem;
 }
 
-/* ── Stats bar: CSS Grid — siempre 3 columnas iguales, no desborda ─────── */
-.stats-bar {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.6rem;
-    width: 100%;
-    box-sizing: border-box;
-    margin: 0 0 2rem 0;
-}
-
-.stat-card {
-    min-width: 0;           /* crítico: evita que el grid item desborde */
-    text-align: center;
-    padding: 1rem 0.4rem;
-    background: rgba(30,41,59,0.7);
-    border: 1px solid rgba(14,165,233,0.18);
-    border-radius: 14px;
-    box-sizing: border-box;
-}
-
-.stat-num {
-    font-family: 'Poppins', sans-serif !important;
-    font-size: clamp(1.4rem, 5vw, 2rem);   /* escala con el viewport */
-    font-weight: 800;
-    color: #22c55e;
-    line-height: 1;
-}
-
-.stat-lbl {
-    font-size: clamp(0.5rem, 2vw, 0.65rem);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: #64748b;
-    margin-top: 0.35rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* Botones de navegación */
 .stButton > button {
     width: 100%;
@@ -194,24 +154,6 @@ header                             { visibility: hidden; }
 # ---------------------------------------------------------------------------
 _visit_count = count_visit()
 
-# ---------------------------------------------------------------------------
-# Stats rápidas desde la base de datos
-# ---------------------------------------------------------------------------
-_n_players, _n_teams, _n_metrics = 0, 0, 0
-try:
-    _db_path = os.path.join(_ROOT_DIR, "data", "database.xlsx")
-    if os.path.exists(_db_path):
-        _df_quick = pd.read_excel(_db_path, nrows=5000)
-        _n_players = int(_df_quick['Player'].nunique()) if 'Player' in _df_quick.columns else 0
-        _team_col  = ('Team within selected timeframe'
-                      if 'Team within selected timeframe' in _df_quick.columns else 'Team')
-        _n_teams   = int(_df_quick[_team_col].nunique()) if _team_col in _df_quick.columns else 0
-        _n_metrics = int(sum(
-            1 for c in _df_quick.columns
-            if c.endswith(' per 90') or c.endswith(', %')
-        ))
-except Exception:
-    pass
 
 # ---------------------------------------------------------------------------
 # Logo
@@ -238,27 +180,6 @@ st.markdown(f"""
     <div class="bienvenida-sub">División Profesional de Paraguay · Apertura 2026</div>
 </div>
 """, unsafe_allow_html=True)
-
-# ---------------------------------------------------------------------------
-# Stats bar (jugadores / equipos / métricas)
-# ---------------------------------------------------------------------------
-if _n_players > 0:
-    st.markdown(f"""
-    <div class="stats-bar">
-        <div class="stat-card">
-            <div class="stat-num">{_n_players}</div>
-            <div class="stat-lbl">Jugadores</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num">{_n_teams}</div>
-            <div class="stat-lbl">Equipos</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num">{_n_metrics}</div>
-            <div class="stat-lbl">Métricas</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # Selector de función
