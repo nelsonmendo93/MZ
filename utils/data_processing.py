@@ -223,3 +223,18 @@ def load_and_process_data():
             df = pd.read_excel(path)
             return process_database(df)
     raise FileNotFoundError("database.xlsx not found in data/ directory")
+
+
+@st.cache_data
+def load_external_league(league_name: str):
+    """Load and process an external league file (e.g. ARG.xlsx or BRA.xlsx).
+    Returns a processed DataFrame, or None if the file is not found."""
+    possible_paths = [
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', f'{league_name}.xlsx'),
+        os.path.join('data', f'{league_name}.xlsx'),
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            df = pd.read_excel(path)
+            return process_database(df)
+    return None

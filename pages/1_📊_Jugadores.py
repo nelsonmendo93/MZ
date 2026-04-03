@@ -14,7 +14,7 @@ from collections import defaultdict
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-from utils.data_processing import load_and_process_data
+from utils.data_processing import load_and_process_data, load_external_league
 from utils.xy_chart import create_xy_chart
 from utils.bar_chart import create_bar_chart
 from utils.pizza_chart import create_pizza_chart
@@ -258,6 +258,10 @@ try:
 except Exception as e:
     st.error(f"Error cargando datos: {e}")
     st.stop()
+
+# Ligas externas — solo se usan en la pestaña Similitudes
+df_arg = load_external_league('ARG')
+df_bra = load_external_league('BRA')
 
 # Drop rows without position group
 df = df.dropna(subset=['Position Group'])
@@ -1746,6 +1750,10 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         mins  = int(info['Minutes played'].values[0]) if not info.empty else 0
         age_r = info['Age'].values[0] if (not info.empty and 'Age' in info.columns) else None
         age   = int(age_r) if age_r is not None and pd.notnull(age_r) else '—'
+        liga_raw = str(info['Liga'].values[0]) if ('Liga' in info.columns and not info.empty) else ''
+        # Extraer solo el código (PAR/ARG/BRA) sin emoji para matplotlib
+        liga_code = liga_raw.split()[-1] if liga_raw else ''
+        team_display = f"{team} [{liga_code}]" if liga_code and liga_code != 'PAR' else team
 
         # Color barra
         if sim >= 85:   bar_col = '#22c55e'
@@ -1768,7 +1776,7 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
 
         ax.text(0.35, row_y, str(rank),    fontsize=9,  color='#4b5563', va='center', ha='center', fontweight='bold')
         ax.text(0.65, row_y, pname[:26],   fontsize=9.5, color='#f1f5f9', va='center', ha='left', fontweight='bold')
-        ax.text(3.80, row_y, team[:22],    fontsize=8.5, color='#9ca3af', va='center', ha='left')
+        ax.text(3.80, row_y, team_display[:24], fontsize=8.5, color='#9ca3af', va='center', ha='left')
         ax.text(6.00, row_y, pos[:14],     fontsize=7.5, color='#6b7280', va='center', ha='left')
         ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#4ade80', va='center', ha='center', fontweight='bold')
         ax.text(7.75, row_y, f'{mins:,}',  fontsize=7.5, color='#6b7280', va='center', ha='right')
@@ -1790,6 +1798,13 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
 
 def _render_similarity_table(results, pool_df, team_col, top_n):
     """Renderiza la tabla de similitud como HTML con barras de porcentaje."""
+    _LIGA_COLORS = {
+        '🇵🇾 PAR': '#3b82f6',
+        '🇦🇷 ARG': '#60a5fa',
+        '🇧🇷 BRA': '#34d399',
+    }
+    _has_liga = 'Liga' in pool_df.columns
+
     rows_html = ''
     for rank, row in results.head(top_n).iterrows():
         pname = row['Player']
@@ -1801,6 +1816,16 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
         mins  = int(player_info['Minutes played'].values[0]) if not player_info.empty else 0
         age_raw = player_info['Age'].values[0] if (not player_info.empty and 'Age' in player_info.columns) else None
         age   = int(age_raw) if age_raw is not None and pd.notnull(age_raw) else '—'
+        liga  = str(player_info['Liga'].values[0]) if (_has_liga and not player_info.empty) else ''
+
+        # Badge de liga
+        liga_badge = ''
+        if liga:
+            badge_color = _LIGA_COLORS.get(liga, '#6b7280')
+            liga_badge = (f'<span style="display:inline-block; margin-left:6px; padding:1px 6px; '
+                          f'border-radius:4px; font-size:10px; font-weight:700; '
+                          f'background:{badge_color}22; color:{badge_color}; '
+                          f'border:1px solid {badge_color}55;">{liga}</span>')
 
         # Color de barra según similitud
         if sim >= 85:
@@ -1816,7 +1841,7 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
         rows_html += f"""
         <tr>
           <td class="rank">{rank}</td>
-          <td class="pname">{pname}</td>
+          <td class="pname">{pname}{liga_badge}</td>
           <td class="team">{team}</td>
           <td class="pos">{pos}</td>
           <td class="age">{age}</td>
@@ -1904,14 +1929,56 @@ with tab_similar:
     with sim_top_col:
         sim_top_n = st.slider("Cantidad de jugadores a mostrar", 5, 30, 15, key="sim_top_n")
 
-    # Pool: misma posición + mínimo de minutos
-    sim_pool = df[
+    # ── Ligas externas ──────────────────────────────────────────────────────
+    if df_arg is not None or df_bra is not None:
+        st.markdown(
+            "<p style='margin:10px 0 4px 0; font-size:0.9rem; color:#9ca3af;'>"
+            "🌎 <b>Incluir ligas externas en el pool de comparación:</b></p>",
+            unsafe_allow_html=True,
+        )
+        _ck_col1, _ck_col2, _ck_spacer = st.columns([1, 1, 6])
+        with _ck_col1:
+            sim_use_arg = st.checkbox(
+                "🇦🇷 ARG", value=False, key="sim_use_arg",
+                disabled=(df_arg is None),
+            )
+        with _ck_col2:
+            sim_use_bra = st.checkbox(
+                "🇧🇷 BRA", value=False, key="sim_use_bra",
+                disabled=(df_bra is None),
+            )
+    else:
+        sim_use_arg = False
+        sim_use_bra = False
+
+    # Pool PAR: filtro de posición + minutos (fuente de selección y verificación)
+    sim_pool_par = df[
         (df['Position Group'] == sim_pos) &
         (df['Minutes played'] >= sim_min_minutes)
     ].copy().reset_index(drop=True)
+    sim_pool_par['Liga'] = '🇵🇾 PAR'
 
+    sim_player_in_pool = sim_pool_par[sim_pool_par['Player'] == sim_player]
+
+    # Pool extendido: PAR + ligas externas seleccionadas
+    _pool_parts = [sim_pool_par]
+    if sim_use_arg and df_arg is not None:
+        _arg_filt = df_arg[
+            (df_arg['Position Group'] == sim_pos) &
+            (df_arg['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        _arg_filt['Liga'] = '🇦🇷 ARG'
+        _pool_parts.append(_arg_filt)
+    if sim_use_bra and df_bra is not None:
+        _bra_filt = df_bra[
+            (df_bra['Position Group'] == sim_pos) &
+            (df_bra['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        _bra_filt['Liga'] = '🇧🇷 BRA'
+        _pool_parts.append(_bra_filt)
+
+    sim_pool = pd.concat(_pool_parts, ignore_index=True)
     sim_n_pool = len(sim_pool)
-    sim_player_in_pool = sim_pool[sim_pool['Player'] == sim_player]
 
     if sim_player_in_pool.empty:
         st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
@@ -1945,9 +2012,11 @@ with tab_similar:
             """, unsafe_allow_html=True)
 
             n_sim_cols = len(_get_similarity_cols(sim_pool))
+            _pool_ligas = sim_pool['Liga'].value_counts().to_dict() if 'Liga' in sim_pool.columns else {}
+            _pool_desc = '  ·  '.join(f"{lg} {cnt}" for lg, cnt in _pool_ligas.items()) if _pool_ligas else f"{sim_n_pool}"
             st.caption(
                 f"🔬 PCA: **{sim_n_comp} componentes** · **{sim_var:.1f}%** varianza explicada · "
-                f"**{n_sim_cols}** métricas · Pool: **{sim_n_pool}** {sim_pos.lower()}s"
+                f"**{n_sim_cols}** métricas · Pool: **{sim_n_pool}** {sim_pos.lower()}s  ({_pool_desc})"
             )
             st.markdown("---")
 
