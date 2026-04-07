@@ -694,8 +694,8 @@ def _player_header_html(player_name, position_code, pos_group,
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm"]
+tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_best11 = st.tabs(
+    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm", "⚽ Mejor Once"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -2677,6 +2677,348 @@ with tab_swarm:
                             key="dl_sw",
                         )
                         st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
+
+
+# ---- Tab 8: Mejor Once -----------------------------------------------------
+# Colores por slot de posición exacta
+_B11_POS_COLORS = {
+    'GK':  '#f59e0b',  # ámbar
+    'LB':  '#06b6d4',  # cian
+    'LCB': '#3b82f6',  # azul
+    'RCB': '#3b82f6',  # azul
+    'RB':  '#06b6d4',  # cian
+    'MID': '#8b5cf6',  # violeta
+    'LW':  '#10b981',  # verde
+    'RW':  '#10b981',  # verde
+    'CF':  '#ef4444',  # rojo
+}
+
+_B11_POS_LABEL = {
+    'GK': 'GK', 'LB': 'LB', 'LCB': 'LCB',
+    'RCB': 'RCB', 'RB': 'RB',
+    'MID': 'VOL', 'LW': 'EXT', 'RW': 'EXT', 'CF': 'CF',
+}
+
+# Posiciones exactas que pertenecen a cada slot
+_B11_POS_MAP = {
+    'GK':  {'GK'},
+    'LB':  {'LB', 'LWB'},
+    'LCB': {'LCB'},
+    'RCB': {'RCB'},
+    'RB':  {'RB', 'RWB'},
+    'MID': {'DMF', 'LDMF', 'RDMF', 'LCMF', 'LAMF', 'RAMF', 'AMF'},
+    'LW':  {'LW', 'LWF'},
+    'RW':  {'RW', 'RWF'},
+    'CF':  {'CF'},
+}
+
+# Cuántos jugadores seleccionar por slot
+_B11_N_SLOTS = {
+    'GK': 1, 'LB': 1, 'LCB': 1, 'RCB': 1, 'RB': 1,
+    'MID': 2, 'LW': 1, 'RW': 1, 'CF': 2,
+}
+
+
+def _compute_best_eleven(df, min_minutes=200):
+    """Selecciona el mejor once por posición exacta usando promedio de percentiles."""
+    score_cols = [
+        c for c in df.columns
+        if (c.endswith(' per 90') or c.endswith(', %'))
+        and pd.api.types.is_numeric_dtype(df[c])
+    ]
+    GK_LOWER = {'Conceded goals per 90', 'xG against per 90'}
+    df_filt = df[df['Minutes played'] >= min_minutes].copy()
+    team_col = ('Team within selected timeframe'
+                if 'Team within selected timeframe' in df.columns else 'Team')
+
+    # 1. Calcular PUNTAJE de cada jugador vs su Position Group
+    all_scores = {}
+    for pos_group in df_filt['Position Group'].dropna().unique():
+        pos_df = df_filt[df_filt['Position Group'] == pos_group]
+        for _, row in pos_df.iterrows():
+            pcts = []
+            for col in score_cols:
+                val = row.get(col, None)
+                if val is None or pd.isnull(val):
+                    continue
+                pct = _compute_percentile(float(val), pos_df[col])
+                if col in GK_LOWER:
+                    pct = max(0, 99 - pct)
+                pcts.append(pct)
+            avg_pct = round(float(np.mean(pcts)), 1) if pcts else 0.0
+            all_scores[row['Player']] = {
+                'name':     row['Player'],
+                'puntaje':  avg_pct,
+                'club':     str(row.get(team_col, '—')),
+                'age':      (int(row['Age']) if 'Age' in row.index
+                             and pd.notnull(row['Age']) else '—'),
+                'position': str(row.get('Position', '')),
+            }
+
+    # 2. Seleccionar los mejores por slot de posición exacta
+    def _best_for_slot(slot_key):
+        pos_set = _B11_POS_MAP[slot_key]
+        n       = _B11_N_SLOTS[slot_key]
+        cands   = [v for v in all_scores.values() if v['position'] in pos_set]
+        cands.sort(key=lambda x: x['puntaje'], reverse=True)
+        return cands[:n]
+
+    return {slot: _best_for_slot(slot) for slot in _B11_POS_MAP}
+
+
+def _draw_best_eleven_fig(best_eleven, min_minutes, logo_path=None):
+    """Dibuja la cancha con el mejor once — todos con tarjeta, layout compacto.
+    y=0 → arriba (ataque), y=105 → abajo (defensa), ylim invertido."""
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import FancyBboxPatch, Arc, Circle
+    import matplotlib.patheffects as pe
+    import matplotlib.image as mpimg
+
+    PW = 68.0
+    PH = 105.0
+
+    # ── Coordenadas (x, y) de cada slot ──────────────────────────────────────
+    # Filas: CF y=18, LW/RW y=36, MID y=54, DEF y=72, GK y=92
+    # Tarjeta (ch=8): cy0 = py - dot_r - gap - ch = py - 12
+    # Espacio entre tarjeta inferior de una fila y tarjeta superior de la siguiente: 10 u
+    _B11_COORDS = {
+        'CF':  [(21.0, 18.0), (47.0, 18.0)],
+        'LW':  [( 5.0, 36.0)],
+        'RW':  [(63.0, 36.0)],
+        'MID': [(21.0, 54.0), (47.0, 54.0)],
+        'LB':  [( 6.0, 72.0)],
+        'LCB': [(21.0, 72.0)],
+        'RCB': [(47.0, 72.0)],
+        'RB':  [(62.0, 72.0)],
+        'GK':  [(34.0, 92.0)],
+    }
+
+    # Parámetros de tarjeta
+    dot_r = 2.8
+    cw    = 12.0
+    ch    = 8.0
+    gap   = 1.2
+
+    fig = plt.figure(figsize=(10, 16), facecolor='#0e1117')
+
+    # ── Título ────────────────────────────────────────────────────────────────
+    ax_t = fig.add_axes([0, 0.945, 1, 0.055])
+    ax_t.set_facecolor('#0e1117')
+    ax_t.axis('off')
+    ax_t.text(0.5, 0.72, 'MEJOR ONCE', fontsize=22, fontweight='bold',
+              color='#f1f5f9', ha='center', va='center')
+    ax_t.text(0.5, 0.18,
+              f'Apertura 2026  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
+              fontsize=9, color='#6b7280', ha='center', va='center')
+
+    # ── Cancha ────────────────────────────────────────────────────────────────
+    ax = fig.add_axes([0.01, 0.04, 0.98, 0.90])
+    ax.set_facecolor('#0e1117')
+    ax.set_xlim(-3, PW + 3)
+    ax.set_ylim(109, -14)   # invertido: y pequeño → arriba (ataque)
+    ax.axis('off')
+
+    lc, la, lw = 'white', 0.38, 1.1
+
+    # Franjas de césped
+    sh = PH / 10
+    for i in range(10):
+        ax.add_patch(plt.Rectangle(
+            (0, i * sh), PW, sh,
+            facecolor='white', alpha=0.018 if i % 2 == 0 else 0, zorder=0))
+
+    # Borde cancha
+    ax.plot([0, PW, PW, 0, 0], [0, 0, PH, PH, 0],
+            color=lc, alpha=la, lw=lw)
+
+    # Línea central
+    cy_mid = PH / 2
+    ax.plot([0, PW], [cy_mid, cy_mid], color=lc, alpha=la, lw=lw * 0.8)
+    ax.add_patch(Circle((PW / 2, cy_mid), 9.15,
+                         color=lc, fill=False, alpha=la, lw=lw * 0.8))
+    ax.plot(PW / 2, cy_mid, 'o', color=lc, alpha=la, ms=2)
+
+    # Áreas penales
+    pa_w, pa_h = 40.32, 16.5
+    pa_x = (PW - pa_w) / 2
+    pb   = PH
+    ax.plot([pa_x, pa_x + pa_w, pa_x + pa_w, pa_x, pa_x],
+            [0, 0, pa_h, pa_h, 0], color=lc, alpha=la, lw=lw * 0.8)
+    ax.plot([pa_x, pa_x + pa_w, pa_x + pa_w, pa_x, pa_x],
+            [pb, pb, pb - pa_h, pb - pa_h, pb], color=lc, alpha=la, lw=lw * 0.8)
+
+    # Áreas chicas
+    ga_w, ga_h = 18.32, 5.5
+    ga_x = (PW - ga_w) / 2
+    ax.plot([ga_x, ga_x + ga_w, ga_x + ga_w, ga_x, ga_x],
+            [0, 0, ga_h, ga_h, 0], color=lc, alpha=la, lw=lw * 0.8)
+    ax.plot([ga_x, ga_x + ga_w, ga_x + ga_w, ga_x, ga_x],
+            [pb, pb, pb - ga_h, pb - ga_h, pb], color=lc, alpha=la, lw=lw * 0.8)
+
+    # Porterías
+    gw, gd = 7.32, 2.5
+    gx = (PW - gw) / 2
+    ax.plot([gx, gx + gw, gx + gw, gx, gx],
+            [-gd, -gd, 0, 0, -gd], color=lc, alpha=la * 1.2, lw=lw)
+    ax.plot([gx, gx + gw, gx + gw, gx, gx],
+            [pb + gd, pb + gd, pb, pb, pb + gd], color=lc, alpha=la * 1.2, lw=lw)
+
+    # Puntos de penal y arcos
+    ax.plot(PW / 2, 11,       'o', color=lc, alpha=la, ms=2)
+    ax.plot(PW / 2, pb - 11,  'o', color=lc, alpha=la, ms=2)
+    ax.add_patch(Arc((PW / 2, pa_h), 18.3, 18.3,
+                     angle=0, theta1=38, theta2=142, color=lc, alpha=la, lw=lw * 0.8))
+    ax.add_patch(Arc((PW / 2, pb - pa_h), 18.3, 18.3,
+                     angle=0, theta1=218, theta2=322, color=lc, alpha=la, lw=lw * 0.8))
+
+    # ── Jugadores — todos con tarjeta ─────────────────────────────────────────
+    for slot, coords in _B11_COORDS.items():
+        players = best_eleven.get(slot, [])
+        col     = _B11_POS_COLORS[slot]
+        lbl     = _B11_POS_LABEL[slot]
+
+        for i, (px, py) in enumerate(coords):
+            # Punto de posición
+            ax.plot(px, py, 'o', color=col, ms=dot_r * 3.0,
+                    zorder=9, alpha=0.92,
+                    markeredgecolor='white', markeredgewidth=1.3)
+            ax.text(px, py, lbl, fontsize=5.5, fontweight='bold',
+                    color='white', ha='center', va='center', zorder=10)
+
+            if i >= len(players):
+                continue
+
+            p       = players[i]
+            name    = p['name'][:18]
+            club    = p['club'][:20]
+            age     = str(p['age'])
+            puntaje = p['puntaje']
+
+            # Tarjeta encima del punto (cy0 = top-left y del rectángulo)
+            cy0 = py - dot_r - gap - ch
+            cx0 = max(0.0, min(px - cw / 2, PW - cw))
+            cx  = cx0 + cw / 2
+
+            # Fondo tarjeta
+            ax.add_patch(FancyBboxPatch(
+                (cx0, cy0), cw, ch,
+                boxstyle='round,pad=0.3',
+                facecolor='#111827', edgecolor=col,
+                linewidth=1.4, zorder=6, alpha=0.95))
+            # Barra de color superior
+            ax.add_patch(FancyBboxPatch(
+                (cx0, cy0), cw, 1.8,
+                boxstyle='round,pad=0.2',
+                facecolor=col, edgecolor='none',
+                zorder=7, alpha=0.80))
+            # Conector punto → tarjeta
+            ax.plot([px, px], [py - dot_r, cy0 + ch],
+                    color=col, alpha=0.35, lw=0.9, zorder=5)
+            # Nombre
+            ax.text(cx, cy0 + 3.0, name,
+                    fontsize=8.0, fontweight='bold', color='#f1f5f9',
+                    ha='center', va='center', zorder=8,
+                    path_effects=[pe.withStroke(linewidth=0.8, foreground='#0e1117')])
+            # Club
+            ax.text(cx, cy0 + 5.2, club,
+                    fontsize=6.5, color='#9ca3af',
+                    ha='center', va='center', zorder=8)
+            # Edad · PUNTAJE
+            ax.text(cx, cy0 + 7.0,
+                    f"{age}  ★ {puntaje:.1f}",
+                    fontsize=6.5, fontweight='bold', color=col,
+                    ha='center', va='center', zorder=8)
+
+    # ── Branding ──────────────────────────────────────────────────────────────
+    ax.text(PW / 2, 105,
+            'X @marca_zonal   |   Instagram @marca.zonal',
+            fontsize=8, color='#4b5563', ha='center', va='bottom',
+            fontstyle='italic')
+
+    # ── Logo ──────────────────────────────────────────────────────────────────
+    if logo_path and os.path.exists(logo_path):
+        logo_img = mpimg.imread(logo_path)
+        ax_lg = fig.add_axes([0.85, 0.948, 0.13, 0.048])
+        ax_lg.imshow(logo_img)
+        ax_lg.axis('off')
+
+    return fig
+
+
+with tab_best11:
+    st.subheader("Mejor Once")
+    st.caption("Los mejores 11 jugadores por posición según promedio de percentiles (PUNTAJE) — Apertura 2026")
+
+    _b11_team_col = ('Team within selected timeframe'
+                     if 'Team within selected timeframe' in df.columns else 'Team')
+    _b11_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
+    _b11_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 90
+
+    b11_col1, b11_col2 = st.columns([2, 1])
+    with b11_col1:
+        b11_min_min = st.slider(
+            "Minutos mínimos", _b11_min_v, _b11_max_v,
+            value=min(300, _b11_max_v), step=50, key="b11_min_min"
+        )
+    with b11_col2:
+        b11_season = st.text_input("Temporada", value="Apertura 2026", key="b11_season")
+
+    best_eleven = _compute_best_eleven(df, min_minutes=b11_min_min)
+
+    # Tabla resumen rápida
+    _B11_SLOT_LABELS = {
+        'CF': 'Delantero Centro', 'LW': 'Extremo Izquierdo',
+        'RW': 'Extremo Derecho', 'MID': 'Volante Central',
+        'LB': 'Lateral Izquierdo', 'LCB': 'Central Izquierdo',
+        'RCB': 'Central Derecho', 'RB': 'Lateral Derecho', 'GK': 'Portero',
+    }
+    with st.expander("📋 Ver ranking por posición", expanded=False):
+        for slot_key in ['CF', 'LW', 'RW', 'MID', 'LB', 'LCB', 'RCB', 'RB', 'GK']:
+            players_b11 = best_eleven.get(slot_key, [])
+            if players_b11:
+                rows_b11 = []
+                for rank_b11, p_b11 in enumerate(players_b11, 1):
+                    rows_b11.append({
+                        'Pos.': rank_b11,
+                        'Jugador': p_b11['name'],
+                        'Club': p_b11['club'],
+                        'Edad': p_b11['age'],
+                        'PUNTAJE': p_b11['puntaje'],
+                    })
+                st.markdown(f"**{_B11_SLOT_LABELS.get(slot_key, slot_key)}**")
+                st.dataframe(pd.DataFrame(rows_b11).set_index('Pos.'),
+                             use_container_width=True)
+
+    # Figura de la cancha
+    fig_b11 = _draw_best_eleven_fig(
+        best_eleven, min_minutes=b11_min_min,
+        logo_path=LOGO_BLANCO,
+    )
+
+    # Mostrar en pantalla
+    buf_b11_display = io.BytesIO()
+    fig_b11.savefig(buf_b11_display, format='png', dpi=130,
+                    bbox_inches='tight', facecolor=fig_b11.get_facecolor())
+    plt.close(fig_b11)
+    st.image(buf_b11_display.getvalue(), use_column_width=True)
+
+    # Botón descarga alta resolución
+    fig_b11_dl = _draw_best_eleven_fig(
+        best_eleven, min_minutes=b11_min_min,
+        logo_path=LOGO_BLANCO,
+    )
+    buf_b11_dl = io.BytesIO()
+    fig_b11_dl.savefig(buf_b11_dl, format='png', dpi=200,
+                       bbox_inches='tight', facecolor=fig_b11_dl.get_facecolor())
+    plt.close(fig_b11_dl)
+    st.download_button(
+        "⬇️ Descargar imagen (alta resolución)",
+        buf_b11_dl.getvalue(),
+        file_name=f"mejor_once_{b11_season.replace(' ', '_')}.png",
+        mime="image/png",
+        key="dl_b11",
+    )
+    st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 
 # ---------------------------------------------------------------------------
