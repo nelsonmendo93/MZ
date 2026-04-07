@@ -1038,6 +1038,7 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     fig, ax = plt.subplots(figsize=(6.5, 7.4), facecolor='#0f1117')
     ax.set_facecolor('#0f1117')
     ax.set_aspect('equal')
+    ax.set_ylim(110, -16)
     ax.axis('off')
 
     # Fondo del pentágono
@@ -2781,7 +2782,7 @@ def _compute_best_eleven(df, min_minutes=200):
     return {slot: _best_for_slot(slot) for slot in _B11_POS_MAP}
 
 
-def _draw_best_eleven_fig(best_eleven, min_minutes, logo_path=None):
+def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026", logo_path=None):
     """Dibuja la cancha con el mejor once — todos con tarjeta, layout compacto.
     y=0 → arriba (ataque), y=105 → abajo (defensa), ylim invertido."""
     import matplotlib.pyplot as plt
@@ -2797,50 +2798,56 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, logo_path=None):
     # Tarjeta (ch=8): cy0 = py - dot_r - gap - ch = py - 12
     # Espacio entre tarjeta inferior de una fila y tarjeta superior de la siguiente: 10 u
     _B11_COORDS = {
-        'CF':  [(21.0, 18.0), (47.0, 18.0)],
-        'LW':  [( 5.0, 36.0)],
-        'RW':  [(63.0, 36.0)],
-        'MID': [(21.0, 54.0), (47.0, 54.0)],
-        'LB':  [( 6.0, 72.0)],
-        'LCB': [(21.0, 72.0)],
-        'RCB': [(47.0, 72.0)],
-        'RB':  [(62.0, 72.0)],
-        'GK':  [(34.0, 92.0)],
+        'CF':  [(21.0, 17.0), (47.0, 17.0)],
+        'LW':  [( 7.0, 34.5)],
+        'RW':  [(61.0, 34.5)],
+        'MID': [(21.0, 52.0), (47.0, 52.0)],
+        'LB':  [( 8.0, 72.0)],
+        'LCB': [(23.0, 74.0)],
+        'RCB': [(45.0, 74.0)],
+        'RB':  [(60.0, 72.0)],
+        'GK':  [(34.0, 93.0)],
     }
 
     # Parámetros de tarjeta
-    dot_r = 2.8
-    cw    = 12.0
-    ch    = 8.0
-    gap   = 1.2
+    dot_r = 3.1
+    cw    = 14.2
+    ch    = 9.2
+    gap   = 1.6
 
-    fig = plt.figure(figsize=(10, 16), facecolor='#0e1117')
+    fig = plt.figure(figsize=(12.2, 14.8), facecolor='#0b1220')
 
     # ── Título ────────────────────────────────────────────────────────────────
-    ax_t = fig.add_axes([0, 0.945, 1, 0.055])
-    ax_t.set_facecolor('#0e1117')
+    ax_t = fig.add_axes([0, 0.93, 1, 0.07])
+    ax_t.set_facecolor('#0b1220')
     ax_t.axis('off')
-    ax_t.text(0.5, 0.72, 'MEJOR ONCE', fontsize=22, fontweight='bold',
-              color='#f1f5f9', ha='center', va='center')
+    ax_t.text(0.5, 0.75, 'MEJOR ONCE', fontsize=24, fontweight='bold',
+              color='#f8fafc', ha='center', va='center')
     ax_t.text(0.5, 0.18,
               f'Apertura 2026  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
-              fontsize=9, color='#6b7280', ha='center', va='center')
+              fontsize=9, color='#0b1220', ha='center', va='center')
+    ax_t.text(0.5, 0.18,
+              f'{season_label}  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
+              fontsize=10, color='#94a3b8', ha='center', va='center')
 
     # ── Cancha ────────────────────────────────────────────────────────────────
-    ax = fig.add_axes([0.01, 0.04, 0.98, 0.90])
-    ax.set_facecolor('#0e1117')
-    ax.set_xlim(-3, PW + 3)
+    ax = fig.add_axes([0.035, 0.04, 0.93, 0.885])
+    ax.set_facecolor('#0b1220')
+    ax.set_xlim(-4, PW + 4)
+    ax.set_ylim(110, -16)
     ax.set_ylim(109, -14)   # invertido: y pequeño → arriba (ataque)
     ax.axis('off')
 
     lc, la, lw = 'white', 0.38, 1.1
+    lc, la, lw = '#e2e8f0', 0.42, 1.3
 
     # Franjas de césped
     sh = PH / 10
     for i in range(10):
         ax.add_patch(plt.Rectangle(
             (0, i * sh), PW, sh,
-            facecolor='white', alpha=0.018 if i % 2 == 0 else 0, zorder=0))
+            facecolor='#22c55e', alpha=0.07 if i % 2 == 0 else 0.035, zorder=0))
+    ax.add_patch(plt.Rectangle((0, 0), PW, PH, facecolor='#0f3b2e', alpha=0.28, zorder=0))
 
     # Borde cancha
     ax.plot([0, PW, PW, 0, 0], [0, 0, PH, PH, 0],
@@ -2894,18 +2901,18 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, logo_path=None):
 
         for i, (px, py) in enumerate(coords):
             # Punto de posición
-            ax.plot(px, py, 'o', color=col, ms=dot_r * 3.0,
+            ax.plot(px, py, 'o', color=col, ms=dot_r * 3.1,
                     zorder=9, alpha=0.92,
-                    markeredgecolor='white', markeredgewidth=1.3)
-            ax.text(px, py, lbl, fontsize=5.5, fontweight='bold',
+                    markeredgecolor='white', markeredgewidth=1.5)
+            ax.text(px, py, lbl, fontsize=6.2, fontweight='bold',
                     color='white', ha='center', va='center', zorder=10)
 
             if i >= len(players):
                 continue
 
             p       = players[i]
-            name    = p['name'][:18]
-            club    = p['club'][:20]
+            name    = p['name'][:22]
+            club    = p['club'][:22]
             age     = str(p['age'])
             puntaje = p['puntaje']
 
@@ -2918,42 +2925,43 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, logo_path=None):
             ax.add_patch(FancyBboxPatch(
                 (cx0, cy0), cw, ch,
                 boxstyle='round,pad=0.3',
-                facecolor='#111827', edgecolor=col,
-                linewidth=1.4, zorder=6, alpha=0.95))
+                facecolor='#0f172a', edgecolor=col,
+                linewidth=1.5, zorder=6, alpha=0.96,
+                path_effects=[pe.withSimplePatchShadow(offset=(0, -1.2), alpha=0.25)]))
             # Barra de color superior
             ax.add_patch(FancyBboxPatch(
-                (cx0, cy0), cw, 1.8,
+                (cx0, cy0), cw, 2.0,
                 boxstyle='round,pad=0.2',
                 facecolor=col, edgecolor='none',
                 zorder=7, alpha=0.80))
             # Conector punto → tarjeta
             ax.plot([px, px], [py - dot_r, cy0 + ch],
-                    color=col, alpha=0.35, lw=0.9, zorder=5)
+                    color=col, alpha=0.35, lw=0.95, zorder=5)
             # Nombre
-            ax.text(cx, cy0 + 3.0, name,
-                    fontsize=8.0, fontweight='bold', color='#f1f5f9',
+            ax.text(cx, cy0 + 3.3, name,
+                    fontsize=8.8, fontweight='bold', color='#f8fafc',
                     ha='center', va='center', zorder=8,
-                    path_effects=[pe.withStroke(linewidth=0.8, foreground='#0e1117')])
+                    path_effects=[pe.withStroke(linewidth=0.8, foreground='#0b1220')])
             # Club
-            ax.text(cx, cy0 + 5.2, club,
-                    fontsize=6.5, color='#9ca3af',
+            ax.text(cx, cy0 + 5.8, club,
+                    fontsize=7.0, color='#cbd5e1',
                     ha='center', va='center', zorder=8)
             # Edad · PUNTAJE
-            ax.text(cx, cy0 + 7.0,
+            ax.text(cx, cy0 + 7.9,
                     f"{age}  ★ {puntaje:.1f}",
-                    fontsize=6.5, fontweight='bold', color=col,
+                    fontsize=7.0, fontweight='bold', color=col,
                     ha='center', va='center', zorder=8)
 
     # ── Branding ──────────────────────────────────────────────────────────────
     ax.text(PW / 2, 105,
             'X @marca_zonal   |   Instagram @marca.zonal',
-            fontsize=8, color='#4b5563', ha='center', va='bottom',
+            fontsize=8.5, color='#64748b', ha='center', va='bottom',
             fontstyle='italic')
 
     # ── Logo ──────────────────────────────────────────────────────────────────
     if logo_path and os.path.exists(logo_path):
         logo_img = mpimg.imread(logo_path)
-        ax_lg = fig.add_axes([0.85, 0.948, 0.13, 0.048])
+        ax_lg = fig.add_axes([0.84, 0.94, 0.14, 0.055])
         ax_lg.imshow(logo_img)
         ax_lg.axis('off')
 
@@ -2968,12 +2976,13 @@ with tab_best11:
                      if 'Team within selected timeframe' in df.columns else 'Team')
     _b11_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
     _b11_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 90
+    _b11_default_min = math.ceil(_b11_max_v / 2) if _b11_max_v else 0
 
     b11_col1, b11_col2 = st.columns([2, 1])
     with b11_col1:
         b11_min_min = st.slider(
             "Minutos mínimos", _b11_min_v, _b11_max_v,
-            value=min(300, _b11_max_v), step=50, key="b11_min_min"
+            value=_b11_default_min, step=1, key="b11_min_min"
         )
     with b11_col2:
         b11_season = st.text_input("Temporada", value="Apertura 2026", key="b11_season")
@@ -3007,6 +3016,7 @@ with tab_best11:
     # Figura de la cancha
     fig_b11 = _draw_best_eleven_fig(
         best_eleven, min_minutes=b11_min_min,
+        season_label=b11_season,
         logo_path=LOGO_BLANCO,
     )
 
@@ -3020,6 +3030,7 @@ with tab_best11:
     # Botón descarga alta resolución
     fig_b11_dl = _draw_best_eleven_fig(
         best_eleven, min_minutes=b11_min_min,
+        season_label=b11_season,
         logo_path=LOGO_BLANCO,
     )
     buf_b11_dl = io.BytesIO()
