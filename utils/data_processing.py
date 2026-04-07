@@ -130,7 +130,14 @@ def process_database(df):
                  * pd.to_numeric(df['Minutes played'], errors='coerce').fillna(0)) / 90
             ).round(1)
             new_col_name = col.replace(' per 90', '')
-            df[new_col_name] = total_values
+
+            # Preserve source totals from the spreadsheet when they already exist.
+            # Only backfill missing values from the per-90 reconstruction.
+            if new_col_name in df.columns:
+                existing_values = pd.to_numeric(df[new_col_name], errors='coerce')
+                df[new_col_name] = existing_values.where(existing_values.notna(), total_values)
+            else:
+                df[new_col_name] = total_values
             # Keep the original per-90 column (don't drop it)
 
     # Calculate successful actions

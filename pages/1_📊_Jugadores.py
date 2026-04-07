@@ -2118,7 +2118,14 @@ def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
         team  = str(row.get(team_col, '—'))
         pos   = str(row.get('Position Group', '—'))
         val   = row[metric_col]
-        val_fmt = str(int(val)) if is_total else (f"{val:.2f}" if isinstance(val, float) else str(val))
+        if is_total:
+            val_num = pd.to_numeric(val, errors='coerce')
+            if pd.notna(val_num):
+                val_fmt = str(int(round(float(val_num)))) if float(val_num).is_integer() or abs(float(val_num) - round(float(val_num))) < 0.05 else f"{float(val_num):.1f}"
+            else:
+                val_fmt = str(val)
+        else:
+            val_fmt = f"{val:.2f}" if isinstance(val, float) else str(val)
         bar_w = max(int((val / max_val) * 100), 1)
 
         # Color del top 3
@@ -2256,7 +2263,14 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
         team  = str(row.get(team_col, '—'))
         pos   = str(row.get('Position Group', '—'))
         val   = row[metric_col]
-        val_fmt = str(int(val)) if is_total else (f"{val:.2f}" if isinstance(val, float) else str(val))
+        if is_total:
+            val_num = pd.to_numeric(val, errors='coerce')
+            if pd.notna(val_num):
+                val_fmt = str(int(round(float(val_num)))) if float(val_num).is_integer() or abs(float(val_num) - round(float(val_num))) < 0.05 else f"{float(val_num):.1f}"
+            else:
+                val_fmt = str(val)
+        else:
+            val_fmt = f"{val:.2f}" if isinstance(val, float) else str(val)
         bar_w_frac = (val / max_val)
 
         # Colores por posición
