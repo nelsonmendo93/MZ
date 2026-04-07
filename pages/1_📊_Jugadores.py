@@ -2734,15 +2734,77 @@ _B11_N_SLOTS = {
     'MID': 2, 'LW': 1, 'RW': 1, 'CF': 2,
 }
 
+_B11_ROLE_METRICS = {
+    'Portero': [
+        ('Save rate, %', 1.4), ('Prevented goals per 90', 1.3),
+        ('Conceded goals per 90', 1.2), ('xG against per 90', 1.0),
+        ('Exits per 90', 0.9), ('Aerial duels won, %', 0.8),
+        ('Accurate passes, %', 0.8), ('Accurate long passes, %', 0.8),
+        ('Accurate progressive passes, %', 0.7),
+    ],
+    'Central': [
+        ('Defensive duels won, %', 1.4), ('Aerial duels won, %', 1.3),
+        ('Interceptions per 90', 1.2), ('Successful defensive actions per 90', 1.2),
+        ('Shots blocked per 90', 0.9), ('Accurate passes per 90', 0.9),
+        ('Accurate progressive passes per 90', 0.8), ('Accurate passes to final third per 90', 0.7),
+    ],
+    'Lateral': [
+        ('Defensive duels won, %', 1.2), ('Interceptions per 90', 1.0),
+        ('Successful defensive actions per 90', 1.0), ('Aerial duels won, %', 0.7),
+        ('Accurate passes per 90', 0.8), ('Accurate progressive passes per 90', 1.1),
+        ('Accurate passes to final third per 90', 1.0), ('Crosses per 90', 1.0),
+        ('Accurate crosses, %', 1.0), ('Progressive runs per 90', 1.2),
+    ],
+    'Volante Central': [
+        ('Accurate passes per 90', 1.3), ('Accurate forward passes per 90', 1.0),
+        ('Accurate progressive passes per 90', 1.2), ('Accurate passes to final third per 90', 1.1),
+        ('Received passes per 90', 0.9), ('Interceptions per 90', 1.0),
+        ('Defensive duels won, %', 0.9), ('Successful defensive actions per 90', 0.9),
+        ('Progressive runs per 90', 0.9), ('Shot assists per 90', 0.9),
+        ('Key passes per 90', 1.0),
+    ],
+    'Extremo': [
+        ('Goals per 90', 1.2), ('Shots on target per 90', 1.0),
+        ('Assists per 90', 1.1), ('Shot assists per 90', 1.0),
+        ('Key passes per 90', 0.9), ('Dribbles won per 90', 1.2),
+        ('Successful dribbles, %', 1.0), ('Touches in box per 90', 1.0),
+        ('Progressive runs per 90', 1.1), ('Accurate crosses, %', 0.8),
+        ('Accurate passes to penalty area per 90', 0.9),
+    ],
+    'Delantero': [
+        ('Goals per 90', 1.4), ('Non-penalty goals per 90', 1.2),
+        ('xG per 90', 1.1), ('Shots per 90', 1.0),
+        ('Shots on target per 90', 1.2), ('Goal conversion, %', 0.9),
+        ('Touches in box per 90', 1.0), ('Aerial duels won, %', 0.8),
+        ('Assists per 90', 0.7), ('Shot assists per 90', 0.7),
+        ('Offensive duels won, %', 0.9),
+    ],
+}
+
+_B11_LOWER_IS_BETTER = {'Conceded goals per 90', 'xG against per 90'}
+
+
+def _compute_best_eleven_score(row, comparison_df, metric_weights):
+    weighted_scores = []
+    total_weight = 0.0
+    for metric, weight in metric_weights:
+        if metric not in comparison_df.columns or metric not in row.index:
+            continue
+        val = row.get(metric, None)
+        if val is None or pd.isnull(val):
+            continue
+        pct = _compute_percentile(float(val), comparison_df[metric])
+        if metric in _B11_LOWER_IS_BETTER:
+            pct = max(0, 99 - pct)
+        weighted_scores.append(pct * weight)
+        total_weight += weight
+    if total_weight == 0:
+        return 0.0
+    return round(float(sum(weighted_scores) / total_weight), 1)
+
 
 def _compute_best_eleven(df, min_minutes=200):
     """Selecciona el mejor once por posición exacta usando promedio de percentiles."""
-    score_cols = [
-        c for c in df.columns
-        if (c.endswith(' per 90') or c.endswith(', %'))
-        and pd.api.types.is_numeric_dtype(df[c])
-    ]
-    GK_LOWER = {'Conceded goals per 90', 'xG against per 90'}
     df_filt = df[df['Minutes played'] >= min_minutes].copy()
     team_col = ('Team within selected timeframe'
                 if 'Team within selected timeframe' in df.columns else 'Team')
@@ -2750,18 +2812,12 @@ def _compute_best_eleven(df, min_minutes=200):
     # 1. Calcular PUNTAJE de cada jugador vs su Position Group
     all_scores = {}
     for pos_group in df_filt['Position Group'].dropna().unique():
+        metric_weights = _B11_ROLE_METRICS.get(pos_group)
+        if not metric_weights:
+            continue
         pos_df = df_filt[df_filt['Position Group'] == pos_group]
         for _, row in pos_df.iterrows():
-            pcts = []
-            for col in score_cols:
-                val = row.get(col, None)
-                if val is None or pd.isnull(val):
-                    continue
-                pct = _compute_percentile(float(val), pos_df[col])
-                if col in GK_LOWER:
-                    pct = max(0, 99 - pct)
-                pcts.append(pct)
-            avg_pct = round(float(np.mean(pcts)), 1) if pcts else 0.0
+            avg_pct = _compute_best_eleven_score(row, pos_df, metric_weights)
             all_scores[row['Player']] = {
                 'name':     row['Player'],
                 'puntaje':  avg_pct,
@@ -2769,6 +2825,7 @@ def _compute_best_eleven(df, min_minutes=200):
                 'age':      (int(row['Age']) if 'Age' in row.index
                              and pd.notnull(row['Age']) else '—'),
                 'position': str(row.get('Position', '')),
+                'position_group': pos_group,
             }
 
     # 2. Seleccionar los mejores por slot de posición exacta
@@ -2970,7 +3027,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
 
 with tab_best11:
     st.subheader("Mejor Once")
-    st.caption("Los mejores 11 jugadores por posición según promedio de percentiles (PUNTAJE) — Apertura 2026")
+    st.caption("Los mejores 11 jugadores por posición según métricas ponderadas por rol posicional.")
 
     _b11_team_col = ('Team within selected timeframe'
                      if 'Team within selected timeframe' in df.columns else 'Team')
