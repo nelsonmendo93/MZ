@@ -28,6 +28,10 @@ EXCLUDED_COLUMNS = [
     'Third assists per 90',
     'Second assists',
     'Third assists',
+    'Smart passes per 90',
+    'Accurate smart passes, %',
+    'Accurate smart passes per 90'
+    
 ]
 
 # Overrides manuales de posición: se aplican sobre cualquier database descargada
@@ -40,7 +44,8 @@ PLAYER_POSITION_OVERRIDES = {
     'Brahian Ayala': 'LCMF',
     'C. Miño':       'RW',
     'A. Benítez':    'RB',
-    'H. Fernández':    'LW'
+    'H. Fernández':  'LW',
+    'A. González':  'LW' 
 }
 
 # Action-percentage pairs for calculating successful actions
