@@ -6,6 +6,7 @@ import io
 import os
 import json
 import urllib.request
+import math
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -2121,7 +2122,7 @@ def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
         if is_total:
             val_num = pd.to_numeric(val, errors='coerce')
             if pd.notna(val_num):
-                val_fmt = str(int(round(float(val_num)))) if float(val_num).is_integer() or abs(float(val_num) - round(float(val_num))) < 0.05 else f"{float(val_num):.1f}"
+                val_fmt = str(math.ceil(float(val_num)))
             else:
                 val_fmt = str(val)
         else:
@@ -2266,7 +2267,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
         if is_total:
             val_num = pd.to_numeric(val, errors='coerce')
             if pd.notna(val_num):
-                val_fmt = str(int(round(float(val_num)))) if float(val_num).is_integer() or abs(float(val_num) - round(float(val_num))) < 0.05 else f"{float(val_num):.1f}"
+                val_fmt = str(math.ceil(float(val_num)))
             else:
                 val_fmt = str(val)
         else:
