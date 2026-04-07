@@ -2958,10 +2958,10 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
 
         for i, (px, py) in enumerate(coords):
             # Punto de posición
-            ax.plot(px, py, 'o', color=col, ms=dot_r * 3.1,
+            ax.plot(px, py, 'o', color=col, ms=dot_r * 3.8,
                     zorder=9, alpha=0.92,
-                    markeredgecolor='white', markeredgewidth=1.5)
-            ax.text(px, py, lbl, fontsize=6.2, fontweight='bold',
+                    markeredgecolor='white', markeredgewidth=1.8)
+            ax.text(px, py, lbl, fontsize=9.4, fontweight='bold',
                     color='white', ha='center', va='center', zorder=10)
 
             if i >= len(players):
