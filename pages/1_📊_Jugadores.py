@@ -2867,7 +2867,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
     }
 
     # Parámetros de tarjeta
-    dot_r = 3.1
+    dot_r = 4.0   # Aumentado de 3.1 para círculos más grandes
     cw    = 14.2
     ch    = 9.2
     gap   = 1.6
@@ -2960,8 +2960,8 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
             # Punto de posición
             ax.plot(px, py, 'o', color=col, ms=dot_r * 6.2,
                     zorder=9, alpha=0.92,
-                    markeredgecolor='white', markeredgewidth=2.2)
-            ax.text(px, py, lbl, fontsize=9.4, fontweight='bold',
+                    markeredgecolor='white', markeredgewidth=2.8)
+            ax.text(px, py, lbl, fontsize=13.4, fontweight='bold',
                     color='white', ha='center', va='center', zorder=10)
 
             if i >= len(players):
