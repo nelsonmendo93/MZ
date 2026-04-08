@@ -2961,7 +2961,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
             ax.plot(px, py, 'o', color=col, ms=dot_r * 6.2,
                     zorder=9, alpha=0.92,
                     markeredgecolor='white', markeredgewidth=2.8)
-            ax.text(px, py, lbl, fontsize=13.4, fontweight='bold',
+            ax.text(px, py, lbl, fontsize=12.4, fontweight='bold',
                     color='white', ha='center', va='center', zorder=10)
 
             if i >= len(players):
