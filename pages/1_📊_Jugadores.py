@@ -3026,82 +3026,51 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
 
 
 with tab_best11:
-    st.subheader("Mejor Once")
-    st.caption("Los mejores 11 jugadores por posición según métricas ponderadas por rol posicional.")
+    # ── Encabezado destacado ──────────────────────────────────────────────────
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+        border-left: 4px solid #38bdf8;
+        border-radius: 8px;
+        padding: 16px 22px;
+        margin-bottom: 18px;
+    ">
+        <div style="font-size:22px; font-weight:800; color:#f1f5f9; letter-spacing:1px;">
+            ⚽ MEJOR ONCE
+        </div>
+        <div style="font-size:13px; color:#94a3b8; margin-top:4px;">
+            Selección automática por posición · Apertura 2026 · Percentil promedio por rol
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    _b11_team_col = ('Team within selected timeframe'
-                     if 'Team within selected timeframe' in df.columns else 'Team')
-    _b11_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
-    _b11_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 90
-    _b11_default_min = math.ceil(_b11_max_v / 2) if _b11_max_v else 0
+    # Minutos mínimos: 50% del máximo disponible, calculado automáticamente
+    _b11_max_v   = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 90
+    _b11_min_min = max(1, math.ceil(_b11_max_v / 2))
 
-    b11_col1, b11_col2 = st.columns([2, 1])
-    with b11_col1:
-        b11_min_min = st.slider(
-            "Minutos mínimos", _b11_min_v, _b11_max_v,
-            value=_b11_default_min, step=1, key="b11_min_min"
-        )
-    with b11_col2:
-        b11_season = st.text_input("Temporada", value="Apertura 2026", key="b11_season")
+    best_eleven = _compute_best_eleven(df, min_minutes=_b11_min_min)
 
-    best_eleven = _compute_best_eleven(df, min_minutes=b11_min_min)
-
-    # Tabla resumen rápida
-    _B11_SLOT_LABELS = {
-        'CF': 'Delantero Centro', 'LW': 'Extremo Izquierdo',
-        'RW': 'Extremo Derecho', 'MID': 'Volante Central',
-        'LB': 'Lateral Izquierdo', 'LCB': 'Central Izquierdo',
-        'RCB': 'Central Derecho', 'RB': 'Lateral Derecho', 'GK': 'Portero',
-    }
-    with st.expander("📋 Ver ranking por posición", expanded=False):
-        for slot_key in ['CF', 'LW', 'RW', 'MID', 'LB', 'LCB', 'RCB', 'RB', 'GK']:
-            players_b11 = best_eleven.get(slot_key, [])
-            if players_b11:
-                rows_b11 = []
-                for rank_b11, p_b11 in enumerate(players_b11, 1):
-                    rows_b11.append({
-                        'Pos.': rank_b11,
-                        'Jugador': p_b11['name'],
-                        'Club': p_b11['club'],
-                        'Edad': p_b11['age'],
-                        'PUNTAJE': p_b11['puntaje'],
-                    })
-                st.markdown(f"**{_B11_SLOT_LABELS.get(slot_key, slot_key)}**")
-                st.dataframe(pd.DataFrame(rows_b11).set_index('Pos.'),
-                             use_container_width=True)
-
-    # Figura de la cancha
-    fig_b11 = _draw_best_eleven_fig(
-        best_eleven, min_minutes=b11_min_min,
-        season_label=b11_season,
-        logo_path=LOGO_BLANCO,
-    )
-
-    # Mostrar en pantalla
-    buf_b11_display = io.BytesIO()
-    fig_b11.savefig(buf_b11_display, format='png', dpi=130,
+    # ── Figura (se genera una sola vez, se reutiliza para display y descarga) ──
+    fig_b11     = _draw_best_eleven_fig(best_eleven, min_minutes=_b11_min_min,
+                                        logo_path=LOGO_BLANCO)
+    buf_b11     = io.BytesIO()
+    fig_b11.savefig(buf_b11, format='png', dpi=130,
+                    bbox_inches='tight', facecolor=fig_b11.get_facecolor())
+    buf_b11_dl  = io.BytesIO()
+    fig_b11.savefig(buf_b11_dl, format='png', dpi=200,
                     bbox_inches='tight', facecolor=fig_b11.get_facecolor())
     plt.close(fig_b11)
-    st.image(buf_b11_display.getvalue(), use_column_width=True)
 
-    # Botón descarga alta resolución
-    fig_b11_dl = _draw_best_eleven_fig(
-        best_eleven, min_minutes=b11_min_min,
-        season_label=b11_season,
-        logo_path=LOGO_BLANCO,
-    )
-    buf_b11_dl = io.BytesIO()
-    fig_b11_dl.savefig(buf_b11_dl, format='png', dpi=200,
-                       bbox_inches='tight', facecolor=fig_b11_dl.get_facecolor())
-    plt.close(fig_b11_dl)
+    st.image(buf_b11.getvalue(), use_column_width=True)
+
     st.download_button(
         "⬇️ Descargar imagen (alta resolución)",
         buf_b11_dl.getvalue(),
-        file_name=f"mejor_once_{b11_season.replace(' ', '_')}.png",
+        file_name="mejor_once_apertura_2026.png",
         mime="image/png",
         key="dl_b11",
     )
-    st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
+    st.caption(f"Mínimo {_b11_min_min} min jugados  ·  X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 
 # ---------------------------------------------------------------------------
