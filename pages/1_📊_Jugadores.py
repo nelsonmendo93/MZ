@@ -1638,9 +1638,10 @@ def _get_similarity_cols(df):
     ]
 
 
-def _compute_similarity_scores(pool_df, player_name):
+def _compute_similarity_scores(pool_df, player_name, player_df=None):
     """
     Calcula puntajes de similitud (0–100%) vs todos los jugadores del pool.
+    Si player_df se proporciona, busca al jugador en ese DF en lugar del pool.
 
     Flujo:
       1. Seleccionar métricas per-90 y %
@@ -1681,14 +1682,22 @@ def _compute_similarity_scores(pool_df, player_name):
     X_pca = pca.fit_transform(X_scaled)
     var_explained = float(np.sum(pca.explained_variance_ratio_) * 100)
 
-    # Índice del jugador seleccionado
-    players_reset = pool_df['Player'].reset_index(drop=True)
-    player_mask = players_reset == player_name
-    if not player_mask.any():
-        return None, n_comp, var_explained
-
-    player_idx = int(player_mask.idxmax())
-    player_vec = X_pca[player_idx]
+    # Obtener vector del jugador (desde player_df si se proporciona, sino del pool)
+    if player_df is not None:
+        player_in_source = player_df[player_df['Player'] == player_name]
+        if player_in_source.empty:
+            return None, n_comp, var_explained
+        player_metrics = player_in_source[sim_cols].fillna(0).iloc[0].values.reshape(1, -1)
+        player_metrics = player_metrics[:, var_mask]
+        player_scaled = scaler.transform(player_metrics)
+        player_vec = pca.transform(player_scaled)[0]
+    else:
+        players_reset = pool_df['Player'].reset_index(drop=True)
+        player_mask = players_reset == player_name
+        if not player_mask.any():
+            return None, n_comp, var_explained
+        player_idx = int(player_mask.idxmax())
+        player_vec = X_pca[player_idx]
 
     # Distancias euclídeas
     distances = np.sqrt(np.sum((X_pca - player_vec) ** 2, axis=1))
@@ -2009,7 +2018,7 @@ with tab_similar:
     elif sim_n_pool < 3:
         st.warning("El pool de comparación tiene muy pocos jugadores. Reducí los minutos mínimos o agregá más ligas.")
     else:
-        sim_results, sim_n_comp, sim_var = _compute_similarity_scores(sim_pool, sim_player)
+        sim_results, sim_n_comp, sim_var = _compute_similarity_scores(sim_pool, sim_player, player_df=sim_player_data)
 
         if sim_results is None:
             st.warning("No hay suficientes métricas disponibles para calcular similitud.")
