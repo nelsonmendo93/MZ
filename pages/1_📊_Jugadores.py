@@ -1945,39 +1945,40 @@ with tab_similar:
     with sim_top_col:
         sim_top_n = st.slider("Cantidad de jugadores a mostrar", 5, 30, 15, key="sim_top_n")
 
-    # ── Ligas externas ──────────────────────────────────────────────────────
-    if df_arg is not None or df_bra is not None:
-        st.markdown(
-            "<p style='margin:10px 0 4px 0; font-size:0.9rem; color:#9ca3af;'>"
-            "🌎 <b>Incluir ligas externas en el pool de comparación:</b></p>",
-            unsafe_allow_html=True,
+    # ── Selección de ligas ───────────────────────────────────────────────────
+    st.markdown(
+        "<p style='margin:10px 0 4px 0; font-size:0.9rem; color:#9ca3af;'>"
+        "🌎 <b>Liga/s a comparar:</b></p>",
+        unsafe_allow_html=True,
+    )
+    _ck_col1, _ck_col2, _ck_col3, _ck_spacer = st.columns([1, 1, 1, 5])
+    with _ck_col1:
+        sim_use_par = st.checkbox(
+            "🇵🇾 PAR", value=True, key="sim_use_par",
         )
-        _ck_col1, _ck_col2, _ck_spacer = st.columns([1, 1, 6])
-        with _ck_col1:
-            sim_use_arg = st.checkbox(
-                "🇦🇷 ARG", value=False, key="sim_use_arg",
-                disabled=(df_arg is None),
-            )
-        with _ck_col2:
-            sim_use_bra = st.checkbox(
-                "🇧🇷 BRA", value=False, key="sim_use_bra",
-                disabled=(df_bra is None),
-            )
-    else:
-        sim_use_arg = False
-        sim_use_bra = False
+    with _ck_col2:
+        sim_use_arg = st.checkbox(
+            "🇦🇷 ARG", value=False, key="sim_use_arg",
+            disabled=(df_arg is None),
+        )
+    with _ck_col3:
+        sim_use_bra = st.checkbox(
+            "🇧🇷 BRA", value=False, key="sim_use_bra",
+            disabled=(df_bra is None),
+        )
 
-    # Pool PAR: filtro de posición + minutos (fuente de selección y verificación)
-    sim_pool_par = df[
-        (df['Position Group'] == sim_pos) &
-        (df['Minutes played'] >= sim_min_minutes)
-    ].copy().reset_index(drop=True)
-    sim_pool_par['Liga'] = '🇵🇾 PAR'
+    # Construir el pool dinámicamente según las ligas seleccionadas
+    _pool_parts = []
 
-    sim_player_in_pool = sim_pool_par[sim_pool_par['Player'] == sim_player]
+    # Filtros base para cada liga
+    if sim_use_par:
+        sim_pool_par = df[
+            (df['Position Group'] == sim_pos) &
+            (df['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        sim_pool_par['Liga'] = '🇵🇾 PAR'
+        _pool_parts.append(sim_pool_par)
 
-    # Pool extendido: PAR + ligas externas seleccionadas
-    _pool_parts = [sim_pool_par]
     if sim_use_arg and df_arg is not None:
         _arg_filt = df_arg[
             (df_arg['Position Group'] == sim_pos) &
@@ -1985,6 +1986,7 @@ with tab_similar:
         ].copy().reset_index(drop=True)
         _arg_filt['Liga'] = '🇦🇷 ARG'
         _pool_parts.append(_arg_filt)
+
     if sim_use_bra and df_bra is not None:
         _bra_filt = df_bra[
             (df_bra['Position Group'] == sim_pos) &
@@ -1993,11 +1995,24 @@ with tab_similar:
         _bra_filt['Liga'] = '🇧🇷 BRA'
         _pool_parts.append(_bra_filt)
 
+    # Verificar si el jugador está en el pool (solo si PAR está seleccionado)
+    if sim_use_par:
+        sim_pool_par = df[
+            (df['Position Group'] == sim_pos) &
+            (df['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        sim_player_in_pool = sim_pool_par[sim_pool_par['Player'] == sim_player]
+    else:
+        sim_player_in_pool = pd.DataFrame()  # vacío si PAR no está seleccionado
+
     sim_pool = pd.concat(_pool_parts, ignore_index=True)
     sim_n_pool = len(sim_pool)
 
     if sim_player_in_pool.empty:
-        st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
+        if not sim_use_par:
+            st.warning("Para comparar con el jugador seleccionado, necesitás incluir 🇵🇾 PAR en el pool.")
+        else:
+            st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
     elif sim_n_pool < 5:
         st.warning("El pool de comparación tiene menos de 5 jugadores. Reducí los minutos mínimos.")
     else:
