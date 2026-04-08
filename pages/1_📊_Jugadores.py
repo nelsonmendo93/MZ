@@ -1995,34 +1995,27 @@ with tab_similar:
         _bra_filt['Liga'] = '🇧🇷 BRA'
         _pool_parts.append(_bra_filt)
 
-    # Verificar si el jugador está en el pool (solo si PAR está seleccionado)
-    if sim_use_par:
-        sim_pool_par = df[
-            (df['Position Group'] == sim_pos) &
-            (df['Minutes played'] >= sim_min_minutes)
-        ].copy().reset_index(drop=True)
-        sim_player_in_pool = sim_pool_par[sim_pool_par['Player'] == sim_player]
-    else:
-        sim_player_in_pool = pd.DataFrame()  # vacío si PAR no está seleccionado
-
-    sim_pool = pd.concat(_pool_parts, ignore_index=True)
+    # Construir el pool de comparación (puede no incluir PAR si el usuario lo excluye)
+    sim_pool = pd.concat(_pool_parts, ignore_index=True) if _pool_parts else pd.DataFrame()
     sim_n_pool = len(sim_pool)
 
-    if sim_player_in_pool.empty:
-        if not sim_use_par:
-            st.warning("Para comparar con el jugador seleccionado, necesitás incluir 🇵🇾 PAR en el pool.")
-        else:
-            st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
-    elif sim_n_pool < 5:
-        st.warning("El pool de comparación tiene menos de 5 jugadores. Reducí los minutos mínimos.")
+    # Obtener datos del jugador seleccionado (siempre desde PAR)
+    sim_player_data = df[(df['Player'] == sim_player) & (df['Position Group'] == sim_pos)]
+
+    if sim_player_data.empty:
+        st.warning("El jugador no está disponible en el filtro de minutos/posición.")
+    elif sim_n_pool < 1:
+        st.warning("El pool de comparación está vacío. Seleccioná al menos una liga.")
+    elif sim_n_pool < 3:
+        st.warning("El pool de comparación tiene muy pocos jugadores. Reducí los minutos mínimos o agregá más ligas.")
     else:
         sim_results, sim_n_comp, sim_var = _compute_similarity_scores(sim_pool, sim_player)
 
         if sim_results is None:
             st.warning("No hay suficientes métricas disponibles para calcular similitud.")
         else:
-            # Header del jugador seleccionado
-            sim_player_info = sim_pool[sim_pool['Player'] == sim_player].iloc[0]
+            # Header del jugador seleccionado (desde sus datos originales)
+            sim_player_info = sim_player_data.iloc[0]
             sim_player_team = str(sim_player_info.get(sim_team_col, ''))
             sim_player_mins = int(sim_player_info.get('Minutes played', 0))
             _sim_age_raw = sim_player_info.get('Age', None)
