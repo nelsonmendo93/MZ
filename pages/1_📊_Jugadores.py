@@ -2996,17 +2996,17 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
                     color=col, alpha=0.35, lw=0.95, zorder=5)
             # Nombre
             ax.text(cx, cy0 + 3.3, name,
-                    fontsize=10.0, fontweight='bold', color='#f8fafc',
+                    fontsize=14.0, fontweight='bold', color='#f8fafc',
                     ha='center', va='center', zorder=8,
                     path_effects=[pe.withStroke(linewidth=0.8, foreground='#0b1220')])
             # Club
             ax.text(cx, cy0 + 5.8, club,
-                    fontsize=8.0, color='#cbd5e1',
+                    fontsize=12.0, color='#cbd5e1',
                     ha='center', va='center', zorder=8)
             # Edad · PUNTAJE
             ax.text(cx, cy0 + 7.9,
                     f"{age}  ★ {puntaje:.1f}",
-                    fontsize=8.0, fontweight='bold', color=col,
+                    fontsize=12.0, fontweight='bold', color=col,
                     ha='center', va='center', zorder=8)
 
     # ── Branding ──────────────────────────────────────────────────────────────
