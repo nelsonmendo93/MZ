@@ -202,8 +202,8 @@ with col2:
         st.switch_page("pages/2_⚽_Predictor.py")
 
 with col3:
-    if st.button("⏱️  Tiempo Efectivo de Juego\n\nPosesión real según pases y tempo", use_container_width=True):
-        st.switch_page("pages/3_⏱️_Tiempo_Efectivo.py")
+    if st.button("Tiempo efectivo de juego\n\nPosesión real según pases y tempo", use_container_width=True):
+        st.switch_page("pages/3_Tiempo_efectivo.py")
 
 # ---------------------------------------------------------------------------
 # Contador

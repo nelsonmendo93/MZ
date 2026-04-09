@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
-st.set_page_config(page_title="Tiempo Efectivo de Juego", layout="wide")
+st.set_page_config(page_title="Tiempo efectivo", layout="wide")
 
 # ── Configuración de la app ──────────────────────────────────────────────────
 APP_DIR = Path(__file__).parent.parent
@@ -15,14 +15,6 @@ LOGO_NEGRO = APP_DIR / 'assets' / 'logo_negro.png'
 LOGO_BLANCO = APP_DIR / 'assets' / 'logo_blanco.png'
 
 # ── Funciones ────────────────────────────────────────────────────────────────
-def load_club_data(club_name):
-    """Carga datos de un club específico."""
-    file_pattern = f"Team Stats {club_name}.xlsx"
-    file_path = DATA_DIR / file_pattern
-    if file_path.exists():
-        return pd.read_excel(file_path)
-    return None
-
 def calculate_effective_playing_time():
     """
     Calcula el tiempo efectivo de juego para todos los clubes.
@@ -39,6 +31,10 @@ def calculate_effective_playing_time():
     for file in team_files:
         filepath = DATA_DIR / file
         df = pd.read_excel(filepath)
+
+        required_columns = {'Passes / accurate', 'Match tempo', 'Duration'}
+        if not required_columns.issubset(df.columns):
+            continue
 
         # Extraer nombre del club
         club_name = file.replace('Team Stats ', '').replace('.xlsx', '')
@@ -72,6 +68,17 @@ def calculate_effective_playing_time():
                 '% Tenencia': round(pct_tenencia, 2),
             })
 
+    if not results:
+        return pd.DataFrame(
+            columns=[
+                'Club',
+                'Partidos',
+                'Tiempo Efectivo',
+                'Duración Promedio (min)',
+                '% Tenencia',
+            ]
+        )
+
     # Crear DataFrame y ordenar
     resultado_df = pd.DataFrame(results).sort_values(
         'Tiempo (min)',
@@ -90,10 +97,10 @@ st.markdown("""
             padding: 16px 22px;
             margin-bottom: 18px;">
     <div style="font-size:24px; font-weight:800; color:#f1f5f9; letter-spacing:1px;">
-        ⏱️ TIEMPO EFECTIVO DE JUEGO
+        TIEMPO EFECTIVO
     </div>
     <div style="font-size:13px; color:#94a3b8; margin-top:4px;">
-        Análisis de posesión real basado en pases y tempo de partido
+        Análisis de posesión real basado en pases y ritmo de partido
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -101,7 +108,7 @@ st.markdown("""
 # ── Carga y cálculo de datos ─────────────────────────────────────────────────
 st.markdown("""
 <p style='font-size:0.9rem; color:#9ca3af; margin-bottom:12px;'>
-    <b>Metodología:</b> Tiempo Efectivo = Total de Pases ÷ Tempo del Partido
+    <b>Metodología:</b> Tiempo efectivo = pases precisos ÷ ritmo de partido
 </p>
 """, unsafe_allow_html=True)
 
@@ -109,28 +116,30 @@ st.markdown("""
 ranking = calculate_effective_playing_time()
 
 # ── Tabla de ranking ─────────────────────────────────────────────────────────
-st.subheader("Ranking por Tiempo Efectivo de Juego")
+st.subheader("Ranking por tiempo efectivo")
 
-# Mostrar tabla con formato especial
-st.dataframe(
-    ranking,
-    use_container_width=True,
-    hide_index=False,
-    column_config={
-        "Club": st.column_config.TextColumn("Club", width="medium"),
-        "Partidos": st.column_config.NumberColumn("Partidos", format="%d"),
-        "Tiempo Efectivo": st.column_config.TextColumn("Tiempo Efectivo", width="medium"),
-        "Duración Promedio (min)": st.column_config.NumberColumn("Duración Promedio (min)", format="%.2f"),
-        "% Tenencia": st.column_config.NumberColumn("% Tenencia", format="%.2f%%"),
-    }
-)
+if ranking.empty:
+    st.warning("No se encontraron archivos válidos de Team Stats con las columnas necesarias para calcular el tiempo efectivo.")
+else:
+    st.dataframe(
+        ranking,
+        use_container_width=True,
+        hide_index=False,
+        column_config={
+            "Club": st.column_config.TextColumn("Club", width="medium"),
+            "Partidos": st.column_config.NumberColumn("Partidos", format="%d"),
+            "Tiempo Efectivo": st.column_config.TextColumn("Tiempo Efectivo", width="medium"),
+            "Duración Promedio (min)": st.column_config.NumberColumn("Duración Promedio (min)", format="%.2f"),
+            "% Tenencia": st.column_config.NumberColumn("% Tenencia", format="%.2f%%"),
+        }
+    )
 
 # ── Explicación ──────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("""
-### 📊 Interpretación de Métricas
+### Interpretación de métricas
 
-**Tiempo Efectivo (min):** Minutos equivalentes de posesión real basados en pases y tempo
+**Tiempo Efectivo (min):** Minutos equivalentes de posesión real basados en pases y ritmo de juego
 - Mayor tiempo = Mayor control del balón en juego
 
 **Duración Promedio (min):** Promedio de duración de los partidos analizados
@@ -145,4 +154,4 @@ st.markdown("""
 
 # ── Footer ───────────────────────────────────────────────────────────────────
 st.markdown("---")
-st.caption("⏱️ Tiempo Efectivo de Juego · Marca Zonal · Análisis Pure Possession")
+st.caption("Tiempo efectivo · Marca Zonal · Análisis Pure Possession")
