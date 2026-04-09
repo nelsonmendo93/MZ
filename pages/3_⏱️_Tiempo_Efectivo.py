@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from pathlib import Path
+from datetime import timedelta
 
 st.set_page_config(page_title="Tiempo Efectivo de Juego", layout="wide")
 
@@ -58,22 +59,28 @@ def calculate_effective_playing_time():
             avg_duration = valid_data['Duration'].mean()
             pct_tenencia = (avg_tiempo_efectivo / avg_duration) * 100
 
+            # Convertir minutos decimales a formato HH:MM:SS
+            td = timedelta(minutes=avg_tiempo_efectivo)
+            tiempo_formato = str(td).split('.')[0]
+
             results.append({
                 'Club': club_name,
                 'Partidos': len(valid_data),
-                'Tiempo Efectivo (min)': round(avg_tiempo_efectivo, 2),
+                'Tiempo Efectivo': tiempo_formato,
+                'Tiempo (min)': round(avg_tiempo_efectivo, 2),
                 'Duración Promedio (min)': round(avg_duration, 2),
                 '% Tenencia': round(pct_tenencia, 2),
             })
 
     # Crear DataFrame y ordenar
     resultado_df = pd.DataFrame(results).sort_values(
-        'Tiempo Efectivo (min)',
+        'Tiempo (min)',
         ascending=False
     ).reset_index(drop=True)
     resultado_df.index += 1
 
-    return resultado_df
+    # Retornar solo las columnas que se mostrarán al usuario
+    return resultado_df[['Club', 'Partidos', 'Tiempo Efectivo', 'Duración Promedio (min)', '% Tenencia']]
 
 # ── Encabezado ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -104,19 +111,15 @@ ranking = calculate_effective_playing_time()
 # ── Tabla de ranking ─────────────────────────────────────────────────────────
 st.subheader("Ranking por Tiempo Efectivo de Juego")
 
-# Formatear tabla para display
-display_df = ranking.copy()
-display_df.columns = ['Club', 'Partidos', 'Tiempo Efectivo (min)', 'Duración Promedio (min)', '% Tenencia']
-
 # Mostrar tabla con formato especial
 st.dataframe(
-    display_df,
+    ranking,
     use_container_width=True,
     hide_index=False,
     column_config={
         "Club": st.column_config.TextColumn("Club", width="medium"),
         "Partidos": st.column_config.NumberColumn("Partidos", format="%d"),
-        "Tiempo Efectivo (min)": st.column_config.NumberColumn("Tiempo Efectivo (min)", format="%.2f"),
+        "Tiempo Efectivo": st.column_config.TextColumn("Tiempo Efectivo", width="medium"),
         "Duración Promedio (min)": st.column_config.NumberColumn("Duración Promedio (min)", format="%.2f"),
         "% Tenencia": st.column_config.NumberColumn("% Tenencia", format="%.2f%%"),
     }
