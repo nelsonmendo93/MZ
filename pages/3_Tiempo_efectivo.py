@@ -459,11 +459,37 @@ div[data-baseweb="select"] > div {
     min-width: 0;
 }
 
+.te-header-title {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #f8fafc;
+    line-height: 1.12;
+    letter-spacing: 0.02em;
+}
+
 .te-header-logo {
     height: 74px;
     width: auto;
     opacity: 0.92;
     filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.24));
+}
+
+@media (max-width: 700px) {
+    .te-header-shell {
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .te-header-title {
+        font-size: 1.02rem;
+        line-height: 1.22;
+        max-width: 13rem;
+    }
+
+    .te-header-logo {
+        height: 48px;
+        flex-shrink: 0;
+    }
 }
 
 </style>
@@ -481,7 +507,7 @@ st.markdown(f"""
             box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18);">
     <div class="te-header-shell">
         <div class="te-header-copy">
-            <div style="font-size: 1.55rem; font-weight: 800; color: #f8fafc;">
+            <div class="te-header-title">
                 TIEMPO EFECTIVO DE JUEGO EN EL FUTBOL PARAGUAYO
             </div>
         </div>
