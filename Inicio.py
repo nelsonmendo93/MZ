@@ -191,7 +191,7 @@ st.markdown("""
 </p>
 """, unsafe_allow_html=True)
 
-col1, col2 = st.columns(2, gap="large")
+col1, col2, col3 = st.columns(3, gap="medium")
 
 with col1:
     if st.button("📊  Estadísticas de Jugadores\n\nAnálisis individual, radares, XY y rankings", use_container_width=True):
@@ -200,6 +200,10 @@ with col1:
 with col2:
     if st.button("⚽  Predictor de Partidos\n\nProbabilidades, xG, corners y tarjetas", use_container_width=True):
         st.switch_page("pages/2_⚽_Predictor.py")
+
+with col3:
+    if st.button("⏱️  Tiempo Efectivo de Juego\n\nPosesión real según pases y tempo", use_container_width=True):
+        st.switch_page("pages/3_⏱️_Tiempo_Efectivo.py")
 
 # ---------------------------------------------------------------------------
 # Contador
