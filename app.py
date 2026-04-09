@@ -148,7 +148,7 @@ st.markdown("""
 </p>
 """, unsafe_allow_html=True)
 
-col1, col2 = st.columns(2, gap="large")
+col1, col2, col3 = st.columns(3, gap="medium")
 
 with col1:
     if st.button("ESTADÍSTICAS\nFÚTBOL PARAGUAYO", use_container_width=True):
@@ -157,6 +157,10 @@ with col1:
 with col2:
     if st.button("ÍNDICE DE PROBABILIDADES\nFÚTBOL PARAGUAYO", use_container_width=True):
         st.switch_page("pages/2_⚽_Predictor.py")
+
+with col3:
+    if st.button("TIEMPO EFECTIVO\nFÚTBOL PARAGUAYO", use_container_width=True):
+        st.switch_page("pages/3_Tiempo_efectivo.py")
 
 st.markdown("---")
 st.markdown(f"""

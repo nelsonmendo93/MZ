@@ -77,13 +77,20 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
         texts.append(t)
 
     # Adjust text positions to avoid overlap
-    adjust_text(texts, ax=ax,
-                arrowprops=dict(color='gray', alpha=0.4,
-                                lw=0.5, shrinkA=5, shrinkB=5),
-                expand=(1.5, 1.5),
-                force_text=(0.8, 0.8),
-                force_points=(0.5, 0.5),
-                only_move={'text': 'xy'})
+    adjust_kwargs = dict(
+        ax=ax,
+        arrowprops=dict(color='gray', alpha=0.4, lw=0.5, shrinkA=5, shrinkB=5),
+        expand=(1.5, 1.5),
+        force_text=(0.8, 0.8),
+        only_move={'text': 'xy'},
+    )
+
+    # adjustText changed some force-* kwargs across versions. Try the newer
+    # option first, then gracefully fall back so the XY chart still renders.
+    try:
+        adjust_text(texts, force_static=(0.5, 0.5), **adjust_kwargs)
+    except (TypeError, AttributeError):
+        adjust_text(texts, **adjust_kwargs)
 
     # Axis styling
     ax.set_xlabel(x_label, color='white', fontsize=14, fontweight='bold')
