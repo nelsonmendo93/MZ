@@ -254,7 +254,7 @@ st.markdown("<div style='height:0.3rem'></div>", unsafe_allow_html=True)
 # ---------------------------------------------------------------------------
 @st.cache_data
 def load_external_league(league_name: str):
-    """Carga y procesa una liga externa (ARG.xlsx, BRA.xlsx).
+    """Carga y procesa una liga externa (ARG.xlsx, BRA.xlsx, URU.xlsx, etc.).
     Retorna un DataFrame procesado, o None si el archivo no existe."""
     possible_paths = [
         os.path.join(_ROOT_DIR, 'data', f'{league_name}.xlsx'),
@@ -277,6 +277,9 @@ except Exception as e:
 # Ligas externas — solo se usan en la pestaña Similitudes
 df_arg = load_external_league('ARG')
 df_bra = load_external_league('BRA')
+df_uru = load_external_league('URU')
+df_col = load_external_league('COL')
+df_ecu = load_external_league('ECU')
 
 # Drop rows without position group
 df = df.dropna(subset=['Position Group'])
@@ -1776,7 +1779,6 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         age_r = info['Age'].values[0] if (not info.empty and 'Age' in info.columns) else None
         age   = int(age_r) if age_r is not None and pd.notnull(age_r) else '—'
         liga_raw = str(info['Liga'].values[0]) if ('Liga' in info.columns and not info.empty) else ''
-        # Extraer solo el código (PAR/ARG/BRA) sin emoji para matplotlib
         liga_code = liga_raw.split()[-1] if liga_raw else ''
         team_display = f"{team} [{liga_code}]" if liga_code and liga_code != 'PAR' else team
 
@@ -1824,9 +1826,12 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
 def _render_similarity_table(results, pool_df, team_col, top_n):
     """Renderiza la tabla de similitud como HTML con barras de porcentaje."""
     _LIGA_COLORS = {
-        '🇵🇾 PAR': '#ef4444',   # rojo
-        '🇦🇷 ARG': '#38bdf8',   # celeste
-        '🇧🇷 BRA': '#34d399',   # verde
+        'PAR': '#ef4444',   # rojo
+        'ARG': '#38bdf8',   # celeste
+        'BRA': '#34d399',   # verde
+        'URU': '#60a5fa',   # azul
+        'COL': '#f59e0b',   # amarillo/amber
+        'ECU': '#a78bfa',   # violeta
     }
     _has_liga = 'Liga' in pool_df.columns
 
@@ -1956,24 +1961,64 @@ with tab_similar:
 
     # ── Selección de ligas ───────────────────────────────────────────────────
     st.markdown(
-        "<p style='margin:10px 0 4px 0; font-size:0.9rem; color:#9ca3af;'>"
-        "🌎 <b>Liga/s a comparar:</b></p>",
+        "<p style='margin:10px 0 8px 0; font-size:0.9rem; color:#9ca3af;'>"
+        "<b>Liga/s a comparar:</b></p>",
         unsafe_allow_html=True,
     )
-    _ck_col1, _ck_col2, _ck_col3, _ck_spacer = st.columns([1, 1, 1, 5])
+
+    _SIM_LEAGUE_COLORS = {
+        'PAR': '#ef4444',
+        'ARG': '#38bdf8',
+        'BRA': '#34d399',
+        'URU': '#60a5fa',
+        'COL': '#f59e0b',
+        'ECU': '#a78bfa',
+    }
+
+    def _league_chip(code):
+        color = _SIM_LEAGUE_COLORS.get(code, '#6b7280')
+        st.markdown(
+            f"<div style='display:inline-block; margin-bottom:6px; padding:3px 9px; "
+            f"border-radius:999px; font-size:0.78rem; font-weight:800; "
+            f"background:{color}22; color:{color}; border:1px solid {color}66;'>{code}</div>",
+            unsafe_allow_html=True,
+        )
+
+    _ck_col1, _ck_col2, _ck_col3, _ck_col4, _ck_col5, _ck_col6 = st.columns(6)
     with _ck_col1:
+        _league_chip('PAR')
         sim_use_par = st.checkbox(
-            "🇵🇾 PAR", value=True, key="sim_use_par",
+            "Incluir PAR", value=True, key="sim_use_par",
         )
     with _ck_col2:
+        _league_chip('ARG')
         sim_use_arg = st.checkbox(
-            "🇦🇷 ARG", value=False, key="sim_use_arg",
+            "Incluir ARG", value=False, key="sim_use_arg",
             disabled=(df_arg is None),
         )
     with _ck_col3:
+        _league_chip('BRA')
         sim_use_bra = st.checkbox(
-            "🇧🇷 BRA", value=False, key="sim_use_bra",
+            "Incluir BRA", value=False, key="sim_use_bra",
             disabled=(df_bra is None),
+        )
+    with _ck_col4:
+        _league_chip('URU')
+        sim_use_uru = st.checkbox(
+            "Incluir URU", value=False, key="sim_use_uru",
+            disabled=(df_uru is None),
+        )
+    with _ck_col5:
+        _league_chip('COL')
+        sim_use_col = st.checkbox(
+            "Incluir COL", value=False, key="sim_use_col",
+            disabled=(df_col is None),
+        )
+    with _ck_col6:
+        _league_chip('ECU')
+        sim_use_ecu = st.checkbox(
+            "Incluir ECU", value=False, key="sim_use_ecu",
+            disabled=(df_ecu is None),
         )
 
     # Construir el pool dinámicamente según las ligas seleccionadas
@@ -1985,7 +2030,7 @@ with tab_similar:
             (df['Position Group'] == sim_pos) &
             (df['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
-        sim_pool_par['Liga'] = '🇵🇾 PAR'
+        sim_pool_par['Liga'] = 'PAR'
         _pool_parts.append(sim_pool_par)
 
     if sim_use_arg and df_arg is not None:
@@ -1993,7 +2038,7 @@ with tab_similar:
             (df_arg['Position Group'] == sim_pos) &
             (df_arg['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
-        _arg_filt['Liga'] = '🇦🇷 ARG'
+        _arg_filt['Liga'] = 'ARG'
         _pool_parts.append(_arg_filt)
 
     if sim_use_bra and df_bra is not None:
@@ -2001,8 +2046,32 @@ with tab_similar:
             (df_bra['Position Group'] == sim_pos) &
             (df_bra['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
-        _bra_filt['Liga'] = '🇧🇷 BRA'
+        _bra_filt['Liga'] = 'BRA'
         _pool_parts.append(_bra_filt)
+
+    if sim_use_uru and df_uru is not None:
+        _uru_filt = df_uru[
+            (df_uru['Position Group'] == sim_pos) &
+            (df_uru['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        _uru_filt['Liga'] = 'URU'
+        _pool_parts.append(_uru_filt)
+
+    if sim_use_col and df_col is not None:
+        _col_filt = df_col[
+            (df_col['Position Group'] == sim_pos) &
+            (df_col['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        _col_filt['Liga'] = 'COL'
+        _pool_parts.append(_col_filt)
+
+    if sim_use_ecu and df_ecu is not None:
+        _ecu_filt = df_ecu[
+            (df_ecu['Position Group'] == sim_pos) &
+            (df_ecu['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        _ecu_filt['Liga'] = 'ECU'
+        _pool_parts.append(_ecu_filt)
 
     # Construir el pool de comparación (puede no incluir PAR si el usuario lo excluye)
     sim_pool = pd.concat(_pool_parts, ignore_index=True) if _pool_parts else pd.DataFrame()
