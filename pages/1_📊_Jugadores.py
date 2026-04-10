@@ -1966,58 +1966,59 @@ with tab_similar:
         unsafe_allow_html=True,
     )
 
-    _SIM_LEAGUE_COLORS = {
-        'PAR': '#ef4444',
-        'ARG': '#38bdf8',
-        'BRA': '#34d399',
-        'URU': '#60a5fa',
-        'COL': '#f59e0b',
-        'ECU': '#a78bfa',
+    st.markdown("""
+    <style>
+    div[data-testid="stCheckbox"] label p {
+        font-weight: 800 !important;
+        letter-spacing: 0.02em;
+        font-size: 0.92rem !important;
+        line-height: 1.15 !important;
+        white-space: normal !important;
     }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Paraguay"]) label p { color: #ef4444 !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Argentina"]) label p { color: #38bdf8 !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Brasil"]) label p { color: #34d399 !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Uruguay"]) label p { color: #60a5fa !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Colombia"]) label p { color: #f59e0b !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Ecuador"]) label p { color: #a78bfa !important; }
+    @media (max-width: 768px) {
+        div[data-testid="stCheckbox"] label p {
+            font-size: 0.82rem !important;
+            line-height: 1.15 !important;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    def _league_chip(code):
-        color = _SIM_LEAGUE_COLORS.get(code, '#6b7280')
-        st.markdown(
-            f"<div style='display:inline-block; margin-bottom:6px; padding:3px 9px; "
-            f"border-radius:999px; font-size:0.78rem; font-weight:800; "
-            f"background:{color}22; color:{color}; border:1px solid {color}66;'>{code}</div>",
-            unsafe_allow_html=True,
-        )
-
-    _ck_col1, _ck_col2, _ck_col3, _ck_col4, _ck_col5, _ck_col6 = st.columns(6)
-    with _ck_col1:
-        _league_chip('PAR')
+    _ck_row1_col1, _ck_row1_col2, _ck_row1_col3 = st.columns(3)
+    _ck_row2_col1, _ck_row2_col2, _ck_row2_col3 = st.columns(3)
+    with _ck_row1_col1:
         sim_use_par = st.checkbox(
-            "Incluir PAR", value=True, key="sim_use_par",
+            "Paraguay", value=True, key="sim_use_par",
         )
-    with _ck_col2:
-        _league_chip('ARG')
+    with _ck_row1_col2:
         sim_use_arg = st.checkbox(
-            "Incluir ARG", value=False, key="sim_use_arg",
+            "Argentina", value=False, key="sim_use_arg",
             disabled=(df_arg is None),
         )
-    with _ck_col3:
-        _league_chip('BRA')
+    with _ck_row1_col3:
         sim_use_bra = st.checkbox(
-            "Incluir BRA", value=False, key="sim_use_bra",
+            "Brasil", value=False, key="sim_use_bra",
             disabled=(df_bra is None),
         )
-    with _ck_col4:
-        _league_chip('URU')
+    with _ck_row2_col1:
         sim_use_uru = st.checkbox(
-            "Incluir URU", value=False, key="sim_use_uru",
+            "Uruguay", value=False, key="sim_use_uru",
             disabled=(df_uru is None),
         )
-    with _ck_col5:
-        _league_chip('COL')
+    with _ck_row2_col2:
         sim_use_col = st.checkbox(
-            "Incluir COL", value=False, key="sim_use_col",
+            "Colombia", value=False, key="sim_use_col",
             disabled=(df_col is None),
         )
-    with _ck_col6:
-        _league_chip('ECU')
+    with _ck_row2_col3:
         sim_use_ecu = st.checkbox(
-            "Incluir ECU", value=False, key="sim_use_ecu",
+            "Ecuador", value=False, key="sim_use_ecu",
             disabled=(df_ecu is None),
         )
 
