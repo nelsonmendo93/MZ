@@ -290,6 +290,27 @@ metric_columns = sorted([
     if c not in NON_METRIC_COLS and pd.api.types.is_numeric_dtype(df[c])
 ])
 
+
+def _get_age_bounds(dataframe):
+    if 'Age' not in dataframe.columns or dataframe.empty:
+        return 0, 40
+    age_vals = pd.to_numeric(dataframe['Age'], errors='coerce').dropna()
+    if age_vals.empty:
+        return 0, 40
+    age_min = int(np.floor(age_vals.min()))
+    age_max = int(np.ceil(age_vals.max()))
+    if age_min >= age_max:
+        age_max = age_min + 1
+    return age_min, age_max
+
+
+def _apply_age_filter(dataframe, age_range):
+    if 'Age' not in dataframe.columns or dataframe.empty:
+        return dataframe.copy()
+    age_vals = pd.to_numeric(dataframe['Age'], errors='coerce')
+    age_min, age_max = age_range
+    return dataframe[age_vals.between(age_min, age_max, inclusive='both')].copy()
+
 # ---------------------------------------------------------------------------
 # Metric categorization for organized display
 # ---------------------------------------------------------------------------
@@ -1192,15 +1213,27 @@ with tab_table:
     with col_pos:
         selected_pos = st.selectbox("Posición", position_groups, key="tab1_pos")
 
-    pos_df = df[df['Position Group'] == selected_pos]
-    clubs_in_pos = sorted(pos_df[team_col_tab1].dropna().unique())
-    with col_club:
-        selected_club = st.selectbox("Club", clubs_in_pos, key="tab1_club")
+    pos_df = df[df['Position Group'] == selected_pos].copy()
+    t1_age_min, t1_age_max = _get_age_bounds(pos_df)
+    tab1_age_range = st.slider(
+        "Rango de edad", t1_age_min, t1_age_max,
+        value=(t1_age_min, t1_age_max), key=f"tab1_age_range_{selected_pos}"
+    )
+    pos_df = _apply_age_filter(pos_df, tab1_age_range)
+    if pos_df.empty:
+        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
+        players_list = []
+        club_pos_df = pos_df.copy()
+        selected_player_tab1 = None
+    else:
+        clubs_in_pos = sorted(pos_df[team_col_tab1].dropna().unique())
+        with col_club:
+            selected_club = st.selectbox("Club", clubs_in_pos, key="tab1_club")
 
-    club_pos_df = pos_df[pos_df[team_col_tab1] == selected_club]
-    players_list = sorted(club_pos_df['Player'].dropna().unique())
-    with col_player:
-        selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
+        club_pos_df = pos_df[pos_df[team_col_tab1] == selected_club]
+        players_list = sorted(club_pos_df['Player'].dropna().unique())
+        with col_player:
+            selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
 
     # Min-minutes slider — rango calculado sobre la posición seleccionada
     _mp = pos_df['Minutes played'] if 'Minutes played' in pos_df.columns else None
@@ -1214,7 +1247,7 @@ with tab_table:
     )
 
     # Display selected player data
-    player_rows = club_pos_df[club_pos_df['Player'] == selected_player_tab1]
+    player_rows = club_pos_df[club_pos_df['Player'] == selected_player_tab1] if selected_player_tab1 else pd.DataFrame()
     if not player_rows.empty:
         player_data = player_rows.iloc[0]
 
@@ -1305,9 +1338,20 @@ with tab_xy:
     with xy_sel1:
         xy_pos_group = st.selectbox("Grupo de posición", xy_position_groups, key="xy_pos_group")
     xy_group_df = df[df['Position Group'] == xy_pos_group].copy()
-    xy_players = sorted(xy_group_df['Player'].dropna().unique())
-    with xy_sel2:
-        xy_selected_player = st.selectbox("Jugador destacado", xy_players, key="xy_player")
+    xy_age_min, xy_age_max = _get_age_bounds(xy_group_df)
+    xy_age_range = st.slider(
+        "Rango de edad", xy_age_min, xy_age_max,
+        value=(xy_age_min, xy_age_max), key="xy_age_range"
+    )
+    xy_group_df = _apply_age_filter(xy_group_df, xy_age_range)
+    if xy_group_df.empty:
+        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
+        xy_players = []
+        xy_selected_player = None
+    else:
+        xy_players = sorted(xy_group_df['Player'].dropna().unique())
+        with xy_sel2:
+            xy_selected_player = st.selectbox("Jugador destacado", xy_players, key="xy_player")
 
     # Only per-90 metrics — métricas GK exclusivas solo si se selecciona Portero
     xy_is_gk = (xy_pos_group == 'Portero')
@@ -1316,7 +1360,9 @@ with tab_xy:
         if c.endswith(' per 90')
         and (xy_is_gk or c not in _GK_ONLY_METRICS)
     ])
-    if not per90_columns:
+    if xy_group_df.empty:
+        pass
+    elif not per90_columns:
         st.warning("No se encontraron métricas 'por 90' en los datos.")
     else:
         # Minutes slider
@@ -1378,14 +1424,23 @@ with tab_bar:
     pent_pos_groups_all = sorted(df['Position Group'].dropna().unique())
     with pent_col1:
         pent_pos = st.selectbox("Posición", pent_pos_groups_all, key="pent_pos")
-    pent_pos_df = df[df['Position Group'] == pent_pos]
-    pent_clubs  = sorted(pent_pos_df[pent_team_col].dropna().unique())
-    with pent_col2:
-        pent_club = st.selectbox("Club", pent_clubs, key="pent_club")
-    pent_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club]
-    pent_players = sorted(pent_club_df['Player'].dropna().unique())
-    with pent_col3:
-        pent_player = st.selectbox("Jugador", pent_players, key="pent_player")
+    pent_pos_df = df[df['Position Group'] == pent_pos].copy()
+    pent_age_min, pent_age_max = _get_age_bounds(pent_pos_df)
+    pent_age_range = st.slider(
+        "Rango de edad", pent_age_min, pent_age_max,
+        value=(pent_age_min, pent_age_max), key=f"pent_age_range_{pent_pos}"
+    )
+    pent_pos_df = _apply_age_filter(pent_pos_df, pent_age_range)
+    if pent_pos_df.empty:
+        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
+    else:
+        pent_clubs  = sorted(pent_pos_df[pent_team_col].dropna().unique())
+        with pent_col2:
+            pent_club = st.selectbox("Club", pent_clubs, key="pent_club")
+        pent_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club]
+        pent_players = sorted(pent_club_df['Player'].dropna().unique())
+        with pent_col3:
+            pent_player = st.selectbox("Jugador", pent_players, key="pent_player")
 
     # Slider de minutos mínimos para el pool de comparación
     pent_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
@@ -1402,31 +1457,30 @@ with tab_bar:
         st.rerun()
 
     # Selectores del segundo jugador (misma posición)
-    pent_player2 = None
-    pent_club2   = None
-    if st.session_state['pent_show_compare']:
-        st.markdown("---")
-        st.markdown("**Segundo jugador** *(misma posición: {})*".format(pent_pos))
-        cmp_col1, cmp_col2 = st.columns(2)
-        with cmp_col1:
-            pent_club2 = st.selectbox("Club (jugador 2)", pent_clubs, key="pent_club2")
-        cmp_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club2]
-        cmp_players = sorted(cmp_club_df['Player'].dropna().unique())
-        # Excluir al jugador 1 de la lista
-        cmp_players_filt = [p for p in cmp_players if p != pent_player] or cmp_players
-        with cmp_col2:
-            pent_player2 = st.selectbox("Jugador 2", cmp_players_filt, key="pent_player2")
-        st.markdown("---")
+        pent_player2 = None
+        pent_club2   = None
+        if st.session_state['pent_show_compare']:
+            st.markdown("---")
+            st.markdown("**Segundo jugador** *(misma posición: {})*".format(pent_pos))
+            cmp_col1, cmp_col2 = st.columns(2)
+            with cmp_col1:
+                pent_club2 = st.selectbox("Club (jugador 2)", pent_clubs, key="pent_club2")
+            cmp_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club2]
+            cmp_players = sorted(cmp_club_df['Player'].dropna().unique())
+            # Excluir al jugador 1 de la lista
+            cmp_players_filt = [p for p in cmp_players if p != pent_player] or cmp_players
+            with cmp_col2:
+                pent_player2 = st.selectbox("Jugador 2", cmp_players_filt, key="pent_player2")
+            st.markdown("---")
 
-    pent_player_rows = pent_club_df[pent_club_df['Player'] == pent_player]
-    if pent_player_rows.empty:
-        st.warning("Jugador no encontrado.")
-    else:
-        pent_player_data = pent_player_rows.iloc[0]
-        pent_comparison_df = df[
-            (df['Position Group'] == pent_pos) &
-            (df['Minutes played'] >= pent_min_minutes)
-        ].copy()
+        pent_player_rows = pent_club_df[pent_club_df['Player'] == pent_player]
+        if pent_player_rows.empty:
+            st.warning("Jugador no encontrado.")
+        else:
+            pent_player_data = pent_player_rows.iloc[0]
+            pent_comparison_df = pent_pos_df[
+                (pent_pos_df['Minutes played'] >= pent_min_minutes)
+            ].copy()
         n_pent = len(pent_comparison_df)
 
         if pent_comparison_df[pent_comparison_df['Player'] == pent_player].empty:
@@ -1473,7 +1527,10 @@ with tab_bar:
                         scores2 = _compute_pentagon_scores(p2_data, pent_comparison_df, all_pent_cols)
 
             team_display = str(pent_player_data.get(pent_team_col, ''))
-            subtitle_pent = f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min · Apertura 2026"
+            subtitle_pent = (
+                f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min "
+                f"· {pent_age_range[0]}-{pent_age_range[1]} años · Apertura 2026"
+            )
 
             # Centrar el gráfico
             _, col_center, _ = st.columns([1, 2, 1])
@@ -1550,6 +1607,12 @@ with tab_pizza:
     with pizza_col3:
         pizza_player = st.selectbox("Jugador", pizza_club_players, key="pizza_player")
 
+    pizza_age_min, pizza_age_max = _get_age_bounds(df)
+    pizza_age_range = st.slider(
+        "Rango de edad", pizza_age_min, pizza_age_max,
+        value=(pizza_age_min, pizza_age_max), key="pizza_age_range"
+    )
+
     # Minutes slider
     pizza_min_min = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
     pizza_max_min = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
@@ -1574,6 +1637,7 @@ with tab_pizza:
                 (df['Position Group'] == pizza_pos_group)
                 & (df['Minutes played'] >= pizza_min_minutes)
             ].copy()
+            pizza_group_df = _apply_age_filter(pizza_group_df, pizza_age_range)
 
             pizza_player_in_group = pizza_group_df[pizza_group_df['Player'] == pizza_player]
             if pizza_player_in_group.empty:
@@ -1608,7 +1672,10 @@ with tab_pizza:
                     st.warning("No hay suficientes métricas para generar el gráfico radial.")
                 else:
                     team_display = str(pizza_player_data.get(pizza_team_col, ''))
-                    subtitle = f"Entre {n_pizza_players} {pizza_pos_group.lower()}s +{pizza_min_minutes} min | Apertura 2026"
+                    subtitle = (
+                        f"Entre {n_pizza_players} {pizza_pos_group.lower()}s +{pizza_min_minutes} min "
+                        f"| {pizza_age_range[0]}-{pizza_age_range[1]} años | Apertura 2026"
+                    )
 
                     fig_pizza = create_pizza_chart(
                         player_name=pizza_player,
@@ -1939,14 +2006,26 @@ with tab_similar:
     sim_pos_groups = sorted(df['Position Group'].dropna().unique())
     with sim_col1:
         sim_pos = st.selectbox("Posición", sim_pos_groups, key="sim_pos")
-    sim_pos_df = df[df['Position Group'] == sim_pos]
-    sim_clubs = sorted(sim_pos_df[sim_team_col].dropna().unique())
-    with sim_col2:
-        sim_club = st.selectbox("Club", sim_clubs, key="sim_club")
-    sim_club_pos_df = sim_pos_df[sim_pos_df[sim_team_col] == sim_club]
-    sim_players_list = sorted(sim_club_pos_df['Player'].dropna().unique())
-    with sim_col3:
-        sim_player = st.selectbox("Jugador", sim_players_list, key="sim_player")
+    sim_pos_df = df[df['Position Group'] == sim_pos].copy()
+    sim_age_min, sim_age_max = _get_age_bounds(sim_pos_df)
+    sim_age_range = st.slider(
+        "Rango de edad", sim_age_min, sim_age_max,
+        value=(sim_age_min, sim_age_max), key=f"sim_age_range_{sim_pos}"
+    )
+    sim_pos_df = _apply_age_filter(sim_pos_df, sim_age_range)
+    if sim_pos_df.empty:
+        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
+        sim_club = None
+        sim_player = None
+        sim_club_pos_df = sim_pos_df.copy()
+    else:
+        sim_clubs = sorted(sim_pos_df[sim_team_col].dropna().unique())
+        with sim_col2:
+            sim_club = st.selectbox("Club", sim_clubs, key="sim_club")
+        sim_club_pos_df = sim_pos_df[sim_pos_df[sim_team_col] == sim_club]
+        sim_players_list = sorted(sim_club_pos_df['Player'].dropna().unique())
+        with sim_col3:
+            sim_player = st.selectbox("Jugador", sim_players_list, key="sim_player")
 
     sim_slider_col, sim_top_col = st.columns(2)
     sim_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
@@ -2031,6 +2110,7 @@ with tab_similar:
             (df['Position Group'] == sim_pos) &
             (df['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
+        sim_pool_par = _apply_age_filter(sim_pool_par, sim_age_range)
         sim_pool_par['Liga'] = 'PAR'
         _pool_parts.append(sim_pool_par)
 
@@ -2039,6 +2119,7 @@ with tab_similar:
             (df_arg['Position Group'] == sim_pos) &
             (df_arg['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
+        _arg_filt = _apply_age_filter(_arg_filt, sim_age_range)
         _arg_filt['Liga'] = 'ARG'
         _pool_parts.append(_arg_filt)
 
@@ -2047,6 +2128,7 @@ with tab_similar:
             (df_bra['Position Group'] == sim_pos) &
             (df_bra['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
+        _bra_filt = _apply_age_filter(_bra_filt, sim_age_range)
         _bra_filt['Liga'] = 'BRA'
         _pool_parts.append(_bra_filt)
 
@@ -2055,6 +2137,7 @@ with tab_similar:
             (df_uru['Position Group'] == sim_pos) &
             (df_uru['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
+        _uru_filt = _apply_age_filter(_uru_filt, sim_age_range)
         _uru_filt['Liga'] = 'URU'
         _pool_parts.append(_uru_filt)
 
@@ -2063,6 +2146,7 @@ with tab_similar:
             (df_col['Position Group'] == sim_pos) &
             (df_col['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
+        _col_filt = _apply_age_filter(_col_filt, sim_age_range)
         _col_filt['Liga'] = 'COL'
         _pool_parts.append(_col_filt)
 
@@ -2071,6 +2155,7 @@ with tab_similar:
             (df_ecu['Position Group'] == sim_pos) &
             (df_ecu['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
+        _ecu_filt = _apply_age_filter(_ecu_filt, sim_age_range)
         _ecu_filt['Liga'] = 'ECU'
         _pool_parts.append(_ecu_filt)
 
@@ -2119,7 +2204,8 @@ with tab_similar:
             _pool_desc = '  ·  '.join(f"{lg} {cnt}" for lg, cnt in _pool_ligas.items()) if _pool_ligas else f"{sim_n_pool}"
             st.caption(
                 f"🔬 PCA: **{sim_n_comp} componentes** · **{sim_var:.1f}%** varianza explicada · "
-                f"**{n_sim_cols}** métricas · Pool: **{sim_n_pool}** {sim_pos.lower()}s  ({_pool_desc})"
+                f"**{n_sim_cols}** métricas · Pool: **{sim_n_pool}** {sim_pos.lower()}s  "
+                f"({_pool_desc}) · {sim_age_range[0]}-{sim_age_range[1]} años"
             )
             st.markdown("---")
 
@@ -2416,6 +2502,13 @@ with tab_ranking:
     with rk_col1:
         rk_tipo = st.selectbox("Tipo de métrica", ["Por 90", "Total"], key="rk_tipo")
 
+    rk_age_source = df if rk_pos == "Todas las posiciones" else df[df['Position Group'] == rk_pos].copy()
+    rk_age_min, rk_age_max = _get_age_bounds(rk_age_source)
+    rk_age_range = st.slider(
+        "Rango de edad", rk_age_min, rk_age_max,
+        value=(rk_age_min, rk_age_max), key=f"rk_age_range_{rk_pos}_{rk_tipo}"
+    )
+
     # ── Slider de minutos solo para Por 90 ─────────────────────────────────
     if rk_tipo == "Por 90":
         rk_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
@@ -2442,6 +2535,7 @@ with tab_ranking:
     rk_pool = df.copy()
     if rk_pos != "Todas las posiciones":
         rk_pool = rk_pool[rk_pool['Position Group'] == rk_pos]
+    rk_pool = _apply_age_filter(rk_pool, rk_age_range)
     if rk_min_minutes > 0 and 'Minutes played' in rk_pool.columns:
         rk_pool = rk_pool[rk_pool['Minutes played'] >= rk_min_minutes]
 
@@ -2457,8 +2551,9 @@ with tab_ranking:
         n_ranked = len(rk_data)
         pos_label = rk_pos if rk_pos != "Todas las posiciones" else "todos los jugadores"
         mins_label = f" · +{rk_min_minutes} min" if rk_min_minutes > 0 else ""
+        age_label = f" · {rk_age_range[0]}-{rk_age_range[1]} años"
         st.caption(
-            f"**{translate(rk_metric)}** · {n_ranked} jugadores · {pos_label}{mins_label} · Apertura 2026"
+            f"**{translate(rk_metric)}** · {n_ranked} jugadores · {pos_label}{mins_label}{age_label} · Apertura 2026"
         )
         st.markdown("---")
 
@@ -2646,20 +2741,30 @@ with tab_swarm:
         sw_pos = st.selectbox("Posición", sw_pos_opts, key="sw_pos")
 
     sw_pos_df = df[df['Position Group'] == sw_pos].copy()
+    sw_age_min, sw_age_max = _get_age_bounds(sw_pos_df)
+    sw_age_range = st.slider(
+        "Rango de edad", sw_age_min, sw_age_max,
+        value=(sw_age_min, sw_age_max), key=f"sw_age_range_{sw_pos}"
+    )
+    sw_pos_df = _apply_age_filter(sw_pos_df, sw_age_range)
+    if sw_pos_df.empty:
+        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
+        sw_player = None
+        sw_club_df = sw_pos_df.copy()
+    else:
+        with sw_c2:
+            sw_club_opts = sorted(sw_pos_df[sw_team_col].dropna().unique())
+            sw_club = st.selectbox("Club", sw_club_opts, key="sw_club")
 
-    with sw_c2:
-        sw_club_opts = sorted(sw_pos_df[sw_team_col].dropna().unique())
-        sw_club = st.selectbox("Club", sw_club_opts, key="sw_club")
+        sw_club_df = sw_pos_df[sw_pos_df[sw_team_col] == sw_club]
 
-    sw_club_df = sw_pos_df[sw_pos_df[sw_team_col] == sw_club]
-
-    with sw_c3:
-        sw_player_opts = sorted(sw_club_df['Player'].dropna().unique())
-        if not sw_player_opts:
-            st.warning("No hay jugadores para este filtro.")
-            sw_player = None
-        else:
-            sw_player = st.selectbox("Jugador", sw_player_opts, key="sw_player")
+        with sw_c3:
+            sw_player_opts = sorted(sw_club_df['Player'].dropna().unique())
+            if not sw_player_opts:
+                st.warning("No hay jugadores para este filtro.")
+                sw_player = None
+            else:
+                sw_player = st.selectbox("Jugador", sw_player_opts, key="sw_player")
 
     # ── Slider de minutos mínimos ─────────────────────────────────────────
     if 'Minutes played' in sw_pos_df.columns and len(sw_pos_df) > 0:
@@ -2751,7 +2856,8 @@ with tab_swarm:
 
                 n_comp = len(sw_comparison_df)
                 st.caption(
-                    f"Pool: **{n_comp} {sw_pos.lower()}s** · +{sw_min_min} min · Apertura 2026"
+                    f"Pool: **{n_comp} {sw_pos.lower()}s** · +{sw_min_min} min "
+                    f"· {sw_age_range[0]}-{sw_age_range[1]} años · Apertura 2026"
                 )
 
                 _, col_center, _ = st.columns([0.3, 9.4, 0.3])
@@ -3135,7 +3241,14 @@ with tab_best11:
     _b11_max_v   = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 90
     _b11_min_min = max(1, math.ceil(_b11_max_v / 2))
 
-    best_eleven = _compute_best_eleven(df, min_minutes=_b11_min_min)
+    b11_age_min, b11_age_max = _get_age_bounds(df)
+    b11_age_range = st.slider(
+        "Rango de edad", b11_age_min, b11_age_max,
+        value=(b11_age_min, b11_age_max), key="b11_age_range"
+    )
+    b11_df = _apply_age_filter(df, b11_age_range)
+
+    best_eleven = _compute_best_eleven(b11_df, min_minutes=_b11_min_min)
 
     # ── Figura (se genera una sola vez, se reutiliza para display y descarga) ──
     fig_b11     = _draw_best_eleven_fig(best_eleven, min_minutes=_b11_min_min,
@@ -3157,7 +3270,10 @@ with tab_best11:
         mime="image/png",
         key="dl_b11",
     )
-    st.caption(f"Mínimo {_b11_min_min} min jugados  ·  X: @marca_zonal  ·  Instagram: @marca.zonal")
+    st.caption(
+        f"Mínimo {_b11_min_min} min jugados · {b11_age_range[0]}-{b11_age_range[1]} años"
+        f"  ·  X: @marca_zonal  ·  Instagram: @marca.zonal"
+    )
 
 
 # ---------------------------------------------------------------------------
