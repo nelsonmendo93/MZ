@@ -2012,20 +2012,13 @@ with tab_similar:
         "Rango de edad", sim_age_min, sim_age_max,
         value=(sim_age_min, sim_age_max), key=f"sim_age_range_{sim_pos}"
     )
-    sim_pos_df = _apply_age_filter(sim_pos_df, sim_age_range)
-    if sim_pos_df.empty:
-        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
-        sim_club = None
-        sim_player = None
-        sim_club_pos_df = sim_pos_df.copy()
-    else:
-        sim_clubs = sorted(sim_pos_df[sim_team_col].dropna().unique())
-        with sim_col2:
-            sim_club = st.selectbox("Club", sim_clubs, key="sim_club")
-        sim_club_pos_df = sim_pos_df[sim_pos_df[sim_team_col] == sim_club]
-        sim_players_list = sorted(sim_club_pos_df['Player'].dropna().unique())
-        with sim_col3:
-            sim_player = st.selectbox("Jugador", sim_players_list, key="sim_player")
+    sim_clubs = sorted(sim_pos_df[sim_team_col].dropna().unique())
+    with sim_col2:
+        sim_club = st.selectbox("Club", sim_clubs, key="sim_club")
+    sim_club_pos_df = sim_pos_df[sim_pos_df[sim_team_col] == sim_club]
+    sim_players_list = sorted(sim_club_pos_df['Player'].dropna().unique())
+    with sim_col3:
+        sim_player = st.selectbox("Jugador", sim_players_list, key="sim_player")
 
     sim_slider_col, sim_top_col = st.columns(2)
     sim_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
