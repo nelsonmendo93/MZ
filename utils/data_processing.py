@@ -45,7 +45,8 @@ PLAYER_POSITION_OVERRIDES = {
     'C. Miño':       'RW',
     'A. Benítez':    'RB',
     'H. Fernández':  'LW',
-    'A. González':  'LW' 
+    'A. González':  'LW',
+    'E. Vera':      'LAMF'
 }
 
 # Action-percentage pairs for calculating successful actions
@@ -80,8 +81,8 @@ POSITION_GROUP_MAPPING = {
     'LWF': 'Extremo',
     'LW': 'Extremo',
     'AMF': 'Volante Central',
-    'RAMF': 'Volante Central',
-    'LAMF': 'Volante Central',
+    'RAMF': 'Extremo',
+    'LAMF': 'Extremo',
     'RCMF': 'Volante Central',
     'LCMF': 'Volante Central',
     'RDMF': 'Volante Central',
