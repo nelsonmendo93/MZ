@@ -280,6 +280,7 @@ df_bra = load_external_league('BRA')
 df_uru = load_external_league('URU')
 df_col = load_external_league('COL')
 df_ecu = load_external_league('ECU')
+df_chi = load_external_league('CHI')
 
 # Drop rows without position group
 df = df.dropna(subset=['Position Group'])
@@ -1893,12 +1894,13 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
 def _render_similarity_table(results, pool_df, team_col, top_n):
     """Renderiza la tabla de similitud como HTML con barras de porcentaje."""
     _LIGA_COLORS = {
-        'PAR': '#ef4444',   # rojo
-        'ARG': '#38bdf8',   # celeste
-        'BRA': '#34d399',   # verde
-        'URU': '#60a5fa',   # azul
-        'COL': '#f59e0b',   # amarillo/amber
-        'ECU': '#a78bfa',   # violeta
+        'PAR': '#dc2626',   # rojo intenso
+        'ARG': '#14b8a6',   # teal
+        'BRA': '#16a34a',   # verde fuerte
+        'URU': '#2563eb',   # azul royal
+        'COL': '#eab308',   # amarillo
+        'ECU': '#7c3aed',   # violeta profundo
+        'CHI': '#f97316',   # naranja
     }
     _has_liga = 'Liga' in pool_df.columns
 
@@ -2047,12 +2049,13 @@ with tab_similar:
         line-height: 1.15 !important;
         white-space: normal !important;
     }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Paraguay"]) label p { color: #ef4444 !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Argentina"]) label p { color: #38bdf8 !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Brasil"]) label p { color: #34d399 !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Uruguay"]) label p { color: #60a5fa !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Colombia"]) label p { color: #f59e0b !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Ecuador"]) label p { color: #a78bfa !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Paraguay"]) label p { color: #dc2626 !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Argentina"]) label p { color: #14b8a6 !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Brasil"]) label p { color: #16a34a !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Uruguay"]) label p { color: #2563eb !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Colombia"]) label p { color: #eab308 !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Ecuador"]) label p { color: #7c3aed !important; }
+    div[data-testid="stCheckbox"]:has(input[aria-label="Chile"]) label p { color: #f97316 !important; }
     @media (max-width: 768px) {
         div[data-testid="stCheckbox"] label p {
             font-size: 0.82rem !important;
@@ -2062,7 +2065,7 @@ with tab_similar:
     </style>
     """, unsafe_allow_html=True)
 
-    _ck_row1_col1, _ck_row1_col2, _ck_row1_col3 = st.columns(3)
+    _ck_row1_col1, _ck_row1_col2, _ck_row1_col3, _ck_row1_col4 = st.columns(4)
     _ck_row2_col1, _ck_row2_col2, _ck_row2_col3 = st.columns(3)
     with _ck_row1_col1:
         sim_use_par = st.checkbox(
@@ -2078,20 +2081,25 @@ with tab_similar:
             "Brasil", value=False, key="sim_use_bra",
             disabled=(df_bra is None),
         )
-    with _ck_row2_col1:
+    with _ck_row1_col4:
         sim_use_uru = st.checkbox(
             "Uruguay", value=False, key="sim_use_uru",
             disabled=(df_uru is None),
         )
-    with _ck_row2_col2:
+    with _ck_row2_col1:
         sim_use_col = st.checkbox(
             "Colombia", value=False, key="sim_use_col",
             disabled=(df_col is None),
         )
-    with _ck_row2_col3:
+    with _ck_row2_col2:
         sim_use_ecu = st.checkbox(
             "Ecuador", value=False, key="sim_use_ecu",
             disabled=(df_ecu is None),
+        )
+    with _ck_row2_col3:
+        sim_use_chi = st.checkbox(
+            "Chile", value=False, key="sim_use_chi",
+            disabled=(df_chi is None),
         )
 
     # Construir el pool dinámicamente según las ligas seleccionadas
@@ -2151,6 +2159,15 @@ with tab_similar:
         _ecu_filt = _apply_age_filter(_ecu_filt, sim_age_range)
         _ecu_filt['Liga'] = 'ECU'
         _pool_parts.append(_ecu_filt)
+
+    if sim_use_chi and df_chi is not None:
+        _chi_filt = df_chi[
+            (df_chi['Position Group'] == sim_pos) &
+            (df_chi['Minutes played'] >= sim_min_minutes)
+        ].copy().reset_index(drop=True)
+        _chi_filt = _apply_age_filter(_chi_filt, sim_age_range)
+        _chi_filt['Liga'] = 'CHI'
+        _pool_parts.append(_chi_filt)
 
     # Construir el pool de comparación (puede no incluir PAR si el usuario lo excluye)
     sim_pool = pd.concat(_pool_parts, ignore_index=True) if _pool_parts else pd.DataFrame()
