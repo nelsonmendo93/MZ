@@ -5,10 +5,10 @@ import numpy as np
 
 # Colors for the 4 metric categories
 CATEGORY_COLORS = {
-    'Defensa': '#7c2d12',
-    'Ataque': '#f59e0b',
-    'Posesión': '#fbbf24',
-    'Distribución': '#c084fc',
+    'Defensa': '#166534',
+    'Ataque': '#22c55e',
+    'Posesión': '#4ade80',
+    'Distribución': '#84cc16',
 }
 
 

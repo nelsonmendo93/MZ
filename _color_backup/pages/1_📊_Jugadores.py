@@ -730,7 +730,7 @@ tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_
 CATEGORY_COLORS = {
     '\U0001f6e1\ufe0f Defensa':      '#f97316',   # naranja
     '\U0001f4aa Duelos':             '#fb923c',   # naranja claro
-    '\u26a1 Posesi\u00f3n':          '#f59e0b',   # verde
+    '\u26a1 Posesi\u00f3n':          '#22c55e',   # verde
     '\u26bd Goles y Remates':        '#ef4444',   # rojo
     '\U0001f3af Creaci\u00f3n':      '#a78bfa',   # violeta
     '\u2197\ufe0f Centros':          '#60a5fa',   # azul claro
@@ -742,7 +742,7 @@ CATEGORY_COLORS = {
 
 # Colores para categorías de portero
 GK_CATEGORY_COLORS = {
-    '\U0001f945 Porter\u00eda':       '#d97706',   # emerald verde
+    '\U0001f945 Porter\u00eda':       '#10b981',   # emerald verde
     '\U0001f4d0 Distribuci\u00f3n':  '#0ea5e9',   # sky blue
     '\U0001f4aa Duelos A\u00e9reos': '#a78bfa',   # violeta
     '\U0001f4e5 Recepci\u00f3n':     '#38bdf8',   # sky claro
@@ -1851,8 +1851,8 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         team_display = f"{team} [{liga_code}]" if liga_code and liga_code != 'PAR' else team
 
         # Color barra
-        if sim >= 85:   bar_col = '#f59e0b'
-        elif sim >= 70: bar_col = '#eab308'
+        if sim >= 85:   bar_col = '#22c55e'
+        elif sim >= 70: bar_col = '#84cc16'
         elif sim >= 55: bar_col = '#eab308'
         else:           bar_col = '#f97316'
 
@@ -1873,7 +1873,7 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         ax.text(0.65, row_y, pname[:26],   fontsize=9.5, color='#f1f5f9', va='center', ha='left', fontweight='bold')
         ax.text(3.80, row_y, team_display[:24], fontsize=8.5, color='#9ca3af', va='center', ha='left')
         ax.text(6.00, row_y, pos[:14],     fontsize=7.5, color='#6b7280', va='center', ha='left')
-        ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#fbbf24', va='center', ha='center', fontweight='bold')
+        ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#4ade80', va='center', ha='center', fontweight='bold')
         ax.text(7.75, row_y, f'{mins:,}',  fontsize=7.5, color='#6b7280', va='center', ha='right')
         ax.text(9.65, row_y, f'{sim:.1f}%', fontsize=9.5, color='#fff',   va='center', ha='right', fontweight='bold')
 
@@ -1928,9 +1928,9 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
 
         # Color de barra según similitud
         if sim >= 85:
-            bar_color = '#f59e0b'
+            bar_color = '#22c55e'
         elif sim >= 70:
-            bar_color = '#eab308'
+            bar_color = '#84cc16'
         elif sim >= 55:
             bar_color = '#eab308'
         else:
@@ -1972,7 +1972,7 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
     .pname {{ font-weight: 700; color: #f1f5f9; min-width: 160px; }}
     .team  {{ color: #9ca3af; min-width: 130px; }}
     .pos   {{ color: #6b7280; font-size: 11px; min-width: 80px; }}
-    .age   {{ color: #fbbf24; font-size: 12px; font-weight: 700; text-align: center; min-width: 40px; }}
+    .age   {{ color: #4ade80; font-size: 12px; font-weight: 700; text-align: center; min-width: 40px; }}
     .mins  {{ color: #6b7280; font-size: 11px; text-align: right; min-width: 60px; }}
     .bar-cell {{ width: 220px; }}
     .bar-bg {{
@@ -2202,7 +2202,7 @@ with tab_similar:
                 <div style="font-size:1.4rem; font-weight:800; color:#f1f5f9;">{sim_player}</div>
                 <div style="color:#9ca3af; font-size:0.9rem; margin-top:4px;">
                   {sim_player_team} &nbsp;·&nbsp; {sim_pos}
-                  &nbsp;·&nbsp; <span style="color:#fbbf24; font-weight:700;">{sim_player_age} años</span>
+                  &nbsp;·&nbsp; <span style="color:#4ade80; font-weight:700;">{sim_player_age} años</span>
                   &nbsp;·&nbsp; {sim_player_mins:,} mins
                 </div>
               </div>
@@ -2317,7 +2317,7 @@ def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
         if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
         elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
         elif i == 3: rank_color, bar_color = '#b45309', '#b45309'
-        else:        rank_color, bar_color = '#4b5563', '#d97706'
+        else:        rank_color, bar_color = '#4b5563', '#16a34a'
 
         rows_html += f"""
         <tr>
@@ -2406,11 +2406,11 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
 
     # Chips de filtro
     chips = [
-        (tipo_label,   '#0f2d14', '#f59e0b'),
-        (pos_label,    '#1a2e1a', '#fbbf24'),
+        (tipo_label,   '#0f2d14', '#22c55e'),
+        (pos_label,    '#1a2e1a', '#4ade80'),
     ]
     if min_minutes > 0:
-        chips.append((f'+{min_minutes} min', '#1a2e1a', '#fbbf24'))
+        chips.append((f'+{min_minutes} min', '#1a2e1a', '#4ade80'))
     cx = 0.45
     for chip_txt, bg, fg in chips:
         chip_w = len(chip_txt) * 0.095 + 0.30
@@ -2462,7 +2462,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
         if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
         elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
         elif i == 3: rank_color, bar_color = '#b45309', '#cd7c2f'
-        else:        rank_color, bar_color = '#4b5563', '#d97706'
+        else:        rank_color, bar_color = '#4b5563', '#16a34a'
 
         row_y = y - 0.08
         # Barra fondo
@@ -2907,8 +2907,8 @@ _B11_POS_COLORS = {
     'RCB': '#3b82f6',  # azul
     'RB':  '#06b6d4',  # cian
     'MID': '#8b5cf6',  # violeta
-    'LW':  '#d97706',  # verde
-    'RW':  '#d97706',  # verde
+    'LW':  '#10b981',  # verde
+    'RW':  '#10b981',  # verde
     'CF':  '#ef4444',  # rojo
 }
 
@@ -3106,7 +3106,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
     for i in range(10):
         ax.add_patch(plt.Rectangle(
             (0, i * sh), PW, sh,
-            facecolor='#f59e0b', alpha=0.07 if i % 2 == 0 else 0.035, zorder=0))
+            facecolor='#22c55e', alpha=0.07 if i % 2 == 0 else 0.035, zorder=0))
     ax.add_patch(plt.Rectangle((0, 0), PW, PH, facecolor='#0f3b2e', alpha=0.28, zorder=0))
 
     # Borde cancha

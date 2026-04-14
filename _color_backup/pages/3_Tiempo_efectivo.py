@@ -181,8 +181,8 @@ def _render_ranking_chart(ranking_df: pd.DataFrame):
     bars = ax.barh(
         plot_df["Equipo"],
         plot_df["Tiempo efectivo promedio (min)"],
-        color="#f59e0b",
-        edgecolor="#fcd34d",
+        color="#22c55e",
+        edgecolor="#86efac",
         linewidth=1.1,
         height=0.68,
     )
@@ -408,7 +408,7 @@ div[data-baseweb="select"] > div {
 .te-match-badge {
     display: inline-block;
     background: rgba(34, 197, 94, 0.12);
-    color: #fcd34d;
+    color: #86efac;
     padding: 8px 12px;
     border-radius: 10px;
     font-size: 0.98rem;
@@ -443,7 +443,7 @@ div[data-baseweb="select"] > div {
     left: 0;
     top: 3px;
     height: 16px;
-    background: linear-gradient(90deg, #b45309 0%, #f59e0b 100%);
+    background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
     border-radius: 0;
     box-shadow: 0 0 12px rgba(34, 197, 94, 0.22);
 }

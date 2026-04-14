@@ -50,7 +50,7 @@ header { visibility: hidden; }
     padding: 3rem 2rem 2rem;
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     border-radius: 20px;
-    border: 1px solid rgba(245,158,11,0.2);
+    border: 1px solid rgba(34,197,94,0.2);
     margin-bottom: 2.5rem;
 }
 
@@ -87,9 +87,9 @@ header { visibility: hidden; }
 }
 
 .stButton > button:hover {
-    background: rgba(245,158,11,0.12) !important;
-    border-color: rgba(245,158,11,0.45) !important;
-    color: #f59e0b !important;
+    background: rgba(34,197,94,0.12) !important;
+    border-color: rgba(34,197,94,0.45) !important;
+    color: #22c55e !important;
     transform: translateY(-2px);
 }
 
@@ -106,7 +106,7 @@ header { visibility: hidden; }
     font-family: 'Poppins', sans-serif !important;
     font-size: 1.8rem;
     font-weight: 800;
-    color: #f59e0b;
+    color: #22c55e;
 }
 
 .counter-label {
@@ -167,7 +167,7 @@ st.markdown(f"""
 <div style="display:flex;align-items:center;justify-content:space-between;
             padding:0.6rem 0.2rem;flex-wrap:wrap;gap:0.5rem;">
     <div style="font-size:0.78rem;color:#64748b;font-family:'Cousine',monospace;">
-        👁️ Visitas a la app: <strong style="color:#f59e0b;">{_visit_count:,}</strong>
+        👁️ Visitas a la app: <strong style="color:#22c55e;">{_visit_count:,}</strong>
         &nbsp;·&nbsp; Marca Zonal · Apertura 2026
     </div>
     <div style="font-size:0.78rem;color:#64748b;font-family:'Cousine',monospace;">

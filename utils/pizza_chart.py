@@ -6,7 +6,7 @@ from mplsoccer import PyPizza
 
 
 # Colors for the 3 metric groups (5 metrics each)
-GROUP_COLORS = ["#0ea5e9", "#f97316", "#a78bfa"]
+GROUP_COLORS = ["#f59e0b", "#e11d48", "#a78bfa"]
 GROUP_LABELS = ["Defensa", "Ataque", "Distribución"]
 
 
@@ -96,7 +96,7 @@ def create_pizza_chart(player_name, player_team, subtitle, params, values,
         kwargs_params=dict(color="#F2F2F2", fontsize=8, va="center"),
         kwargs_values=dict(
             color="#F2F2F2", fontsize=9, zorder=3,
-            bbox=dict(edgecolor="#000000", facecolor="cornflowerblue",
+            bbox=dict(edgecolor="#000000", facecolor="#92400e",
                       boxstyle="circle,pad=0.15", lw=1)
         ),
     )
