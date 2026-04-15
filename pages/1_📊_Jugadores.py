@@ -17,7 +17,7 @@ from sklearn.decomposition import PCA
 
 from utils.data_processing import load_and_process_data, process_database
 from utils.xy_chart import create_xy_chart
-from utils.bar_chart import create_bar_chart
+from utils.bar_chart import create_scout_report
 from utils.pizza_chart import create_pizza_chart
 from utils.translations import translate
 import sys as _sys
@@ -125,6 +125,24 @@ PIZZA_METRICS = {
         'Accurate passes to final third per 90',
         'Accurate progressive passes per 90',
     ],
+}
+
+SCOUT_METRIC_LABELS = {
+    'Defensive duels won, %': 'Duelos def. %',
+    'Aerial duels won, %': 'Juego aereo %',
+    'Shots blocked per 90': 'Bloqueos',
+    'Interceptions per 90': 'Intercepciones',
+    'Fouls per 90': 'Faltas',
+    'Goals per 90': 'Goles',
+    'Shots on target per 90': 'Tiros al arco',
+    'Assists per 90': 'Asistencias',
+    'Dribbles won per 90': 'Regates',
+    'Progressive runs per 90': 'Carreras prog.',
+    'Received passes per 90': 'Recepciones',
+    'Accurate passes per 90': 'Pases',
+    'Key passes per 90': 'Pases clave',
+    'Accurate passes to final third per 90': 'Pases 1/3',
+    'Accurate progressive passes per 90': 'Pases prog.',
 }
 
 # Columns excluded from metric selectors and table display
@@ -730,7 +748,7 @@ tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_
 CATEGORY_COLORS = {
     '\U0001f6e1\ufe0f Defensa':      '#f97316',   # naranja
     '\U0001f4aa Duelos':             '#fb923c',   # naranja claro
-    '\u26a1 Posesi\u00f3n':          '#f59e0b',   # verde
+    '\u26a1 Posesi\u00f3n':          '#22c55e',   # verde
     '\u26bd Goles y Remates':        '#ef4444',   # rojo
     '\U0001f3af Creaci\u00f3n':      '#a78bfa',   # violeta
     '\u2197\ufe0f Centros':          '#60a5fa',   # azul claro
@@ -742,7 +760,7 @@ CATEGORY_COLORS = {
 
 # Colores para categorías de portero
 GK_CATEGORY_COLORS = {
-    '\U0001f945 Porter\u00eda':       '#d97706',   # emerald verde
+    '\U0001f945 Porter\u00eda':       '#10b981',   # emerald verde
     '\U0001f4d0 Distribuci\u00f3n':  '#0ea5e9',   # sky blue
     '\U0001f4aa Duelos A\u00e9reos': '#a78bfa',   # violeta
     '\U0001f4e5 Recepci\u00f3n':     '#38bdf8',   # sky claro
@@ -1201,6 +1219,34 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
     return fig
 
 
+def _build_scout_categories(player_data, comparison_df):
+    scout_categories = []
+    scout_group_names = {
+        'Defensa': 'Defensa',
+        'DistribuciÃ³n': 'Posesion',
+        'Ataque': 'Ataque',
+    }
+
+    for group_name, metric_list in PIZZA_METRICS.items():
+        scout_items = []
+        for metric in metric_list:
+            if metric not in comparison_df.columns:
+                continue
+            value = pd.to_numeric(player_data.get(metric), errors='coerce')
+            if pd.isna(value):
+                continue
+            pct = _compute_percentile(float(value), comparison_df[metric])
+            scout_items.append({
+                'label': SCOUT_METRIC_LABELS.get(metric, translate(metric)),
+                'value': float(value),
+                'pct': pct,
+            })
+        if scout_items:
+            scout_categories.append((scout_group_names.get(group_name, group_name), scout_items))
+
+    return scout_categories
+
+
 with tab_table:
     # Determine team column
     team_col_tab1 = 'Team within selected timeframe'
@@ -1283,6 +1329,7 @@ with tab_table:
                 (df['Position Group'] == selected_pos) &
                 (df['Minutes played'] >= tab1_min_minutes)
             ].copy()
+            comparison_df = _apply_age_filter(comparison_df, tab1_age_range)
             n_comp = len(comparison_df)
             st.caption(
                 f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
@@ -1323,7 +1370,46 @@ with tab_table:
 
             # Render bars — all categories in one component call
             if categorized:
-                _render_all_bars(categorized, cat_order, cat_colors)
+                scout_tab, table_view_tab = st.tabs(["Vista scout", "Vista tabla"])
+
+                with scout_tab:
+                    scout_categories = _build_scout_categories(player_data, comparison_df)
+                    if scout_categories:
+                        team_display = str(player_data.get(team_col_tab1, ''))
+                        scout_subtitle = (
+                            f"Entre {n_comp} {selected_pos.lower()}s +{tab1_min_minutes} min "
+                            f"| {tab1_age_range[0]}-{tab1_age_range[1]} años | Apertura 2026"
+                        )
+                        fig_scout = create_scout_report(
+                            player_name=selected_player_tab1,
+                            player_team=team_display,
+                            subtitle=scout_subtitle,
+                            categories_data=scout_categories,
+                        )
+                        st.pyplot(fig_scout)
+
+                        buf_scout = io.BytesIO()
+                        fig_scout.savefig(
+                            buf_scout,
+                            format='png',
+                            dpi=200,
+                            bbox_inches='tight',
+                            facecolor=fig_scout.get_facecolor()
+                        )
+                        plt.close(fig_scout)
+                        st.download_button(
+                            "Descargar tarjeta",
+                            buf_scout.getvalue(),
+                            file_name=f"scout_{selected_player_tab1.replace(' ', '_')}.png",
+                            mime="image/png",
+                            key="dl_scout_card",
+                        )
+                        st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
+                    else:
+                        st.info("No hay suficientes métricas del radial para construir la vista scout.")
+
+                with table_view_tab:
+                    _render_all_bars(categorized, cat_order, cat_colors)
             else:
                 st.info("No hay métricas disponibles para mostrar.")
     elif players_list:
@@ -1456,6 +1542,127 @@ with tab_bar:
     if st.button(compare_label, key="btn_comparar"):
         st.session_state['pent_show_compare'] = not st.session_state['pent_show_compare']
         st.rerun()
+
+    pent_player2 = None
+    if not pent_pos_df.empty and pent_player and st.session_state['pent_show_compare']:
+        st.markdown("---")
+        st.markdown("**Segundo jugador** *(misma posición: {})*".format(pent_pos))
+        cmp_col1, cmp_col2 = st.columns(2)
+        with cmp_col1:
+            pent_club2 = st.selectbox("Club (jugador 2)", pent_clubs, key="pent_club2_fix")
+        cmp_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club2]
+        cmp_players = sorted(cmp_club_df['Player'].dropna().unique())
+        cmp_players_filt = [p for p in cmp_players if p != pent_player] or cmp_players
+        with cmp_col2:
+            pent_player2 = st.selectbox("Jugador 2", cmp_players_filt, key="pent_player2_fix")
+        st.markdown("---")
+
+    if not pent_pos_df.empty and pent_player:
+        pent_player_rows = pent_club_df[pent_club_df['Player'] == pent_player]
+        if pent_player_rows.empty:
+            st.warning("Jugador no encontrado.")
+        else:
+            pent_player_data = pent_player_rows.iloc[0]
+            pent_comparison_df = pent_pos_df[
+                (pent_pos_df['Minutes played'] >= pent_min_minutes)
+            ].copy()
+            n_pent = len(pent_comparison_df)
+
+            if pent_comparison_df[pent_comparison_df['Player'] == pent_player].empty:
+                st.warning("El jugador no alcanza el mínimo de minutos. Reducí el slider.")
+            else:
+                is_pent_gk = (pent_pos == 'Portero')
+                if is_pent_gk:
+                    all_pent_cols = _get_display_cols_gk(df)
+                    scores = _compute_pentagon_scores_gk(
+                        pent_player_data, pent_comparison_df, all_pent_cols
+                    )
+                    avg_scores = _compute_avg_pentagon_scores_gk(pent_comparison_df, all_pent_cols)
+                    pent_axes = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
+                    pent_group_desc = {
+                        'REF': 'Reflejos (remates recibidos, efectividad de atajadas)',
+                        'EFE': 'Efectividad (goles concedidos, xG en contra, goles evitados)',
+                        'DIS': 'Distribución (precisión de pases generales)',
+                        'DISP': 'Distribución de peligro (pases al último tercio, área y progresivos)',
+                        'ALCP': 'Alcance de pase (longitud promedio de pases)',
+                    }
+                else:
+                    all_pent_cols = _get_display_cols(df)
+                    scores = _compute_pentagon_scores(
+                        pent_player_data, pent_comparison_df, all_pent_cols
+                    )
+                    avg_scores = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
+                    pent_axes = ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']
+                    pent_group_desc = {
+                        'ATQ': 'Goles y Remates',
+                        'POS': 'Posesión (Dribbling, Recepción, Acciones ofensivas)',
+                        'PAS': 'Pases y Centros',
+                        'CRE': 'Creatividad',
+                        'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
+                    }
+
+                scores2 = None
+                if st.session_state['pent_show_compare'] and pent_player2:
+                    p2_rows = pent_pos_df[pent_pos_df['Player'] == pent_player2]
+                    if not p2_rows.empty:
+                        p2_data = p2_rows.iloc[0]
+                        if is_pent_gk:
+                            scores2 = _compute_pentagon_scores_gk(p2_data, pent_comparison_df, all_pent_cols)
+                        else:
+                            scores2 = _compute_pentagon_scores(p2_data, pent_comparison_df, all_pent_cols)
+
+                team_display = str(pent_player_data.get(pent_team_col, ''))
+                subtitle_pent = (
+                    f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min "
+                    f"· {pent_age_range[0]}-{pent_age_range[1]} años · Apertura 2026"
+                )
+
+                _, col_center, _ = st.columns([1, 2, 1])
+                with col_center:
+                    fig_pent = _create_pentagon_chart(
+                        scores, pent_player, team_display, subtitle_pent,
+                        avg_scores=avg_scores, pos_label=pent_pos,
+                        scores2=scores2, player2_name=pent_player2 or '',
+                        custom_labels=pent_axes if is_pent_gk else None,
+                    )
+                    st.pyplot(fig_pent)
+
+                    buf_pent = io.BytesIO()
+                    fig_pent.savefig(buf_pent, format='png', dpi=200, bbox_inches='tight',
+                                     facecolor=fig_pent.get_facecolor())
+                    dl_fname = (
+                        f"pentagono_{pent_player.replace(' ', '_')}_vs_{pent_player2.replace(' ', '_')}.png"
+                        if scores2 and pent_player2
+                        else f"pentagono_{pent_player.replace(' ', '_')}.png"
+                    )
+                    st.download_button(
+                        "⬇️ Descargar gráfico", buf_pent.getvalue(),
+                        file_name=dl_fname,
+                        mime="image/png", key="dl_pent_fixed"
+                    )
+                    st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
+
+                st.markdown("#### Detalle de puntajes")
+                summary_rows = []
+                for key in pent_axes:
+                    diff = scores[key] - avg_scores[key]
+                    row = {
+                        'Categoría': key,
+                        'Descripción': pent_group_desc[key],
+                        pent_player[:20]: scores[key],
+                        f'Prom. {pent_pos}': avg_scores[key],
+                        'Dif. P1': f"+{diff}" if diff >= 0 else str(diff),
+                    }
+                    if scores2 and pent_player2:
+                        diff2 = scores2[key] - avg_scores[key]
+                        row[pent_player2[:20]] = scores2[key]
+                        row['Dif. P2'] = f"+{diff2}" if diff2 >= 0 else str(diff2)
+                    summary_rows.append(row)
+                st.dataframe(
+                    pd.DataFrame(summary_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
     # Selectores del segundo jugador (misma posición)
         pent_player2 = None
@@ -1851,8 +2058,8 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         team_display = f"{team} [{liga_code}]" if liga_code and liga_code != 'PAR' else team
 
         # Color barra
-        if sim >= 85:   bar_col = '#f59e0b'
-        elif sim >= 70: bar_col = '#eab308'
+        if sim >= 85:   bar_col = '#22c55e'
+        elif sim >= 70: bar_col = '#84cc16'
         elif sim >= 55: bar_col = '#eab308'
         else:           bar_col = '#f97316'
 
@@ -1873,7 +2080,7 @@ def _create_similarity_card(player_name, player_team, player_age, player_pos,
         ax.text(0.65, row_y, pname[:26],   fontsize=9.5, color='#f1f5f9', va='center', ha='left', fontweight='bold')
         ax.text(3.80, row_y, team_display[:24], fontsize=8.5, color='#9ca3af', va='center', ha='left')
         ax.text(6.00, row_y, pos[:14],     fontsize=7.5, color='#6b7280', va='center', ha='left')
-        ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#fbbf24', va='center', ha='center', fontweight='bold')
+        ax.text(7.00, row_y, str(age),     fontsize=8.5, color='#4ade80', va='center', ha='center', fontweight='bold')
         ax.text(7.75, row_y, f'{mins:,}',  fontsize=7.5, color='#6b7280', va='center', ha='right')
         ax.text(9.65, row_y, f'{sim:.1f}%', fontsize=9.5, color='#fff',   va='center', ha='right', fontweight='bold')
 
@@ -1928,9 +2135,9 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
 
         # Color de barra según similitud
         if sim >= 85:
-            bar_color = '#f59e0b'
+            bar_color = '#22c55e'
         elif sim >= 70:
-            bar_color = '#eab308'
+            bar_color = '#84cc16'
         elif sim >= 55:
             bar_color = '#eab308'
         else:
@@ -1972,7 +2179,7 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
     .pname {{ font-weight: 700; color: #f1f5f9; min-width: 160px; }}
     .team  {{ color: #9ca3af; min-width: 130px; }}
     .pos   {{ color: #6b7280; font-size: 11px; min-width: 80px; }}
-    .age   {{ color: #fbbf24; font-size: 12px; font-weight: 700; text-align: center; min-width: 40px; }}
+    .age   {{ color: #4ade80; font-size: 12px; font-weight: 700; text-align: center; min-width: 40px; }}
     .mins  {{ color: #6b7280; font-size: 11px; text-align: right; min-width: 60px; }}
     .bar-cell {{ width: 220px; }}
     .bar-bg {{
@@ -2202,7 +2409,7 @@ with tab_similar:
                 <div style="font-size:1.4rem; font-weight:800; color:#f1f5f9;">{sim_player}</div>
                 <div style="color:#9ca3af; font-size:0.9rem; margin-top:4px;">
                   {sim_player_team} &nbsp;·&nbsp; {sim_pos}
-                  &nbsp;·&nbsp; <span style="color:#fbbf24; font-weight:700;">{sim_player_age} años</span>
+                  &nbsp;·&nbsp; <span style="color:#4ade80; font-weight:700;">{sim_player_age} años</span>
                   &nbsp;·&nbsp; {sim_player_mins:,} mins
                 </div>
               </div>
@@ -2317,7 +2524,7 @@ def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
         if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
         elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
         elif i == 3: rank_color, bar_color = '#b45309', '#b45309'
-        else:        rank_color, bar_color = '#4b5563', '#d97706'
+        else:        rank_color, bar_color = '#4b5563', '#16a34a'
 
         rows_html += f"""
         <tr>
@@ -2406,11 +2613,11 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
 
     # Chips de filtro
     chips = [
-        (tipo_label,   '#0f2d14', '#f59e0b'),
-        (pos_label,    '#1a2e1a', '#fbbf24'),
+        (tipo_label,   '#0f2d14', '#22c55e'),
+        (pos_label,    '#1a2e1a', '#4ade80'),
     ]
     if min_minutes > 0:
-        chips.append((f'+{min_minutes} min', '#1a2e1a', '#fbbf24'))
+        chips.append((f'+{min_minutes} min', '#1a2e1a', '#4ade80'))
     cx = 0.45
     for chip_txt, bg, fg in chips:
         chip_w = len(chip_txt) * 0.095 + 0.30
@@ -2462,7 +2669,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
         if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
         elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
         elif i == 3: rank_color, bar_color = '#b45309', '#cd7c2f'
-        else:        rank_color, bar_color = '#4b5563', '#d97706'
+        else:        rank_color, bar_color = '#4b5563', '#16a34a'
 
         row_y = y - 0.08
         # Barra fondo
@@ -2907,8 +3114,8 @@ _B11_POS_COLORS = {
     'RCB': '#3b82f6',  # azul
     'RB':  '#06b6d4',  # cian
     'MID': '#8b5cf6',  # violeta
-    'LW':  '#d97706',  # verde
-    'RW':  '#d97706',  # verde
+    'LW':  '#10b981',  # verde
+    'RW':  '#10b981',  # verde
     'CF':  '#ef4444',  # rojo
 }
 
@@ -3106,7 +3313,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
     for i in range(10):
         ax.add_patch(plt.Rectangle(
             (0, i * sh), PW, sh,
-            facecolor='#f59e0b', alpha=0.07 if i % 2 == 0 else 0.035, zorder=0))
+            facecolor='#22c55e', alpha=0.07 if i % 2 == 0 else 0.035, zorder=0))
     ax.add_patch(plt.Rectangle((0, 0), PW, PH, facecolor='#0f3b2e', alpha=0.28, zorder=0))
 
     # Borde cancha

@@ -56,7 +56,7 @@ def create_xy_chart(df, x_col, y_col, highlight_player=None,
 
     # Plot all other players
     ax.scatter(others[x_col].astype(float), others[y_col].astype(float),
-               c='#f59e0b', alpha=0.6, s=120, zorder=5, edgecolors='white', linewidths=0.5)
+               c='#22c55e', alpha=0.6, s=120, zorder=5, edgecolors='white', linewidths=0.5)
 
     # Plot highlighted player
     if player_row is not None:
