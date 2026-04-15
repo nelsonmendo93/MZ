@@ -2476,7 +2476,7 @@ _PER90_COLS = sorted([c for c in df.columns if c.endswith(' per 90')])
 _GK_RANKING_COLS = sorted([
     c for c in (
         list({col for cols in _GK_PENTAGON_COLS.values() for col in cols})
-        + ['Received passes per 90']
+        + ['Received passes per 90', 'Exits per 90', 'Aerial duels won, %', 'Aerial duels per 90']
     )
     if c in df.columns
 ])

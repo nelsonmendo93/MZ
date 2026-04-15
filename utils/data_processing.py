@@ -18,7 +18,7 @@ PER_90_COLUMNS = [
     'Shot assists per 90',
     'Smart passes per 90', 'Key passes per 90', 'Passes to final third per 90',
     'Passes to penalty area per 90', 'Through passes per 90', 'Deep completions per 90',
-    'Deep completed crosses per 90', 'Progressive passes per 90'
+    'Deep completed crosses per 90', 'Progressive passes per 90', 'Exits per 90'
     # Nota: 'Second assists per 90' y 'Third assists per 90' se excluyen intencionalmente
 ]
 
