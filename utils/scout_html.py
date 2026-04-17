@@ -176,19 +176,15 @@ def build_scout_html(
             f"""
             <div class="mz-list-card mz-list-card-similar">
               <div class="mz-sim-grid">
-                <div class="mz-sim-col">
+                <div class="mz-sim-row-top">
                   <div class="mz-sim-player">{_esc(item.get('player', ''))}</div>
+                  <div class="mz-sim-score">{float(item.get('similarity', 0)):.1f}%</div>
                 </div>
-                <div class="mz-sim-col">
-                  <span class="mz-age-chip">{_esc(item.get('age', '--'))}</span>
-                </div>
-                <div class="mz-sim-col">
+                <div class="mz-sim-row-bottom">
                   <div class="mz-sim-team">{_esc(item.get('team', ''))}</div>
-                </div>
-                <div class="mz-sim-col">
+                  <span class="mz-age-chip">{_esc(item.get('age', '--'))}</span>
                   <span class="mz-league-chip" style="background:{badge};">{_esc(league)}</span>
                 </div>
-                <div class="mz-sim-col mz-sim-score">{float(item.get('similarity', 0)):.1f}%</div>
               </div>
             </div>
             """
@@ -476,54 +472,62 @@ def build_scout_html(
       .mz-list-rank {{ color:#22c55e; }}
       .mz-sim-grid {{
         width:100%;
-        display:grid;
-        grid-template-columns:minmax(0, 1.55fr) 70px minmax(0, 1.2fr) 72px 86px;
-        gap:12px;
-        align-items:center;
+        display:flex;
+        flex-direction:column;
+        gap:5px;
       }}
-      .mz-sim-col {{
-        min-width:0;
+      .mz-sim-row-top {{
+        display:flex;
+        justify-content:space-between;
+        align-items:baseline;
+        gap:8px;
+      }}
+      .mz-sim-row-bottom {{
+        display:flex;
+        align-items:center;
+        gap:6px;
+        flex-wrap:wrap;
       }}
       .mz-sim-player {{
         font-size:13px;
         font-weight:900;
         color:#f8fafc;
-        line-height:1.15;
-        white-space:normal;
-        word-break:break-word;
+        line-height:1.2;
+        flex:1;
+        min-width:0;
       }}
       .mz-sim-team {{
-        font-size:12px;
-        color:#cbd5e1;
+        font-size:11px;
+        color:#94a3b8;
         font-weight:700;
-        line-height:1.15;
-        white-space:normal;
-        word-break:break-word;
+        flex:1;
+        min-width:0;
       }}
       .mz-age-chip, .mz-league-chip {{
-        min-width:34px;
-        height:22px;
-        border-radius:8px;
+        height:20px;
+        border-radius:6px;
         display:inline-flex;
         align-items:center;
         justify-content:center;
         font-size:11px;
         font-weight:800;
+        flex-shrink:0;
       }}
       .mz-age-chip {{
         background:#0f1c2e;
         color:#cbd5e1;
+        padding:0 7px;
       }}
       .mz-league-chip {{
         color:#fff;
-        min-width:42px;
-        padding:0 10px;
+        padding:0 8px;
       }}
       .mz-sim-score {{
-        min-width:0;
-        text-align:right;
-        font-size:12px;
+        font-size:13px;
         font-weight:900;
+        color:#22c55e;
+        flex-shrink:0;
+        white-space:nowrap;
       }}
       .mz-footer {{
         display:none;
