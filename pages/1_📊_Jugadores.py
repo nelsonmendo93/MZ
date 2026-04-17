@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
@@ -18,6 +18,7 @@ from sklearn.decomposition import PCA
 from utils.data_processing import load_and_process_data, process_database
 from utils.xy_chart import create_xy_chart
 from utils.bar_chart import create_scout_report
+from utils.scout_html import build_scout_html
 from utils.pizza_chart import create_pizza_chart
 from utils.translations import translate
 import sys as _sys
@@ -1223,7 +1224,7 @@ def _build_scout_categories(player_data, comparison_df):
     scout_categories = []
     scout_group_names = {
         'Defensa': 'Defensa',
-        'DistribuciÃ³n': 'Posesion',
+        'Distribución': 'Posesion',
         'Ataque': 'Ataque',
     }
 
@@ -1245,6 +1246,248 @@ def _build_scout_categories(player_data, comparison_df):
             scout_categories.append((scout_group_names.get(group_name, group_name), scout_items))
 
     return scout_categories
+
+
+def _build_scout_categories(player_data, comparison_df):
+    scout_categories = []
+    for group_name, metric_list in PIZZA_METRICS.items():
+        scout_items = []
+        for metric in metric_list:
+            if metric not in comparison_df.columns:
+                continue
+            value = pd.to_numeric(player_data.get(metric), errors='coerce')
+            if pd.isna(value):
+                continue
+            pct = _compute_percentile(float(value), comparison_df[metric])
+            scout_items.append({
+                'label': SCOUT_METRIC_LABELS.get(metric, translate(metric)),
+                'value': float(value),
+                'pct': pct,
+            })
+        if scout_items:
+            scout_items.sort(key=lambda item: item['pct'], reverse=True)
+            scout_group = 'Posesion' if group_name not in ('Defensa', 'Ataque') else group_name
+            scout_categories.append((scout_group, scout_items))
+    return scout_categories
+
+
+def _build_scout_summary_items(player_data, team_col, selected_pos):
+    def _fmt_int(value):
+        if value is None or pd.isnull(value):
+            return '--'
+        try:
+            return f"{int(float(value)):,}"
+        except (TypeError, ValueError):
+            return str(value)
+
+    def _fmt_text(value, fallback='--'):
+        if value is None or pd.isnull(value) or str(value).strip() == '':
+            return fallback
+        return str(value)
+
+    def _translate_foot(value):
+        if value is None or pd.isnull(value):
+            return 'Desconocido'
+        value_str = str(value).strip().lower()
+        if value_str == 'right':
+            return 'Diestro'
+        if value_str == 'left':
+            return 'Zurdo'
+        if value_str in ('', 'unknown', 'nan'):
+            return 'Desconocido'
+        return str(value)
+
+    return [
+        ('Edad', _fmt_text(player_data.get('Age'))),
+        ('Partidos', _fmt_int(player_data.get('Matches played'))),
+        ('Minutos', _fmt_int(player_data.get('Minutes played'))),
+        ('Pie', _translate_foot(player_data.get('Foot'))),
+        ('Equipo', _fmt_text(player_data.get(team_col))),
+    ]
+
+
+def _get_scout_top5_metrics(player_data, comparison_df, selected_pos):
+    metric_cols = [
+        c for c in comparison_df.columns
+        if c.endswith(' per 90') and pd.api.types.is_numeric_dtype(comparison_df[c])
+    ]
+    scored = []
+    seen = set()
+    for col in metric_cols:
+        if col in seen:
+            continue
+        seen.add(col)
+        val = player_data.get(col, None)
+        if val is None or pd.isnull(val):
+            continue
+        series = pd.to_numeric(comparison_df[col], errors='coerce').dropna()
+        if series.empty:
+            continue
+        val_float = float(val)
+        pct = _compute_percentile(val_float, series)
+        if col in _GK_LOWER_IS_BETTER:
+            pct = max(0, 99 - pct)
+            rank = int((series < val_float).sum()) + 1
+        else:
+            rank = int((series > val_float).sum()) + 1
+        scored.append({
+            'metric': col,
+            'value': val_float,
+            'pct': pct,
+            'rank': rank,
+            'pool_size': int(len(series)),
+        })
+    scored.sort(key=lambda item: item['pct'], reverse=True)
+    return scored[:5]
+
+
+def _get_scout_score_data(player_data, comparison_df, selected_pos):
+    if selected_pos == 'Portero':
+        category_scores = []
+        overall_pcts = []
+        current_categories = _build_scout_categories(player_data, comparison_df)
+        for category_name, items in current_categories:
+            if not items:
+                continue
+            avg_score = float(np.mean([item['pct'] for item in items]))
+            category_scores.append({'code': category_name[:3].upper(), 'label': category_name, 'score': avg_score})
+            overall_pcts.extend([item['pct'] for item in items])
+        overall_score = float(np.mean(overall_pcts)) if overall_pcts else 0.0
+        return overall_score, category_scores
+
+    all_cols = _get_display_cols(df)
+    scores = _compute_pentagon_scores(player_data, comparison_df, all_cols)
+    ordered_axes = ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
+    category_scores = [
+        {'code': axis, 'label': PENTAGON_LABELS_ES.get(axis, axis), 'score': float(scores.get(axis, 0))}
+        for axis in ordered_axes
+    ]
+    overall_score = float(np.mean([item['score'] for item in category_scores])) if category_scores else 0.0
+    return overall_score, category_scores
+
+
+def _get_scout_similarity_cols(pool_df):
+    return [
+        c for c in pool_df.columns
+        if (c.endswith(' per 90') or c.endswith(', %'))
+        and c not in NON_METRIC_COLS
+        and pd.api.types.is_numeric_dtype(pool_df[c])
+    ]
+
+
+def _compute_scout_similarity_scores(pool_df, player_name, player_df=None):
+    sim_cols = _get_scout_similarity_cols(pool_df)
+    if len(sim_cols) < 3:
+        return None
+
+    X_raw = pool_df[sim_cols].fillna(0).copy()
+    var_mask = X_raw.var() > 0
+    X_raw = X_raw.loc[:, var_mask]
+    n_features = X_raw.shape[1]
+    n_samples = X_raw.shape[0]
+    if n_features < 2 or n_samples < 3:
+        return None
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_raw)
+
+    max_comp = min(n_features, n_samples - 1, 25)
+    pca_full = PCA(n_components=max_comp, random_state=42)
+    pca_full.fit(X_scaled)
+    cumvar = np.cumsum(pca_full.explained_variance_ratio_)
+    n_comp = int(np.argmax(cumvar >= 0.85)) + 1
+    n_comp = max(3, min(n_comp, max_comp))
+
+    pca = PCA(n_components=n_comp, random_state=42)
+    X_pca = pca.fit_transform(X_scaled)
+
+    if player_df is not None:
+        player_in_source = player_df[player_df['Player'] == player_name]
+        if player_in_source.empty:
+            return None
+        player_metrics = player_in_source[sim_cols].fillna(0).iloc[0].values.reshape(1, -1)
+        player_metrics = player_metrics[:, var_mask]
+        player_scaled = scaler.transform(player_metrics)
+        player_vec = pca.transform(player_scaled)[0]
+    else:
+        players_reset = pool_df['Player'].reset_index(drop=True)
+        player_mask = players_reset == player_name
+        if not player_mask.any():
+            return None
+        player_idx = int(player_mask.idxmax())
+        player_vec = X_pca[player_idx]
+
+    distances = np.sqrt(np.sum((X_pca - player_vec) ** 2, axis=1))
+    max_dist = distances.max()
+    similarities = (1 - distances / max_dist) * 100.0 if max_dist > 0 else np.ones(len(distances)) * 100.0
+
+    results = pool_df[['Player']].copy().reset_index(drop=True)
+    results['Similitud'] = np.round(similarities, 1)
+    results = results[results['Player'] != player_name]
+    results = results.sort_values('Similitud', ascending=False).reset_index(drop=True)
+    return results
+
+
+def _build_scout_similarity_pool(selected_pos, min_minutes, age_range):
+    league_sources = [
+        ('PAR', df),
+        ('ARG', df_arg),
+        ('BRA', df_bra),
+        ('URU', df_uru),
+        ('COL', df_col),
+        ('ECU', df_ecu),
+        ('CHI', df_chi),
+    ]
+    pool_parts = []
+    for league_code, league_df in league_sources:
+        if league_df is None or league_df.empty:
+            continue
+        if 'Position Group' not in league_df.columns or 'Minutes played' not in league_df.columns:
+            continue
+        filtered = league_df[
+            (league_df['Position Group'] == selected_pos) &
+            (league_df['Minutes played'] >= min_minutes)
+        ].copy()
+        filtered = _apply_age_filter(filtered, age_range)
+        if filtered.empty:
+            continue
+        filtered['Liga'] = league_code
+        pool_parts.append(filtered)
+    return pd.concat(pool_parts, ignore_index=True) if pool_parts else pd.DataFrame()
+
+
+def _build_scout_similars(selected_player, selected_pos, min_minutes, age_range, player_df, top_n=5):
+    sim_pool = _build_scout_similarity_pool(selected_pos, min_minutes, age_range)
+    if sim_pool.empty:
+        return []
+
+    sim_results = _compute_scout_similarity_scores(sim_pool, selected_player, player_df=player_df)
+    if sim_results is None or sim_results.empty:
+        return []
+
+    similars = []
+    for _, row in sim_results.head(top_n).iterrows():
+        player_name = row['Player']
+        player_info = sim_pool[sim_pool['Player'] == player_name]
+        if player_info.empty:
+            continue
+        info = player_info.iloc[0]
+        team_col = 'Team within selected timeframe' if 'Team within selected timeframe' in info.index else 'Team'
+        age_raw = info.get('Age', None)
+        age_val = '—'
+        if age_raw is not None and pd.notnull(age_raw):
+            try:
+                age_val = int(float(age_raw))
+            except (TypeError, ValueError):
+                age_val = str(age_raw)
+        similars.append({
+            'player': player_name,
+            'team': str(info.get(team_col, '')),
+            'age': age_val,
+            'league': str(info.get('Liga', '')),
+            'similarity': float(row['Similitud']),
+        })
+    return similars
 
 
 with tab_table:
@@ -1380,30 +1623,36 @@ with tab_table:
                             f"Entre {n_comp} {selected_pos.lower()}s +{tab1_min_minutes} min "
                             f"| {tab1_age_range[0]}-{tab1_age_range[1]} años | Apertura 2026"
                         )
-                        fig_scout = create_scout_report(
+                        scout_summary_items = _build_scout_summary_items(player_data, team_col_tab1, selected_pos)
+                        scout_top5_metrics = _get_scout_top5_metrics(player_data, comparison_df, selected_pos)
+                        scout_similars = _build_scout_similars(
+                            selected_player_tab1,
+                            selected_pos,
+                            tab1_min_minutes,
+                            tab1_age_range,
+                            player_rows,
+                            top_n=5,
+                        )
+                        scout_overall_score, scout_category_scores = _get_scout_score_data(
+                            player_data, comparison_df, selected_pos
+                        )
+                        scout_top5_metrics_html = [
+                            {**item, 'metric': translate(str(item.get('metric', '')))}
+                            for item in scout_top5_metrics
+                        ]
+
+                        scout_html = build_scout_html(
                             player_name=selected_player_tab1,
                             player_team=team_display,
                             subtitle=scout_subtitle,
-                            categories_data=scout_categories,
+                            summary_items=scout_summary_items,
+                            top_metrics=scout_top5_metrics_html,
+                            similars_data=scout_similars,
+                            overall_score=scout_overall_score,
+                            category_scores=scout_category_scores,
+                            player_position=str(player_data.get('Position', '')),
                         )
-                        st.pyplot(fig_scout)
-
-                        buf_scout = io.BytesIO()
-                        fig_scout.savefig(
-                            buf_scout,
-                            format='png',
-                            dpi=200,
-                            bbox_inches='tight',
-                            facecolor=fig_scout.get_facecolor()
-                        )
-                        plt.close(fig_scout)
-                        st.download_button(
-                            "Descargar tarjeta",
-                            buf_scout.getvalue(),
-                            file_name=f"scout_{selected_player_tab1.replace(' ', '_')}.png",
-                            mime="image/png",
-                            key="dl_scout_card",
-                        )
+                        components.html(scout_html, height=1820, scrolling=True)
                         st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
                     else:
                         st.info("No hay suficientes métricas del radial para construir la vista scout.")
@@ -1664,130 +1913,6 @@ with tab_bar:
                     hide_index=True,
                 )
 
-    # Selectores del segundo jugador (misma posición)
-        pent_player2 = None
-        pent_club2   = None
-        if st.session_state['pent_show_compare']:
-            st.markdown("---")
-            st.markdown("**Segundo jugador** *(misma posición: {})*".format(pent_pos))
-            cmp_col1, cmp_col2 = st.columns(2)
-            with cmp_col1:
-                pent_club2 = st.selectbox("Club (jugador 2)", pent_clubs, key="pent_club2")
-            cmp_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club2]
-            cmp_players = sorted(cmp_club_df['Player'].dropna().unique())
-            # Excluir al jugador 1 de la lista
-            cmp_players_filt = [p for p in cmp_players if p != pent_player] or cmp_players
-            with cmp_col2:
-                pent_player2 = st.selectbox("Jugador 2", cmp_players_filt, key="pent_player2")
-            st.markdown("---")
-
-        pent_player_rows = pent_club_df[pent_club_df['Player'] == pent_player]
-        if pent_player_rows.empty:
-            st.warning("Jugador no encontrado.")
-        else:
-            pent_player_data = pent_player_rows.iloc[0]
-            pent_comparison_df = pent_pos_df[
-                (pent_pos_df['Minutes played'] >= pent_min_minutes)
-            ].copy()
-        n_pent = len(pent_comparison_df)
-
-        if pent_comparison_df[pent_comparison_df['Player'] == pent_player].empty:
-            st.warning("El jugador no alcanza el mínimo de minutos. Reducí el slider.")
-        else:
-            # Rama portero vs. outfield
-            is_pent_gk = (pent_pos == 'Portero')
-            if is_pent_gk:
-                all_pent_cols  = _get_display_cols_gk(df)
-                scores         = _compute_pentagon_scores_gk(
-                    pent_player_data, pent_comparison_df, all_pent_cols)
-                avg_scores     = _compute_avg_pentagon_scores_gk(pent_comparison_df, all_pent_cols)
-                pent_axes      = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
-                pent_group_desc = {
-                    'REF':  'Reflejos (remates recibidos, efectividad de atajadas)',
-                    'EFE':  'Efectividad (goles concedidos, xG en contra, goles evitados)',
-                    'DIS':  'Distribución (precisión de pases generales)',
-                    'DISP': 'Distribución de peligro (pases al último tercio, área y progresivos)',
-                    'ALCP': 'Alcance de pase (longitud promedio de pases)',
-                }
-            else:
-                all_pent_cols  = _get_display_cols(df)
-                scores         = _compute_pentagon_scores(
-                    pent_player_data, pent_comparison_df, all_pent_cols)
-                avg_scores     = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
-                pent_axes      = ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']
-                pent_group_desc = {
-                    'ATQ': 'Goles y Remates',
-                    'POS': 'Posesión (Dribbling, Recepción, Acciones ofensivas)',
-                    'PAS': 'Pases y Centros',
-                    'CRE': 'Creatividad',
-                    'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
-                }
-
-            # Calcular scores del jugador 2 si el comparador está activo
-            scores2 = None
-            if st.session_state['pent_show_compare'] and pent_player2:
-                p2_rows = pent_pos_df[pent_pos_df['Player'] == pent_player2]
-                if not p2_rows.empty:
-                    p2_data = p2_rows.iloc[0]
-                    if is_pent_gk:
-                        scores2 = _compute_pentagon_scores_gk(p2_data, pent_comparison_df, all_pent_cols)
-                    else:
-                        scores2 = _compute_pentagon_scores(p2_data, pent_comparison_df, all_pent_cols)
-
-            team_display = str(pent_player_data.get(pent_team_col, ''))
-            subtitle_pent = (
-                f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min "
-                f"· {pent_age_range[0]}-{pent_age_range[1]} años · Apertura 2026"
-            )
-
-            # Centrar el gráfico
-            _, col_center, _ = st.columns([1, 2, 1])
-            with col_center:
-                fig_pent = _create_pentagon_chart(
-                    scores, pent_player, team_display, subtitle_pent,
-                    avg_scores=avg_scores, pos_label=pent_pos,
-                    scores2=scores2, player2_name=pent_player2 or '',
-                    custom_labels=pent_axes if is_pent_gk else None,
-                )
-                st.pyplot(fig_pent)
-
-                buf_pent = io.BytesIO()
-                fig_pent.savefig(buf_pent, format='png', dpi=200, bbox_inches='tight',
-                                 facecolor=fig_pent.get_facecolor())
-                dl_fname = (
-                    f"pentagono_{pent_player.replace(' ', '_')}_vs_{pent_player2.replace(' ', '_')}.png"
-                    if scores2 and pent_player2
-                    else f"pentagono_{pent_player.replace(' ', '_')}.png"
-                )
-                st.download_button(
-                    "⬇️ Descargar gráfico", buf_pent.getvalue(),
-                    file_name=dl_fname,
-                    mime="image/png", key="dl_pent"
-                )
-                st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
-
-            # Tabla resumen de puntajes debajo del gráfico
-            st.markdown("#### Detalle de puntajes")
-            summary_rows = []
-            for key in pent_axes:
-                diff = scores[key] - avg_scores[key]
-                row = {
-                    'Categoría': key,
-                    'Descripción': pent_group_desc[key],
-                    pent_player[:20]: scores[key],
-                    f'Prom. {pent_pos}': avg_scores[key],
-                    'Dif. P1': f"+{diff}" if diff >= 0 else str(diff),
-                }
-                if scores2 and pent_player2:
-                    diff2 = scores2[key] - avg_scores[key]
-                    row[pent_player2[:20]] = scores2[key]
-                    row['Dif. P2'] = f"+{diff2}" if diff2 >= 0 else str(diff2)
-                summary_rows.append(row)
-            st.dataframe(
-                pd.DataFrame(summary_rows),
-                use_container_width=True,
-                hide_index=True,
-            )
 
 # ---- Tab 4: Pizza/Radar Chart ---------------------------------------------
 with tab_pizza:
@@ -3498,3 +3623,4 @@ with tab_best11:
 # ---------------------------------------------------------------------------
 st.markdown("---")
 st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · Apertura 2026")
+
