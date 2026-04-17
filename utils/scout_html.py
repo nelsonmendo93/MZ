@@ -238,16 +238,6 @@ def build_scout_html(
         margin-top:14px;
         padding:0 2px;
       }}
-      .mz-brand-logo {{
-        height:50px;
-        width:150px;
-        background-size:contain;
-        background-repeat:no-repeat;
-        background-position:left center;
-        filter: drop-shadow(0 4px 10px rgba(0,0,0,.35));
-        opacity:.96;
-        flex-shrink:0;
-      }}
       .mz-footer-social {{
         color:#6b7280;
         font-size:12px;
@@ -569,7 +559,7 @@ def build_scout_html(
         </div>
       </div>
       <div class="mz-footer-bar">
-        {'<div class="mz-brand-logo" style="background-image:url(\'' + logo_uri + '\');"></div>' if logo_uri else '<div style="width:150px;"></div>'}
+        <canvas id="mz-logo-canvas" width="150" height="50" style="flex-shrink:0;opacity:.96;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));"></canvas>
         <div class="mz-footer-social">X: @marca_zonal<br>Instagram: @marca.zonal</div>
       </div>
     </div>
@@ -600,6 +590,29 @@ def build_scout_html(
     {_load_domtoimage_js()}
     </script>
     <script>
+    var MZ_LOGO_URI = '{logo_uri if logo_uri else ""}';
+
+    function mzDrawLogo(canvas) {{
+      if (!MZ_LOGO_URI) return Promise.resolve();
+      return new Promise(function(resolve) {{
+        var img = new Image();
+        img.onload = function() {{
+          var ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve();
+        }};
+        img.onerror = function() {{ resolve(); }};
+        img.src = MZ_LOGO_URI;
+      }});
+    }}
+
+    // Dibuja el logo al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {{
+      var c = document.getElementById('mz-logo-canvas');
+      if (c) mzDrawLogo(c);
+    }});
+
     function mzGenerate() {{
       var btn    = document.getElementById('mz-dl-btn');
       var status = document.getElementById('mz-dl-status');
@@ -610,19 +623,23 @@ def build_scout_html(
       btn.textContent = 'Generando...';
       status.textContent = '';
 
-      var node  = document.querySelector('.mz-root');
-      var scale = 2;
+      var canvas = document.getElementById('mz-logo-canvas');
+      var node   = document.querySelector('.mz-root');
+      var scale  = 2;
 
-      domtoimage.toPng(node, {{
-        width:  node.scrollWidth  * scale,
-        height: node.scrollHeight * scale,
-        style: {{
-          transform: 'scale(' + scale + ')',
-          transformOrigin: 'top left',
-          width:  node.scrollWidth  + 'px',
-          height: node.scrollHeight + 'px',
-        }},
-        bgcolor: '#050b14',
+      // Redibujar logo en canvas justo antes de capturar
+      mzDrawLogo(canvas).then(function() {{
+        return domtoimage.toPng(node, {{
+          width:  node.scrollWidth  * scale,
+          height: node.scrollHeight * scale,
+          style: {{
+            transform: 'scale(' + scale + ')',
+            transformOrigin: 'top left',
+            width:  node.scrollWidth  + 'px',
+            height: node.scrollHeight + 'px',
+          }},
+          bgcolor: '#050b14',
+        }});
       }})
       .then(function(dataUrl) {{
         img.src          = dataUrl;
@@ -631,7 +648,6 @@ def build_scout_html(
         btn.textContent  = '⬇ GENERAR PNG';
         status.textContent = '✓ Imagen lista — guardala con click derecho (desktop) o mantené presionado (móvil)';
 
-        // Also try direct download as fallback (works in some browsers)
         try {{
           var a = document.createElement('a');
           a.href     = dataUrl;
