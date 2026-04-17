@@ -230,10 +230,17 @@ def build_scout_html(
         flex-direction:column;
         gap:14px;
       }}
+      .mz-logo-space {{
+        flex:1;
+        min-height:70px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }}
       .mz-footer-bar {{
         display:flex;
         align-items:center;
-        justify-content:space-between;
+        justify-content:flex-end;
         width:100%;
         margin-top:14px;
         padding:0 2px;
@@ -537,6 +544,9 @@ def build_scout_html(
             </div>
           </div>
           {''.join(pill_cards)}
+          <div class="mz-logo-space">
+            <canvas id="mz-logo-canvas" width="240" height="80" style="opacity:.92;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4));max-width:100%;"></canvas>
+          </div>
         </div>
         <div class="mz-right">
           <div class="mz-card mz-panel">
@@ -559,8 +569,7 @@ def build_scout_html(
         </div>
       </div>
       <div class="mz-footer-bar">
-        <canvas id="mz-logo-canvas" width="150" height="50" style="flex-shrink:0;opacity:.96;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));"></canvas>
-        <div class="mz-footer-social">X: @marca_zonal<br>Instagram: @marca.zonal</div>
+        <div class="mz-footer-social">X: @marca_zonal &nbsp;·&nbsp; Instagram: @marca.zonal</div>
       </div>
     </div>
 
