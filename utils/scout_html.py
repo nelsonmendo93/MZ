@@ -545,7 +545,7 @@ def build_scout_html(
           </div>
           {''.join(pill_cards)}
           <div class="mz-logo-space">
-            <canvas id="mz-logo-canvas" width="240" height="80" style="opacity:.92;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4));max-width:100%;"></canvas>
+            <canvas id="mz-logo-canvas" width="320" height="120" style="opacity:.92;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4));max-width:100%;"></canvas>
           </div>
         </div>
         <div class="mz-right">
