@@ -230,19 +230,26 @@ def build_scout_html(
         flex-direction:column;
         gap:14px;
       }}
-      .mz-left-footer {{
-        flex:1;
+      .mz-footer-bar {{
         display:flex;
         align-items:center;
-        justify-content:center;
-        min-height:240px;
-        padding:6px 0 0;
+        justify-content:space-between;
+        width:100%;
+        margin-top:14px;
+        padding:0 2px;
       }}
       .mz-brand-logo {{
-        width:100%;
-        max-width:504px;
-        filter: drop-shadow(0 8px 24px rgba(0,0,0,.28));
+        height:36px;
+        width:auto;
+        filter: drop-shadow(0 4px 10px rgba(0,0,0,.35));
         opacity:.96;
+        display:block;
+      }}
+      .mz-footer-social {{
+        color:#6b7280;
+        font-size:12px;
+        text-align:right;
+        line-height:1.5;
       }}
       .mz-card {{
         background:{SCOUT_PANEL_BG};
@@ -519,10 +526,7 @@ def build_scout_html(
         font-weight:900;
       }}
       .mz-footer {{
-        color:#6b7280;
-        font-size:12px;
-        text-align:center;
-        margin-top:14px;
+        display:none;
       }}
     </style>
     <div class="mz-root">
@@ -540,9 +544,6 @@ def build_scout_html(
             </div>
           </div>
           {''.join(pill_cards)}
-          <div class="mz-left-footer">
-            {'<img class="mz-brand-logo" src="' + logo_uri + '" alt="Marca Zonal" />' if logo_uri else ''}
-          </div>
         </div>
         <div class="mz-right">
           <div class="mz-card mz-panel">
@@ -564,7 +565,10 @@ def build_scout_html(
           </div>
         </div>
       </div>
-      <div class="mz-footer">X: @marca_zonal | Instagram: @marca.zonal</div>
+      <div class="mz-footer-bar">
+        {'<img class="mz-brand-logo" src="' + logo_uri + '" alt="Marca Zonal" />' if logo_uri else '<div></div>'}
+        <div class="mz-footer-social">X: @marca_zonal<br>Instagram: @marca.zonal</div>
+      </div>
     </div>
 
     <div style="text-align:center; margin-top:14px; padding-bottom:10px;">
