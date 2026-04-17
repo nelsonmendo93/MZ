@@ -239,11 +239,14 @@ def build_scout_html(
         padding:0 2px;
       }}
       .mz-brand-logo {{
-        height:36px;
-        width:auto;
+        height:50px;
+        width:150px;
+        background-size:contain;
+        background-repeat:no-repeat;
+        background-position:left center;
         filter: drop-shadow(0 4px 10px rgba(0,0,0,.35));
         opacity:.96;
-        display:block;
+        flex-shrink:0;
       }}
       .mz-footer-social {{
         color:#6b7280;
@@ -566,7 +569,7 @@ def build_scout_html(
         </div>
       </div>
       <div class="mz-footer-bar">
-        {'<img class="mz-brand-logo" src="' + logo_uri + '" alt="Marca Zonal" />' if logo_uri else '<div></div>'}
+        {'<div class="mz-brand-logo" style="background-image:url(\'' + logo_uri + '\');"></div>' if logo_uri else '<div style="width:150px;"></div>'}
         <div class="mz-footer-social">X: @marca_zonal<br>Instagram: @marca.zonal</div>
       </div>
     </div>
