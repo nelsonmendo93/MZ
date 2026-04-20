@@ -288,12 +288,11 @@ def load_external_league(league_name: str):
 # Load data
 # ---------------------------------------------------------------------------
 try:
-    df = load_and_process_data()
+    df_par = load_and_process_data()
 except Exception as e:
     st.error(f"Error cargando datos: {e}")
     st.stop()
 
-# Ligas externas — solo se usan en la pestaña Similitudes
 df_arg = load_external_league('ARG')
 df_bra = load_external_league('BRA')
 df_uru = load_external_league('URU')
@@ -301,8 +300,49 @@ df_col = load_external_league('COL')
 df_ecu = load_external_league('ECU')
 df_chi = load_external_league('CHI')
 
-# Drop rows without position group
-df = df.dropna(subset=['Position Group'])
+# Mapa de ligas disponibles
+_LIGA_DFS = {
+    'PAR': df_par,
+    'ARG': df_arg,
+    'BRA': df_bra,
+    'URU': df_uru,
+    'COL': df_col,
+    'ECU': df_ecu,
+    'CHI': df_chi,
+}
+_LIGA_LABELS = {
+    'PAR': 'Paraguay',
+    'ARG': 'Argentina',
+    'BRA': 'Brasil',
+    'URU': 'Uruguay',
+    'COL': 'Colombia',
+    'ECU': 'Ecuador',
+    'CHI': 'Chile',
+}
+_AVAILABLE_LIGAS = [k for k, v in _LIGA_DFS.items() if v is not None]
+
+# Selector de liga — inline, visible en desktop y móvil
+st.markdown("""
+<style>
+div[data-testid="stSelectbox"]:has(select#liga_activa_selector),
+div[data-testid="stSelectbox"][aria-label="liga_activa_selector"] {
+    max-width: 260px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+_liga_col, _ = st.columns([1, 3])
+with _liga_col:
+    liga_activa = st.selectbox(
+        "🌎 Liga",
+        options=_AVAILABLE_LIGAS,
+        format_func=lambda k: _LIGA_LABELS[k],
+        index=0,
+        key="liga_activa_selector",
+    )
+
+# df activo según liga seleccionada
+df = _LIGA_DFS[liga_activa].dropna(subset=['Position Group'])
 
 # Identify metric columns (numeric only, excluding non-metric cols)
 metric_columns = sorted([
@@ -526,7 +566,7 @@ _GK_ONLY_METRICS = {
 # Logo centrado
 _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
-    st.image(LOGO_BLANCO, use_column_width=True)
+    st.image(LOGO_BLANCO, use_container_width=True)
 
 st.markdown("""
 <div style="text-align:center; padding: 4px 0 16px 0;">
@@ -1446,13 +1486,8 @@ def _compute_scout_similarity_scores(pool_df, player_name, player_df=None):
 
 def _build_scout_similarity_pool(selected_pos, min_minutes, age_range):
     league_sources = [
-        ('PAR', df),
-        ('ARG', df_arg),
-        ('BRA', df_bra),
-        ('URU', df_uru),
-        ('COL', df_col),
-        ('ECU', df_ecu),
-        ('CHI', df_chi),
+        (code, (df if code == liga_activa else _LIGA_DFS[code]))
+        for code in _AVAILABLE_LIGAS
     ]
     pool_parts = []
     for league_code, league_df in league_sources:
@@ -2382,146 +2417,89 @@ with tab_similar:
         sim_top_n = st.slider("Cantidad de jugadores a mostrar", 5, 30, 15, key="sim_top_n")
 
     # ── Selección de ligas ───────────────────────────────────────────────────
+    _LIGA_COLORS_SIM = {
+        'PAR': '#dc2626', 'ARG': '#14b8a6', 'BRA': '#16a34a',
+        'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+    }
+    _other_ligas_sim = [k for k in _AVAILABLE_LIGAS if k != liga_activa]
+    _active_label_sim = _LIGA_LABELS[liga_activa].split(' ', 1)[1]  # sin bandera
+
+    # CSS para colores de checkboxes dinámico
+    def _ck_rule(c):
+        lbl = _LIGA_LABELS[c].split(' ', 1)[1]
+        col = _LIGA_COLORS_SIM[c]
+        return f'div[data-testid="stCheckbox"]:has(input[aria-label="{lbl}"]) label p {{ color: {col} !important; }}'
+    _ck_css_rules = '\n'.join(_ck_rule(c) for c in _AVAILABLE_LIGAS)
+    st.markdown(f"""
+    <style>
+    div[data-testid="stCheckbox"] label p {{
+        font-weight: 800 !important;
+        letter-spacing: 0.02em;
+        font-size: 0.92rem !important;
+        line-height: 1.15 !important;
+        white-space: normal !important;
+    }}
+    {_ck_css_rules}
+    @media (max-width: 768px) {{
+        div[data-testid="stCheckbox"] label p {{
+            font-size: 0.82rem !important;
+            line-height: 1.15 !important;
+        }}
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
     st.markdown(
         "<p style='margin:10px 0 8px 0; font-size:0.9rem; color:#9ca3af;'>"
         "<b>Liga/s a comparar:</b></p>",
         unsafe_allow_html=True,
     )
 
-    st.markdown("""
-    <style>
-    div[data-testid="stCheckbox"] label p {
-        font-weight: 800 !important;
-        letter-spacing: 0.02em;
-        font-size: 0.92rem !important;
-        line-height: 1.15 !important;
-        white-space: normal !important;
-    }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Paraguay"]) label p { color: #dc2626 !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Argentina"]) label p { color: #14b8a6 !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Brasil"]) label p { color: #16a34a !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Uruguay"]) label p { color: #2563eb !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Colombia"]) label p { color: #eab308 !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Ecuador"]) label p { color: #7c3aed !important; }
-    div[data-testid="stCheckbox"]:has(input[aria-label="Chile"]) label p { color: #f97316 !important; }
-    @media (max-width: 768px) {
-        div[data-testid="stCheckbox"] label p {
-            font-size: 0.82rem !important;
-            line-height: 1.15 !important;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    # Liga activa: siempre incluida (mostrada como fija, no desmarcable)
+    _sim_liga_active_included = st.checkbox(
+        _active_label_sim, value=True, key=f"sim_use_{liga_activa}",
+    )
 
-    _ck_row1_col1, _ck_row1_col2, _ck_row1_col3, _ck_row1_col4 = st.columns(4)
-    _ck_row2_col1, _ck_row2_col2, _ck_row2_col3 = st.columns(3)
-    with _ck_row1_col1:
-        sim_use_par = st.checkbox(
-            "Paraguay", value=True, key="sim_use_par",
-        )
-    with _ck_row1_col2:
-        sim_use_arg = st.checkbox(
-            "Argentina", value=False, key="sim_use_arg",
-            disabled=(df_arg is None),
-        )
-    with _ck_row1_col3:
-        sim_use_bra = st.checkbox(
-            "Brasil", value=False, key="sim_use_bra",
-            disabled=(df_bra is None),
-        )
-    with _ck_row1_col4:
-        sim_use_uru = st.checkbox(
-            "Uruguay", value=False, key="sim_use_uru",
-            disabled=(df_uru is None),
-        )
-    with _ck_row2_col1:
-        sim_use_col = st.checkbox(
-            "Colombia", value=False, key="sim_use_col",
-            disabled=(df_col is None),
-        )
-    with _ck_row2_col2:
-        sim_use_ecu = st.checkbox(
-            "Ecuador", value=False, key="sim_use_ecu",
-            disabled=(df_ecu is None),
-        )
-    with _ck_row2_col3:
-        sim_use_chi = st.checkbox(
-            "Chile", value=False, key="sim_use_chi",
-            disabled=(df_chi is None),
-        )
+    # Otras ligas: checkboxes opcionales en grid
+    _other_cols = st.columns(min(4, max(1, len(_other_ligas_sim))))
+    _sim_other_selections = {}
+    for _i, _code in enumerate(_other_ligas_sim):
+        with _other_cols[_i % 4]:
+            _lbl = _LIGA_LABELS[_code].split(' ', 1)[1]
+            _sim_other_selections[_code] = st.checkbox(
+                _lbl, value=False, key=f"sim_use_{_code}",
+                disabled=(_LIGA_DFS[_code] is None),
+            )
 
-    # Construir el pool dinámicamente según las ligas seleccionadas
+    # Construir el pool dinámicamente
     _pool_parts = []
 
-    # Filtros base para cada liga
-    if sim_use_par:
-        sim_pool_par = df[
+    # Liga activa (usa df ya procesado)
+    if _sim_liga_active_included:
+        _active_filt = df[
             (df['Position Group'] == sim_pos) &
             (df['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
-        sim_pool_par = _apply_age_filter(sim_pool_par, sim_age_range)
-        sim_pool_par['Liga'] = 'PAR'
-        _pool_parts.append(sim_pool_par)
+        _active_filt = _apply_age_filter(_active_filt, sim_age_range)
+        _active_filt['Liga'] = liga_activa
+        _pool_parts.append(_active_filt)
 
-    if sim_use_arg and df_arg is not None:
-        _arg_filt = df_arg[
-            (df_arg['Position Group'] == sim_pos) &
-            (df_arg['Minutes played'] >= sim_min_minutes)
-        ].copy().reset_index(drop=True)
-        _arg_filt = _apply_age_filter(_arg_filt, sim_age_range)
-        _arg_filt['Liga'] = 'ARG'
-        _pool_parts.append(_arg_filt)
+    # Ligas adicionales
+    for _code, _selected in _sim_other_selections.items():
+        _ldf = _LIGA_DFS[_code]
+        if _selected and _ldf is not None:
+            _filt = _ldf[
+                (_ldf['Position Group'] == sim_pos) &
+                (_ldf['Minutes played'] >= sim_min_minutes)
+            ].copy().reset_index(drop=True)
+            _filt = _apply_age_filter(_filt, sim_age_range)
+            _filt['Liga'] = _code
+            _pool_parts.append(_filt)
 
-    if sim_use_bra and df_bra is not None:
-        _bra_filt = df_bra[
-            (df_bra['Position Group'] == sim_pos) &
-            (df_bra['Minutes played'] >= sim_min_minutes)
-        ].copy().reset_index(drop=True)
-        _bra_filt = _apply_age_filter(_bra_filt, sim_age_range)
-        _bra_filt['Liga'] = 'BRA'
-        _pool_parts.append(_bra_filt)
-
-    if sim_use_uru and df_uru is not None:
-        _uru_filt = df_uru[
-            (df_uru['Position Group'] == sim_pos) &
-            (df_uru['Minutes played'] >= sim_min_minutes)
-        ].copy().reset_index(drop=True)
-        _uru_filt = _apply_age_filter(_uru_filt, sim_age_range)
-        _uru_filt['Liga'] = 'URU'
-        _pool_parts.append(_uru_filt)
-
-    if sim_use_col and df_col is not None:
-        _col_filt = df_col[
-            (df_col['Position Group'] == sim_pos) &
-            (df_col['Minutes played'] >= sim_min_minutes)
-        ].copy().reset_index(drop=True)
-        _col_filt = _apply_age_filter(_col_filt, sim_age_range)
-        _col_filt['Liga'] = 'COL'
-        _pool_parts.append(_col_filt)
-
-    if sim_use_ecu and df_ecu is not None:
-        _ecu_filt = df_ecu[
-            (df_ecu['Position Group'] == sim_pos) &
-            (df_ecu['Minutes played'] >= sim_min_minutes)
-        ].copy().reset_index(drop=True)
-        _ecu_filt = _apply_age_filter(_ecu_filt, sim_age_range)
-        _ecu_filt['Liga'] = 'ECU'
-        _pool_parts.append(_ecu_filt)
-
-    if sim_use_chi and df_chi is not None:
-        _chi_filt = df_chi[
-            (df_chi['Position Group'] == sim_pos) &
-            (df_chi['Minutes played'] >= sim_min_minutes)
-        ].copy().reset_index(drop=True)
-        _chi_filt = _apply_age_filter(_chi_filt, sim_age_range)
-        _chi_filt['Liga'] = 'CHI'
-        _pool_parts.append(_chi_filt)
-
-    # Construir el pool de comparación (puede no incluir PAR si el usuario lo excluye)
     sim_pool = pd.concat(_pool_parts, ignore_index=True) if _pool_parts else pd.DataFrame()
     sim_n_pool = len(sim_pool)
 
-    # Obtener datos del jugador seleccionado (siempre desde PAR)
+    # Obtener datos del jugador seleccionado (desde la liga activa)
     sim_player_data = df[(df['Player'] == sim_player) & (df['Position Group'] == sim_pos)]
 
     if sim_player_data.empty:
@@ -3619,7 +3597,7 @@ with tab_best11:
                     bbox_inches='tight', facecolor=fig_b11.get_facecolor())
     plt.close(fig_b11)
 
-    st.image(buf_b11.getvalue(), use_column_width=True)
+    st.image(buf_b11.getvalue(), use_container_width=True)
 
     st.download_button(
         "⬇️ Descargar imagen (alta resolución)",
