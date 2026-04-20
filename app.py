@@ -137,7 +137,7 @@ st.markdown(f"""
 <div class="bienvenida-wrap">
     {logo_html}
     <div class="bienvenida-title">BIENVENIDOS AL PORTAL DE DATOS<br>DE MARCA ZONAL</div>
-    <div class="bienvenida-sub">División Profesional de Paraguay · Apertura 2026</div>
+    <div class="bienvenida-sub">Analisis de rendimiento del futbol sudamericano · 2026</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -151,7 +151,7 @@ st.markdown("""
 col1, col2, col3 = st.columns(3, gap="medium")
 
 with col1:
-    if st.button("ESTADÍSTICAS\nFÚTBOL PARAGUAYO", use_container_width=True):
+    if st.button("ESTADÍSTICAS\nFÚTBOL SUDAMERICANO", use_container_width=True):
         st.switch_page("pages/1_📊_Jugadores.py")
 
 with col2:
@@ -168,7 +168,7 @@ st.markdown(f"""
             padding:0.6rem 0.2rem;flex-wrap:wrap;gap:0.5rem;">
     <div style="font-size:0.78rem;color:#64748b;font-family:'Cousine',monospace;">
         👁️ Visitas a la app: <strong style="color:#22c55e;">{_visit_count:,}</strong>
-        &nbsp;·&nbsp; Marca Zonal · Apertura 2026
+        &nbsp;·&nbsp; Marca Zonal · Futbol Sudamericano 2026
     </div>
     <div style="font-size:0.78rem;color:#64748b;font-family:'Cousine',monospace;">
         𝕏 <a href="https://x.com/marca_zonal" target="_blank"
