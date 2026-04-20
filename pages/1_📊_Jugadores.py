@@ -319,6 +319,15 @@ _LIGA_LABELS = {
     'ECU': 'Ecuador',
     'CHI': 'Chile',
 }
+_LIGA_TORNEO = {
+    'PAR': 'Torneo Local 2026',
+    'ARG': 'LPF 2026',
+    'BRA': 'Serie A 2026',
+    'URU': '1ra Div Uruguay 2026',
+    'COL': 'Liga BetPlay 2026',
+    'ECU': 'Liga Pro 2026',
+    'CHI': '1ra Div Chile 2026',
+}
 _AVAILABLE_LIGAS = [k for k, v in _LIGA_DFS.items() if v is not None]
 
 # Selector de liga — inline, visible en desktop y móvil
@@ -568,14 +577,14 @@ _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
     st.image(LOGO_BLANCO, use_container_width=True)
 
-st.markdown("""
+st.markdown(f"""
 <div style="text-align:center; padding: 4px 0 16px 0;">
   <p style="font-size:2.1rem; font-weight:700; color:#ffffff; margin:0 0 6px 0;
             font-family:'Poppins',sans-serif; letter-spacing:3px; text-transform:uppercase;">
     Portal de Datos
   </p>
   <p style="font-size:1.05rem; color:#9ca3af; margin:0; letter-spacing:1px;">
-    Análisis de rendimiento del fútbol sudamericano · 2026
+    Análisis de rendimiento del fútbol sudamericano · {_LIGA_TORNEO.get(liga_activa, '2026')}
   </p>
 </div>
 <hr style="border:none; border-top:1px solid #2d3748; margin:0 0 12px 0;">
@@ -1627,7 +1636,7 @@ with tab_table:
             n_comp = len(comparison_df)
             st.caption(
                 f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
-                f"con \u2265 {tab1_min_minutes} min · 2026"
+                f"con \u2265 {tab1_min_minutes} min · {_LIGA_TORNEO.get(liga_activa, '2026')}"
             )
             st.markdown("---")
 
@@ -1672,7 +1681,7 @@ with tab_table:
                         team_display = str(player_data.get(team_col_tab1, ''))
                         scout_subtitle = (
                             f"Entre {n_comp} {selected_pos.lower()}s +{tab1_min_minutes} min "
-                            f"| {tab1_age_range[0]}-{tab1_age_range[1]} años | 2026"
+                            f"| {tab1_age_range[0]}-{tab1_age_range[1]} años | {_LIGA_TORNEO.get(liga_activa, '2026')}"
                         )
                         scout_summary_items = _build_scout_summary_items(player_data, team_col_tab1, selected_pos)
                         scout_top5_metrics = _get_scout_top5_metrics(player_data, comparison_df, selected_pos)
@@ -1914,7 +1923,7 @@ with tab_bar:
                 team_display = str(pent_player_data.get(pent_team_col, ''))
                 subtitle_pent = (
                     f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min "
-                    f"· {pent_age_range[0]}-{pent_age_range[1]} años · 2026"
+                    f"· {pent_age_range[0]}-{pent_age_range[1]} años · {_LIGA_TORNEO.get(liga_activa, '2026')}"
                 )
 
                 _, col_center, _ = st.columns([1, 2, 1])
@@ -2058,7 +2067,7 @@ with tab_pizza:
                     team_display = str(pizza_player_data.get(pizza_team_col, ''))
                     subtitle = (
                         f"Entre {n_pizza_players} {pizza_pos_group.lower()}s +{pizza_min_minutes} min "
-                        f"| {pizza_age_range[0]}-{pizza_age_range[1]} años | 2026"
+                        f"| {pizza_age_range[0]}-{pizza_age_range[1]} años | {_LIGA_TORNEO.get(liga_activa, '2026')}"
                     )
 
                     fig_pizza = create_pizza_chart(
@@ -2750,7 +2759,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
 
     ax.text(9.65, y - 0.35, 'MARCA ZONAL', fontsize=9, color='#6b7280',
             va='top', ha='right', fontstyle='italic')
-    ax.text(9.65, y - 0.62, 'Rankings · 2026', fontsize=7.5,
+    ax.text(9.65, y - 0.62, f'Rankings · {_LIGA_TORNEO.get(liga_activa, "2026")}', fontsize=7.5,
             color='#4b5563', va='top', ha='right')
     y -= (header_h + 0.35)
 
@@ -2889,7 +2898,7 @@ with tab_ranking:
         mins_label = f" · +{rk_min_minutes} min" if rk_min_minutes > 0 else ""
         age_label = f" · {rk_age_range[0]}-{rk_age_range[1]} años"
         st.caption(
-            f"**{translate(rk_metric)}** · {n_ranked} jugadores · {pos_label}{mins_label}{age_label} · 2026"
+            f"**{translate(rk_metric)}** · {n_ranked} jugadores · {pos_label}{mins_label}{age_label} · {_LIGA_TORNEO.get(liga_activa, '2026')}"
         )
         st.markdown("---")
 
@@ -3193,7 +3202,7 @@ with tab_swarm:
                 n_comp = len(sw_comparison_df)
                 st.caption(
                     f"Pool: **{n_comp} {sw_pos.lower()}s** · +{sw_min_min} min "
-                    f"· {sw_age_range[0]}-{sw_age_range[1]} años · 2026"
+                    f"· {sw_age_range[0]}-{sw_age_range[1]} años · {_LIGA_TORNEO.get(liga_activa, '2026')}"
                 )
 
                 _, col_center, _ = st.columns([0.3, 9.4, 0.3])
@@ -3368,7 +3377,7 @@ def _compute_best_eleven(df, min_minutes=200):
     return {slot: _best_for_slot(slot) for slot in _B11_POS_MAP}
 
 
-def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="2026", logo_path=None):
+def _draw_best_eleven_fig(best_eleven, min_minutes, season_label=None, logo_path=None):
     """Dibuja la cancha con el mejor once — todos con tarjeta, layout compacto.
     y=0 → arriba (ataque), y=105 → abajo (defensa), ylim invertido."""
     import matplotlib.pyplot as plt
@@ -3410,7 +3419,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="2026", logo_pa
     ax_t.text(0.5, 0.75, 'MEJOR ONCE', fontsize=24, fontweight='bold',
               color='#f8fafc', ha='center', va='center')
     ax_t.text(0.5, 0.18,
-              f'2026  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
+              f'{season_label or "2026"}  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
               fontsize=9, color='#0b1220', ha='center', va='center')
     ax_t.text(0.5, 0.18,
               f'{season_label}  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
@@ -3556,7 +3565,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="2026", logo_pa
 
 with tab_best11:
     # ── Encabezado destacado ──────────────────────────────────────────────────
-    st.markdown("""
+    st.markdown(f"""
     <div style="
         background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
         border-left: 4px solid #38bdf8;
@@ -3568,7 +3577,7 @@ with tab_best11:
             ⚽ MEJOR ONCE
         </div>
         <div style="font-size:13px; color:#94a3b8; margin-top:4px;">
-            Selección automática por posición · 2026 · Percentil promedio por rol
+            Selección automática por posición · {_LIGA_TORNEO.get(liga_activa, '2026')} · Percentil promedio por rol
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3588,6 +3597,7 @@ with tab_best11:
 
     # ── Figura (se genera una sola vez, se reutiliza para display y descarga) ──
     fig_b11     = _draw_best_eleven_fig(best_eleven, min_minutes=_b11_min_min,
+                                        season_label=_LIGA_TORNEO.get(liga_activa, '2026'),
                                         logo_path=LOGO_BLANCO)
     buf_b11     = io.BytesIO()
     fig_b11.savefig(buf_b11, format='png', dpi=130,
@@ -3616,4 +3626,4 @@ with tab_best11:
 # Footer — contador de visitas
 # ---------------------------------------------------------------------------
 st.markdown("---")
-st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · 2026")
+st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · {_LIGA_TORNEO.get(liga_activa, '2026')}")
