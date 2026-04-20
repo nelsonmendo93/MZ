@@ -575,7 +575,7 @@ st.markdown("""
     Portal de Datos
   </p>
   <p style="font-size:1.05rem; color:#9ca3af; margin:0; letter-spacing:1px;">
-    Análisis de rendimiento del fútbol paraguayo · Apertura 2026
+    Análisis de rendimiento del fútbol sudamericano · 2026
   </p>
 </div>
 <hr style="border:none; border-top:1px solid #2d3748; margin:0 0 12px 0;">
@@ -1627,7 +1627,7 @@ with tab_table:
             n_comp = len(comparison_df)
             st.caption(
                 f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
-                f"con \u2265 {tab1_min_minutes} min · Apertura 2026"
+                f"con \u2265 {tab1_min_minutes} min · 2026"
             )
             st.markdown("---")
 
@@ -1672,7 +1672,7 @@ with tab_table:
                         team_display = str(player_data.get(team_col_tab1, ''))
                         scout_subtitle = (
                             f"Entre {n_comp} {selected_pos.lower()}s +{tab1_min_minutes} min "
-                            f"| {tab1_age_range[0]}-{tab1_age_range[1]} años | Apertura 2026"
+                            f"| {tab1_age_range[0]}-{tab1_age_range[1]} años | 2026"
                         )
                         scout_summary_items = _build_scout_summary_items(player_data, team_col_tab1, selected_pos)
                         scout_top5_metrics = _get_scout_top5_metrics(player_data, comparison_df, selected_pos)
@@ -1914,7 +1914,7 @@ with tab_bar:
                 team_display = str(pent_player_data.get(pent_team_col, ''))
                 subtitle_pent = (
                     f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min "
-                    f"· {pent_age_range[0]}-{pent_age_range[1]} años · Apertura 2026"
+                    f"· {pent_age_range[0]}-{pent_age_range[1]} años · 2026"
                 )
 
                 _, col_center, _ = st.columns([1, 2, 1])
@@ -2058,7 +2058,7 @@ with tab_pizza:
                     team_display = str(pizza_player_data.get(pizza_team_col, ''))
                     subtitle = (
                         f"Entre {n_pizza_players} {pizza_pos_group.lower()}s +{pizza_min_minutes} min "
-                        f"| {pizza_age_range[0]}-{pizza_age_range[1]} años | Apertura 2026"
+                        f"| {pizza_age_range[0]}-{pizza_age_range[1]} años | 2026"
                     )
 
                     fig_pizza = create_pizza_chart(
@@ -2422,11 +2422,11 @@ with tab_similar:
         'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
     }
     _other_ligas_sim = [k for k in _AVAILABLE_LIGAS if k != liga_activa]
-    _active_label_sim = _LIGA_LABELS[liga_activa].split(' ', 1)[1]  # sin bandera
+    _active_label_sim = _LIGA_LABELS[liga_activa]
 
     # CSS para colores de checkboxes dinámico
     def _ck_rule(c):
-        lbl = _LIGA_LABELS[c].split(' ', 1)[1]
+        lbl = _LIGA_LABELS[c]
         col = _LIGA_COLORS_SIM[c]
         return f'div[data-testid="stCheckbox"]:has(input[aria-label="{lbl}"]) label p {{ color: {col} !important; }}'
     _ck_css_rules = '\n'.join(_ck_rule(c) for c in _AVAILABLE_LIGAS)
@@ -2465,7 +2465,7 @@ with tab_similar:
     _sim_other_selections = {}
     for _i, _code in enumerate(_other_ligas_sim):
         with _other_cols[_i % 4]:
-            _lbl = _LIGA_LABELS[_code].split(' ', 1)[1]
+            _lbl = _LIGA_LABELS[_code]
             _sim_other_selections[_code] = st.checkbox(
                 _lbl, value=False, key=f"sim_use_{_code}",
                 disabled=(_LIGA_DFS[_code] is None),
@@ -2750,7 +2750,7 @@ def _create_ranking_card(ranking_df, metric_col, team_col,
 
     ax.text(9.65, y - 0.35, 'MARCA ZONAL', fontsize=9, color='#6b7280',
             va='top', ha='right', fontstyle='italic')
-    ax.text(9.65, y - 0.62, 'Rankings · Apertura 2026', fontsize=7.5,
+    ax.text(9.65, y - 0.62, 'Rankings · 2026', fontsize=7.5,
             color='#4b5563', va='top', ha='right')
     y -= (header_h + 0.35)
 
@@ -2889,7 +2889,7 @@ with tab_ranking:
         mins_label = f" · +{rk_min_minutes} min" if rk_min_minutes > 0 else ""
         age_label = f" · {rk_age_range[0]}-{rk_age_range[1]} años"
         st.caption(
-            f"**{translate(rk_metric)}** · {n_ranked} jugadores · {pos_label}{mins_label}{age_label} · Apertura 2026"
+            f"**{translate(rk_metric)}** · {n_ranked} jugadores · {pos_label}{mins_label}{age_label} · 2026"
         )
         st.markdown("---")
 
@@ -3193,7 +3193,7 @@ with tab_swarm:
                 n_comp = len(sw_comparison_df)
                 st.caption(
                     f"Pool: **{n_comp} {sw_pos.lower()}s** · +{sw_min_min} min "
-                    f"· {sw_age_range[0]}-{sw_age_range[1]} años · Apertura 2026"
+                    f"· {sw_age_range[0]}-{sw_age_range[1]} años · 2026"
                 )
 
                 _, col_center, _ = st.columns([0.3, 9.4, 0.3])
@@ -3368,7 +3368,7 @@ def _compute_best_eleven(df, min_minutes=200):
     return {slot: _best_for_slot(slot) for slot in _B11_POS_MAP}
 
 
-def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026", logo_path=None):
+def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="2026", logo_path=None):
     """Dibuja la cancha con el mejor once — todos con tarjeta, layout compacto.
     y=0 → arriba (ataque), y=105 → abajo (defensa), ylim invertido."""
     import matplotlib.pyplot as plt
@@ -3410,7 +3410,7 @@ def _draw_best_eleven_fig(best_eleven, min_minutes, season_label="Apertura 2026"
     ax_t.text(0.5, 0.75, 'MEJOR ONCE', fontsize=24, fontweight='bold',
               color='#f8fafc', ha='center', va='center')
     ax_t.text(0.5, 0.18,
-              f'Apertura 2026  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
+              f'2026  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
               fontsize=9, color='#0b1220', ha='center', va='center')
     ax_t.text(0.5, 0.18,
               f'{season_label}  ·  Mínimo {min_minutes} min  ·  Ranking por percentil promedio',
@@ -3568,7 +3568,7 @@ with tab_best11:
             ⚽ MEJOR ONCE
         </div>
         <div style="font-size:13px; color:#94a3b8; margin-top:4px;">
-            Selección automática por posición · Apertura 2026 · Percentil promedio por rol
+            Selección automática por posición · 2026 · Percentil promedio por rol
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -3616,4 +3616,4 @@ with tab_best11:
 # Footer — contador de visitas
 # ---------------------------------------------------------------------------
 st.markdown("---")
-st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · Apertura 2026")
+st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · 2026")

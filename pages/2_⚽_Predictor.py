@@ -527,7 +527,7 @@ def _aggregate_form(s, weights):
 
 
 # ---------------------------------------------------------------------------
-# Jerarquía de equipos — Apertura 2026 APF
+# Jerarquía de equipos — 2026 APF
 # Usado como prior bayesiano: con pocos partidos el prior domina;
 # con más datos el modelo se apoya en el rendimiento real de la temporada.
 # ---------------------------------------------------------------------------
@@ -1640,7 +1640,7 @@ if valid:
     # ── Footer con contador de visitas ────────────────────────────────────
     _visit_count = count_visit()
     st.markdown("---")
-    st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · Apertura 2026")
+    st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · 2026")
     st.markdown("<br/>", unsafe_allow_html=True)
     st.markdown("""
     <div style="text-align:center;color:#334155;font-size:0.68rem;letter-spacing:1px;padding-top:1rem;
