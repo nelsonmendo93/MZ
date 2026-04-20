@@ -1342,6 +1342,17 @@ def _get_scout_top5_metrics(player_data, comparison_df, selected_pos):
 
 
 def _get_scout_score_data(player_data, comparison_df, selected_pos):
+    def _resolve_scout_weights(position_group):
+        default_weights = {'ATQ': 20, 'POS': 20, 'PAS': 20, 'DEF': 20, 'CRE': 20}
+        group_weights = {
+            'Central':         {'DEF': 35, 'PAS': 25, 'POS': 20, 'CRE': 10, 'ATQ': 10},
+            'Lateral':         {'DEF': 25, 'POS': 25, 'PAS': 20, 'ATQ': 15, 'CRE': 15},
+            'Volante Central': {'POS': 30, 'PAS': 25, 'CRE': 20, 'DEF': 15, 'ATQ': 10},
+            'Extremo':         {'ATQ': 30, 'CRE': 25, 'POS': 20, 'PAS': 15, 'DEF': 10},
+            'Delantero':       {'ATQ': 40, 'CRE': 20, 'POS': 15, 'PAS': 15, 'DEF': 10},
+        }
+        return group_weights.get(position_group, default_weights)
+
     if selected_pos == 'Portero':
         category_scores = []
         overall_pcts = []
@@ -1362,7 +1373,12 @@ def _get_scout_score_data(player_data, comparison_df, selected_pos):
         {'code': axis, 'label': PENTAGON_LABELS_ES.get(axis, axis), 'score': float(scores.get(axis, 0))}
         for axis in ordered_axes
     ]
-    overall_score = float(np.mean([item['score'] for item in category_scores])) if category_scores else 0.0
+    weights = _resolve_scout_weights(selected_pos)
+    total_weight = sum(weights.get(item['code'], 0) for item in category_scores)
+    if category_scores and total_weight > 0:
+        overall_score = float(sum(item['score'] * weights.get(item['code'], 0) for item in category_scores) / total_weight)
+    else:
+        overall_score = float(np.mean([item['score'] for item in category_scores])) if category_scores else 0.0
     return overall_score, category_scores
 
 
@@ -3623,4 +3639,3 @@ with tab_best11:
 # ---------------------------------------------------------------------------
 st.markdown("---")
 st.caption(f"👁️ Visitas a la app: **{_visit_count:,}**  ·  Marca Zonal · Apertura 2026")
-
