@@ -121,11 +121,10 @@ def build_scout_html(
     logo_uri = _load_logo_data_uri()
 
     summary_cards = []
-    for idx, (label, value) in enumerate(summary_items[:5]):
-        extra_cls = ' mz-summary-card-wide' if idx == 4 else ''
+    for idx, (label, value) in enumerate(summary_items[:6]):
         summary_cards.append(
             f"""
-            <div class="mz-summary-card{extra_cls}">
+            <div class="mz-summary-card">
               <div class="mz-meta-label">{_esc(label).upper()}</div>
               <div class="mz-meta-value">{_esc(value)}</div>
             </div>

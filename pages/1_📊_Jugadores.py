@@ -299,6 +299,8 @@ df_uru = load_external_league('URU')
 df_col = load_external_league('COL')
 df_ecu = load_external_league('ECU')
 df_chi = load_external_league('CHI')
+df_per = load_external_league('PER')
+df_ven = load_external_league('VEN')
 
 # Mapa de ligas disponibles
 _LIGA_DFS = {
@@ -309,6 +311,8 @@ _LIGA_DFS = {
     'COL': df_col,
     'ECU': df_ecu,
     'CHI': df_chi,
+    'PER': df_per,
+    'VEN': df_ven,
 }
 _LIGA_LABELS = {
     'PAR': 'Paraguay',
@@ -318,6 +322,9 @@ _LIGA_LABELS = {
     'COL': 'Colombia',
     'ECU': 'Ecuador',
     'CHI': 'Chile',
+    'PER': 'Peru',
+    'VEN': 'Venezuela',
+    'ALL': '🌐 Todas las ligas',
 }
 _LIGA_TORNEO = {
     'PAR': 'Torneo Local 2026',
@@ -327,7 +334,21 @@ _LIGA_TORNEO = {
     'COL': 'Liga BetPlay 2026',
     'ECU': 'Liga Pro 2026',
     'CHI': '1ra Div Chile 2026',
+    'PER': '1ra Div Peru 2026',
+    'VEN': '1ra Div Venezuela 2026',
+    'ALL': 'Fútbol Sudamericano 2026',
 }
+
+# Combinar todas las ligas en un único DataFrame con columna Liga
+_all_parts = []
+for _code, _ldf in _LIGA_DFS.items():
+    if _ldf is not None:
+        _part = _ldf.copy()
+        _part['Liga'] = _code
+        _all_parts.append(_part)
+df_all = pd.concat(_all_parts, ignore_index=True) if _all_parts else pd.DataFrame()
+_LIGA_DFS['ALL'] = df_all
+
 _AVAILABLE_LIGAS = [k for k, v in _LIGA_DFS.items() if v is not None]
 
 # Selector de liga — inline, visible en desktop y móvil
@@ -534,6 +555,7 @@ def _get_display_cols(df):
         if (c.endswith(' per 90') or c.endswith(', %'))
         and c not in NON_METRIC_COLS
         and c not in HIDDEN_TABLE_COLS
+        and c not in _GK_ONLY_METRICS
         and pd.api.types.is_numeric_dtype(df[c])
         and (
             c.endswith(', %') or
@@ -575,7 +597,7 @@ _GK_ONLY_METRICS = {
 # Logo centrado
 _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
-    st.image(LOGO_BLANCO, use_container_width=True)
+    st.image(LOGO_BLANCO, use_column_width=True)
 
 st.markdown(f"""
 <div style="text-align:center; padding: 4px 0 16px 0;">
@@ -715,12 +737,13 @@ def _field_html(position_code: str) -> str:
 
 
 def _player_header_html(player_name, position_code, pos_group,
-                         team, age, matches, minutes) -> str:
+                         team, age, matches, minutes, nationality='') -> str:
     """Tarjeta completa: campo a la izquierda, nombre + stats a la derecha."""
     field_svg = _field_html(position_code)
     age_str     = str(int(age))     if age     and str(age)     != 'nan' else '—'
     matches_str = str(int(matches)) if matches and str(matches) != 'nan' else '—'
     minutes_str = str(int(minutes)) if minutes and str(minutes) != 'nan' else '—'
+    nat_str     = str(nationality).strip() if nationality and str(nationality).strip() not in ('', 'nan') else '—'
 
     return f"""
 <link href="https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
@@ -774,12 +797,12 @@ def _player_header_html(player_name, position_code, pos_group,
     <div class="sgrid">
       <div class="sitem"><div class="slabel">Club</div>
         <div class="sval" title="{team}">{team}</div></div>
+      <div class="sitem"><div class="slabel">Nacionalidad</div>
+        <div class="sval" title="{nat_str}">{nat_str}</div></div>
       <div class="sitem"><div class="slabel">Edad</div>
         <div class="sval">{age_str}</div></div>
       <div class="sitem"><div class="slabel">Partidos</div>
         <div class="sval">{matches_str}</div></div>
-      <div class="sitem"><div class="slabel">Minutos</div>
-        <div class="sval">{minutes_str}</div></div>
     </div>
   </div>
 </div>"""
@@ -1352,13 +1375,17 @@ def _build_scout_summary_items(player_data, team_col, selected_pos):
         ('Minutos', _fmt_int(player_data.get('Minutes played'))),
         ('Pie', _translate_foot(player_data.get('Foot'))),
         ('Equipo', _fmt_text(player_data.get(team_col))),
+        ('Nac.', _fmt_text(player_data.get('Birth country'))),
     ]
 
 
 def _get_scout_top5_metrics(player_data, comparison_df, selected_pos):
+    _is_gk = (selected_pos == 'Portero')
     metric_cols = [
         c for c in comparison_df.columns
-        if c.endswith(' per 90') and pd.api.types.is_numeric_dtype(comparison_df[c])
+        if c.endswith(' per 90')
+        and pd.api.types.is_numeric_dtype(comparison_df[c])
+        and (_is_gk or c not in _GK_ONLY_METRICS)
     ]
     scored = []
     seen = set()
@@ -1431,17 +1458,19 @@ def _get_scout_score_data(player_data, comparison_df, selected_pos):
     return overall_score, category_scores
 
 
-def _get_scout_similarity_cols(pool_df):
+def _get_scout_similarity_cols(pool_df, selected_pos=''):
+    _is_gk = (selected_pos == 'Portero')
     return [
         c for c in pool_df.columns
         if (c.endswith(' per 90') or c.endswith(', %'))
         and c not in NON_METRIC_COLS
+        and (_is_gk or c not in _GK_ONLY_METRICS)
         and pd.api.types.is_numeric_dtype(pool_df[c])
     ]
 
 
-def _compute_scout_similarity_scores(pool_df, player_name, player_df=None):
-    sim_cols = _get_scout_similarity_cols(pool_df)
+def _compute_scout_similarity_scores(pool_df, player_name, player_df=None, selected_pos=''):
+    sim_cols = _get_scout_similarity_cols(pool_df, selected_pos=selected_pos)
     if len(sim_cols) < 3:
         return None
 
@@ -1497,6 +1526,7 @@ def _build_scout_similarity_pool(selected_pos, min_minutes, age_range):
     league_sources = [
         (code, (df if code == liga_activa else _LIGA_DFS[code]))
         for code in _AVAILABLE_LIGAS
+        if code != 'ALL'  # 'ALL' es un agregado — sus datos ya están en las ligas individuales
     ]
     pool_parts = []
     for league_code, league_df in league_sources:
@@ -1521,7 +1551,7 @@ def _build_scout_similars(selected_player, selected_pos, min_minutes, age_range,
     if sim_pool.empty:
         return []
 
-    sim_results = _compute_scout_similarity_scores(sim_pool, selected_player, player_df=player_df)
+    sim_results = _compute_scout_similarity_scores(sim_pool, selected_player, player_df=player_df, selected_pos=selected_pos)
     if sim_results is None or sim_results.empty:
         return []
 
@@ -1576,11 +1606,18 @@ with tab_table:
         club_pos_df = pos_df.copy()
         selected_player_tab1 = None
     else:
-        clubs_in_pos = sorted(pos_df[team_col_tab1].dropna().unique())
-        with col_club:
-            selected_club = st.selectbox("Club", clubs_in_pos, key="tab1_club")
-
-        club_pos_df = pos_df[pos_df[team_col_tab1] == selected_club]
+        if liga_activa == 'ALL' and 'Liga' in pos_df.columns:
+            pos_df = pos_df.copy()
+            pos_df['_club_display'] = pos_df[team_col_tab1].astype(str) + ' [' + pos_df['Liga'].astype(str) + ']'
+            clubs_in_pos = sorted(pos_df['_club_display'].dropna().unique())
+            with col_club:
+                selected_club_disp = st.selectbox("Club", clubs_in_pos, key="tab1_club")
+            club_pos_df = pos_df[pos_df['_club_display'] == selected_club_disp]
+        else:
+            clubs_in_pos = sorted(pos_df[team_col_tab1].dropna().unique())
+            with col_club:
+                selected_club = st.selectbox("Club", clubs_in_pos, key="tab1_club")
+            club_pos_df = pos_df[pos_df[team_col_tab1] == selected_club]
         players_list = sorted(club_pos_df['Player'].dropna().unique())
         with col_player:
             selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
@@ -1611,8 +1648,9 @@ with tab_table:
                 age=player_data.get('Age', None),
                 matches=player_data.get('Matches played', None),
                 minutes=player_data.get('Minutes played', None),
+                nationality=str(player_data.get('Birth country', '')),
             ),
-            height=210,
+            height=220,
         )
 
         # Bloqueo por minutos — el jugador seleccionado también debe cumplir el mínimo
@@ -1728,9 +1766,9 @@ with tab_table:
 with tab_xy:
     st.subheader("Gráfico XY comparativo")
 
-    # Position & player selectors (replacing removed sidebar)
+    # Posición + edad
     xy_position_groups = sorted(df['Position Group'].dropna().unique())
-    xy_sel1, xy_sel2 = st.columns(2)
+    xy_sel1, _ = st.columns([1, 3])
     with xy_sel1:
         xy_pos_group = st.selectbox("Grupo de posición", xy_position_groups, key="xy_pos_group")
     xy_group_df = df[df['Position Group'] == xy_pos_group].copy()
@@ -1740,28 +1778,21 @@ with tab_xy:
         value=(xy_age_min, xy_age_max), key="xy_age_range"
     )
     xy_group_df = _apply_age_filter(xy_group_df, xy_age_range)
-    if xy_group_df.empty:
-        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
-        xy_players = []
-        xy_selected_player = None
-    else:
-        xy_players = sorted(xy_group_df['Player'].dropna().unique())
-        with xy_sel2:
-            xy_selected_player = st.selectbox("Jugador destacado", xy_players, key="xy_player")
 
-    # Only per-90 metrics — métricas GK exclusivas solo si se selecciona Portero
+    # Only per-90 metrics — GK exclusivas solo si se selecciona Portero
     xy_is_gk = (xy_pos_group == 'Portero')
     per90_columns = sorted([
         c for c in metric_columns
         if c.endswith(' per 90')
         and (xy_is_gk or c not in _GK_ONLY_METRICS)
     ])
+
     if xy_group_df.empty:
-        pass
+        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
     elif not per90_columns:
         st.warning("No se encontraron métricas 'por 90' en los datos.")
     else:
-        # Minutes slider
+        # Minutos mínimos
         min_min = int(xy_group_df['Minutes played'].min()) if 'Minutes played' in xy_group_df.columns else 0
         max_min = int(xy_group_df['Minutes played'].max()) if 'Minutes played' in xy_group_df.columns else 100
         min_minutes = st.slider(
@@ -1769,6 +1800,7 @@ with tab_xy:
             value=min(200, max_min), key="xy_min_minutes"
         )
 
+        # Métricas X e Y
         col1, col2 = st.columns(2)
         with col1:
             x_metric = st.selectbox("Métrica eje X", per90_columns, key="xy_x",
@@ -1778,20 +1810,43 @@ with tab_xy:
                                      index=min(1, len(per90_columns) - 1),
                                      key="xy_y", format_func=translate)
 
-        # Filter by minutes played
+        # Filtrar datos
+        _xy_extra_cols = [c for c in ['Liga'] if c in xy_group_df.columns]
         xy_df = xy_group_df[xy_group_df['Minutes played'] >= min_minutes].copy()
-        xy_df = xy_df[['Player', x_metric, y_metric]].dropna()
+        xy_df = xy_df[['Player', x_metric, y_metric] + _xy_extra_cols].dropna(
+            subset=['Player', x_metric, y_metric]
+        )
 
         if len(xy_df) < 2:
-            st.warning("No hay suficientes datos para generar el gráfico. Prueba reducir los minutos mínimos.")
+            st.warning("No hay suficientes datos para generar el gráfico. Probá reducir los minutos mínimos.")
         else:
-            fig_xy = create_xy_chart(xy_df, x_metric, y_metric, xy_selected_player,
-                                     x_label=translate(x_metric),
-                                     y_label=translate(y_metric),
-                                     logo_path=LOGO_BLANCO)
+            # Selectores de jugadores a etiquetar (hasta 5)
+            xy_all_players = ['—'] + sorted(xy_df['Player'].dropna().unique())
+            st.markdown(
+                "<p style='margin:14px 0 6px 0; font-size:0.85rem; color:#9ca3af; font-weight:600;'>"
+                "JUGADORES A ETIQUETAR (opcional)</p>",
+                unsafe_allow_html=True,
+            )
+            xy_label_cols = st.columns(5)
+            xy_labeled = []
+            for _i in range(5):
+                with xy_label_cols[_i]:
+                    _sel = st.selectbox(
+                        f"Jugador {_i + 1}", xy_all_players,
+                        index=0, key=f"xy_label_{_i}"
+                    )
+                    if _sel != '—':
+                        xy_labeled.append(_sel)
+
+            fig_xy = create_xy_chart(
+                xy_df, x_metric, y_metric,
+                labeled_players=xy_labeled,
+                x_label=translate(x_metric),
+                y_label=translate(y_metric),
+                logo_path=LOGO_BLANCO,
+            )
             st.pyplot(fig_xy)
 
-            # Download button
             buf = io.BytesIO()
             fig_xy.savefig(buf, format='png', dpi=150, bbox_inches='tight',
                            facecolor=fig_xy.get_facecolor())
@@ -2091,17 +2146,19 @@ with tab_pizza:
                     st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 5: Jugadores Similares -------------------------------------------
-def _get_similarity_cols(df):
+def _get_similarity_cols(df, selected_pos=''):
     """Columnas para el PCA de similitud: todas las per-90 y % numéricas disponibles."""
+    _is_gk = (selected_pos == 'Portero')
     return [
         c for c in df.columns
         if (c.endswith(' per 90') or c.endswith(', %'))
         and c not in NON_METRIC_COLS
+        and (_is_gk or c not in _GK_ONLY_METRICS)
         and pd.api.types.is_numeric_dtype(df[c])
     ]
 
 
-def _compute_similarity_scores(pool_df, player_name, player_df=None):
+def _compute_similarity_scores(pool_df, player_name, player_df=None, selected_pos=''):
     """
     Calcula puntajes de similitud (0–100%) vs todos los jugadores del pool.
     Si player_df se proporciona, busca al jugador en ese DF en lugar del pool.
@@ -2114,7 +2171,7 @@ def _compute_similarity_scores(pool_df, player_name, player_df=None):
       5. Distancia euclídea en espacio PCA
       6. Similitud % = (1 - dist / max_dist) * 100
     """
-    sim_cols = _get_similarity_cols(pool_df)
+    sim_cols = _get_similarity_cols(pool_df, selected_pos=selected_pos)
     if len(sim_cols) < 3:
         return None, 0, 0.0
 
@@ -2427,18 +2484,19 @@ with tab_similar:
 
     # ── Selección de ligas ───────────────────────────────────────────────────
     _LIGA_COLORS_SIM = {
-        'PAR': '#dc2626', 'ARG': '#14b8a6', 'BRA': '#16a34a',
+        'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
         'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+        'PER': '#e879f9', 'VEN': '#2dd4bf',
     }
-    _other_ligas_sim = [k for k in _AVAILABLE_LIGAS if k != liga_activa]
+    _other_ligas_sim = [k for k in _AVAILABLE_LIGAS if k not in (liga_activa, 'ALL')]
     _active_label_sim = _LIGA_LABELS[liga_activa]
 
-    # CSS para colores de checkboxes dinámico
+    # CSS para colores de checkboxes dinámico (excluye 'ALL' que no tiene color)
     def _ck_rule(c):
         lbl = _LIGA_LABELS[c]
         col = _LIGA_COLORS_SIM[c]
         return f'div[data-testid="stCheckbox"]:has(input[aria-label="{lbl}"]) label p {{ color: {col} !important; }}'
-    _ck_css_rules = '\n'.join(_ck_rule(c) for c in _AVAILABLE_LIGAS)
+    _ck_css_rules = '\n'.join(_ck_rule(c) for c in _AVAILABLE_LIGAS if c in _LIGA_COLORS_SIM)
     st.markdown(f"""
     <style>
     div[data-testid="stCheckbox"] label p {{
@@ -2458,54 +2516,66 @@ with tab_similar:
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown(
-        "<p style='margin:10px 0 8px 0; font-size:0.9rem; color:#9ca3af;'>"
-        "<b>Liga/s a comparar:</b></p>",
-        unsafe_allow_html=True,
-    )
-
-    # Liga activa: siempre incluida (mostrada como fija, no desmarcable)
-    _sim_liga_active_included = st.checkbox(
-        _active_label_sim, value=True, key=f"sim_use_{liga_activa}",
-    )
-
-    # Otras ligas: checkboxes opcionales en grid
-    _other_cols = st.columns(min(4, max(1, len(_other_ligas_sim))))
-    _sim_other_selections = {}
-    for _i, _code in enumerate(_other_ligas_sim):
-        with _other_cols[_i % 4]:
-            _lbl = _LIGA_LABELS[_code]
-            _sim_other_selections[_code] = st.checkbox(
-                _lbl, value=False, key=f"sim_use_{_code}",
-                disabled=(_LIGA_DFS[_code] is None),
-            )
-
-    # Construir el pool dinámicamente
-    _pool_parts = []
-
-    # Liga activa (usa df ya procesado)
-    if _sim_liga_active_included:
-        _active_filt = df[
+    if liga_activa == 'ALL':
+        st.markdown(
+            "<p style='margin:10px 0 8px 0; font-size:0.9rem; color:#9ca3af;'>"
+            "🌐 <b>Pool continental activo</b> — comparando contra todas las ligas disponibles.</p>",
+            unsafe_allow_html=True,
+        )
+        _pool_all = df[
             (df['Position Group'] == sim_pos) &
             (df['Minutes played'] >= sim_min_minutes)
         ].copy().reset_index(drop=True)
-        _active_filt = _apply_age_filter(_active_filt, sim_age_range)
-        _active_filt['Liga'] = liga_activa
-        _pool_parts.append(_active_filt)
+        _pool_all = _apply_age_filter(_pool_all, sim_age_range)
+        sim_pool = _pool_all
+    else:
+        st.markdown(
+            "<p style='margin:10px 0 8px 0; font-size:0.9rem; color:#9ca3af;'>"
+            "<b>Liga/s a comparar:</b></p>",
+            unsafe_allow_html=True,
+        )
 
-    # Ligas adicionales
-    for _code, _selected in _sim_other_selections.items():
-        _ldf = _LIGA_DFS[_code]
-        if _selected and _ldf is not None:
-            _filt = _ldf[
-                (_ldf['Position Group'] == sim_pos) &
-                (_ldf['Minutes played'] >= sim_min_minutes)
+        # Liga activa: siempre incluida (mostrada como fija, no desmarcable)
+        _sim_liga_active_included = st.checkbox(
+            _active_label_sim, value=True, key=f"sim_use_{liga_activa}",
+        )
+
+        # Otras ligas: checkboxes opcionales en grid
+        _other_cols = st.columns(min(4, max(1, len(_other_ligas_sim))))
+        _sim_other_selections = {}
+        for _i, _code in enumerate(_other_ligas_sim):
+            with _other_cols[_i % 4]:
+                _lbl = _LIGA_LABELS[_code]
+                _sim_other_selections[_code] = st.checkbox(
+                    _lbl, value=False, key=f"sim_use_{_code}",
+                    disabled=(_LIGA_DFS[_code] is None),
+                )
+
+        # Construir el pool dinámicamente
+        _pool_parts = []
+
+        if _sim_liga_active_included:
+            _active_filt = df[
+                (df['Position Group'] == sim_pos) &
+                (df['Minutes played'] >= sim_min_minutes)
             ].copy().reset_index(drop=True)
-            _filt = _apply_age_filter(_filt, sim_age_range)
-            _filt['Liga'] = _code
-            _pool_parts.append(_filt)
+            _active_filt = _apply_age_filter(_active_filt, sim_age_range)
+            _active_filt['Liga'] = liga_activa
+            _pool_parts.append(_active_filt)
 
-    sim_pool = pd.concat(_pool_parts, ignore_index=True) if _pool_parts else pd.DataFrame()
+        for _code, _selected in _sim_other_selections.items():
+            _ldf = _LIGA_DFS[_code]
+            if _selected and _ldf is not None:
+                _filt = _ldf[
+                    (_ldf['Position Group'] == sim_pos) &
+                    (_ldf['Minutes played'] >= sim_min_minutes)
+                ].copy().reset_index(drop=True)
+                _filt = _apply_age_filter(_filt, sim_age_range)
+                _filt['Liga'] = _code
+                _pool_parts.append(_filt)
+
+        sim_pool = pd.concat(_pool_parts, ignore_index=True) if _pool_parts else pd.DataFrame()
+
     sim_n_pool = len(sim_pool)
 
     # Obtener datos del jugador seleccionado (desde la liga activa)
@@ -2518,7 +2588,7 @@ with tab_similar:
     elif sim_n_pool < 3:
         st.warning("El pool de comparación tiene muy pocos jugadores. Reducí los minutos mínimos o agregá más ligas.")
     else:
-        sim_results, sim_n_comp, sim_var = _compute_similarity_scores(sim_pool, sim_player, player_df=sim_player_data)
+        sim_results, sim_n_comp, sim_var = _compute_similarity_scores(sim_pool, sim_player, player_df=sim_player_data, selected_pos=sim_pos)
 
         if sim_results is None:
             st.warning("No hay suficientes métricas disponibles para calcular similitud.")
@@ -2544,7 +2614,7 @@ with tab_similar:
             </div>
             """, unsafe_allow_html=True)
 
-            n_sim_cols = len(_get_similarity_cols(sim_pool))
+            n_sim_cols = len(_get_similarity_cols(sim_pool, selected_pos=sim_pos))
             _pool_ligas = sim_pool['Liga'].value_counts().to_dict() if 'Liga' in sim_pool.columns else {}
             _pool_desc = '  ·  '.join(f"{lg} {cnt}" for lg, cnt in _pool_ligas.items()) if _pool_ligas else f"{sim_n_pool}"
             st.caption(
@@ -2597,7 +2667,7 @@ _TOTAL_COLS = sorted([
     and pd.api.types.is_numeric_dtype(df[c])
 ])
 
-_PER90_COLS = sorted([c for c in df.columns if c.endswith(' per 90')])
+_PER90_COLS = sorted([c for c in df.columns if c.endswith(' per 90') and c not in _GK_ONLY_METRICS])
 
 # Métricas permitidas en Rankings cuando se selecciona Portero:
 # todas las del pentágono GK + Received passes per 90
@@ -3582,9 +3652,10 @@ with tab_best11:
     </div>
     """, unsafe_allow_html=True)
 
-    # Minutos mínimos: 50% del máximo disponible, calculado automáticamente
-    _b11_max_v   = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 90
-    _b11_min_min = max(1, math.ceil(_b11_max_v / 2))
+    # Minutos mínimos: promedio de minutos jugados de la liga activa.
+    # Para "Todas las ligas" se usa el promedio del dataset combinado,
+    # lo que respeta las distintas duraciones de temporada de cada competición.
+    _b11_min_min = max(1, math.ceil(df['Minutes played'].mean())) if 'Minutes played' in df.columns else 90
 
     b11_age_min, b11_age_max = _get_age_bounds(df)
     b11_age_range = st.slider(
@@ -3607,7 +3678,7 @@ with tab_best11:
                     bbox_inches='tight', facecolor=fig_b11.get_facecolor())
     plt.close(fig_b11)
 
-    st.image(buf_b11.getvalue(), use_container_width=True)
+    st.image(buf_b11.getvalue(), use_column_width=True)
 
     st.download_button(
         "⬇️ Descargar imagen (alta resolución)",
