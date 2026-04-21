@@ -1132,7 +1132,7 @@ def _compute_avg_pentagon_scores_gk(comparison_df, all_cols):
 
 def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
                            pos_label='', scores2=None, player2_name='',
-                           custom_labels=None):
+                           team2='', custom_labels=None):
     """Dibuja el gráfico pentágono estilo Sofascore con matplotlib.
     Si scores2 se provee, dibuja dos polígonos (verde P1, azul P2) y badges apilados.
     custom_labels: lista de 5 claves si se usan ejes distintos (ej. GK)."""
@@ -1151,10 +1151,11 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
 
     compare_mode = bool(scores2 and player2_name)
 
-    fig, ax = plt.subplots(figsize=(6.5, 7.4), facecolor='#0f1117')
+    # fig.add_axes con posición explícita: reserva 14% inferior para leyenda + branding
+    fig = plt.figure(figsize=(6.5, 7.6), facecolor='#0f1117')
+    ax = fig.add_axes([0.05, 0.14, 0.90, 0.84])
     ax.set_facecolor('#0f1117')
     ax.set_aspect('equal')
-    ax.set_ylim(110, -16)
     ax.axis('off')
 
     # Fondo del pentágono
@@ -1245,23 +1246,33 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
             ax.text(bx, by - 0.15, label, ha='center', va='center',
                     fontsize=11, fontweight='bold', color='#9ca3af', zorder=7)
 
-    ax.set_xlim(-1.78, 1.78)
-    ax.set_ylim(-1.78, 1.92)
+    # xlim/ylim calibrados al ratio del axes box (5.85"/6.384"=0.916) → sin slack interno
+    ax.set_xlim(-1.59, 1.59)
+    ax.set_ylim(-1.36, 2.12)
 
-    # Título
+    # Título — nombre del jugador
     if compare_mode:
-        title_text = f'{player_name}  ⚔  {player2_name}'
-        title_fs   = 12
+        t1 = f'{player_name} ({team})' if team else player_name
+        t2 = f'{player2_name} ({team2})' if team2 else player2_name
+        title_text = f'{t1}  ⚔  {t2}'
+        title_fs   = 9
     else:
         title_text = player_name
-        title_fs   = 15
-    ax.text(0, 1.88, title_text, ha='center', va='top',
+        title_fs   = 14
+    ax.text(0, 2.08, title_text, ha='center', va='top',
             fontsize=title_fs, fontweight='bold', color='white')
-    ax.text(0, 1.70, f'{team}  ·  {subtitle}', ha='center', va='top',
-            fontsize=9.5, color='#6b7280')
 
-    # Leyenda — colores alineados con los polígonos del gráfico
-    # P1: sky blue (#0ea5e9) · P2: naranja (#f97316)
+    # Equipo (solo modo individual)
+    if not compare_mode:
+        ax.text(0, 1.90, team, ha='center', va='top',
+                fontsize=9, fontweight='bold', color='#38bdf8')
+
+    # Subtítulo de contexto
+    subtitle_y = 1.74 if not compare_mode else 1.75
+    ax.text(0, subtitle_y, subtitle, ha='center', va='top',
+            fontsize=7.8, color='#6b7280', wrap=True)
+
+    # Leyenda
     if compare_mode:
         legend_items = [
             mpatches.Patch(color='#0ea5e9', label=f'■ {player_name[:18]}'),
@@ -1279,14 +1290,17 @@ def _create_pentagon_chart(scores, player_name, team, subtitle, avg_scores=None,
             mpatches.Patch(color='#0369a1', label='Sobre el promedio'),
             mpatches.Patch(color='#374151', label='Bajo el promedio'),
         ]
-    ax.legend(handles=legend_items, loc='lower center', ncol=2,
-              facecolor='#0f1117', edgecolor='#2d3748',
-              labelcolor='#9ca3af', fontsize=7.8,
-              bbox_to_anchor=(0.5, -0.04))
+    # Leyenda anclada al borde inferior del eje (axes coords) → se ubica en el margen reservado
+    leg = ax.legend(handles=legend_items, loc='upper center', ncol=2,
+                    facecolor='#0f1117', edgecolor='#2d3748',
+                    fontsize=7.8,
+                    bbox_to_anchor=(0.5, 0.0),
+                    bbox_transform=ax.transAxes)
+    for txt in leg.get_texts():
+        txt.set_color('#9ca3af')
 
-    plt.tight_layout(pad=0.3)
-
-    fig.text(0.5, 0.1, 'X: @marca_zonal  ·  Instagram: @marca.zonal',
+    # Branding al pie de la figura, bien por debajo de la leyenda
+    fig.text(0.5, 0.025, 'X: @marca_zonal  ·  Instagram: @marca.zonal',
              size=7.5, color='#6b7280', ha='center', fontstyle='italic')
 
     return fig
@@ -1966,10 +1980,12 @@ with tab_bar:
                     }
 
                 scores2 = None
+                team2_display = ''
                 if st.session_state['pent_show_compare'] and pent_player2:
                     p2_rows = pent_pos_df[pent_pos_df['Player'] == pent_player2]
                     if not p2_rows.empty:
                         p2_data = p2_rows.iloc[0]
+                        team2_display = str(p2_data.get(pent_team_col, ''))
                         if is_pent_gk:
                             scores2 = _compute_pentagon_scores_gk(p2_data, pent_comparison_df, all_pent_cols)
                         else:
@@ -1987,6 +2003,7 @@ with tab_bar:
                         scores, pent_player, team_display, subtitle_pent,
                         avg_scores=avg_scores, pos_label=pent_pos,
                         scores2=scores2, player2_name=pent_player2 or '',
+                        team2=team2_display,
                         custom_labels=pent_axes if is_pent_gk else None,
                     )
                     st.pyplot(fig_pent)
