@@ -102,19 +102,15 @@ def create_xy_chart(df, x_col, y_col, labeled_players=None,
                     ha='center', va='bottom', fontweight='bold', zorder=15)
         texts.append(t)
 
-    # adjustText solo para etiquetados
+    # adjustText solo para etiquetados — params mínimos para compatibilidad cross-version
     if texts:
-        adjust_kwargs = dict(
-            ax=ax,
-            arrowprops=dict(color='gray', alpha=0.5, lw=0.6, shrinkA=4, shrinkB=4),
-            expand=(1.8, 1.8),
-            force_text=(1.0, 1.0),
-            only_move={'text': 'xy'},
-        )
         try:
-            adjust_text(texts, force_static=(0.6, 0.6), **adjust_kwargs)
-        except (TypeError, AttributeError):
-            adjust_text(texts, **adjust_kwargs)
+            adjust_text(
+                texts, ax=ax,
+                arrowprops=dict(color='gray', alpha=0.5, lw=0.6, shrinkA=4, shrinkB=4),
+            )
+        except Exception:
+            pass  # si falla por versión, los textos se muestran sin ajuste de posición
 
     # Leyenda de ligas (solo las presentes en el gráfico)
     if has_liga and ligas_presentes:
@@ -122,18 +118,20 @@ def create_xy_chart(df, x_col, y_col, labeled_players=None,
             mpatches.Patch(color=_LIGA_COLORS.get(lg, _DEFAULT_COLOR), label=lg)
             for lg in ligas_presentes
         ]
-        ax.legend(
+        leg = ax.legend(
             handles=legend_handles,
             loc='lower right',
             fontsize=9,
             framealpha=0.25,
             facecolor='#0f1117',
             edgecolor='#2d3748',
-            labelcolor='white',
             ncol=min(4, len(ligas_presentes)),
             handlelength=1.2,
             handleheight=1.0,
         )
+        # labelcolor='white' requiere matplotlib>=3.3; fallback manual
+        for txt in leg.get_texts():
+            txt.set_color('white')
 
     # Estilos de ejes
     ax.set_xlabel(x_label, color='white', fontsize=13, fontweight='bold')
