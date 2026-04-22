@@ -46,83 +46,83 @@ PLAYER_POSITION_OVERRIDES = {
     'A. Benítez':    'RB',
     'H. Fernández':  'LW',
     'A. González':  'LW',
-    'E. Vera':      'LAMF'
+    'E. Vera':      'LW'
 }
 
 # Renombrado de jugadores con nombre idéntico: clave (Player, Team) -> nombre final
 # Modificar el valor para diferenciar jugadores homónimos dentro de la misma liga
 PLAYER_NAME_OVERRIDES = {
     # ─────────────── PAR ───────────────
-    ('Alan Benítez', 'Club Libertad'): 'Alan Benítez',  # RAMF | 32 años | 470 min
-    ('Alan Cano', 'Sportivo Trinidense'): 'Alan Cano',  # CF | 21 años | 143 min
-    ('Alexis Cañete', 'Nacional Asunción'): 'Alexis Cañete',  # RCB | 22 años | 1567 min
-    ('Axel Cañete', 'Sportivo Trinidense'): 'Axel Cañete',  # RB | 24 años | 660 min
-    ('Alexis Duarte', 'Club Libertad'): 'Alexis Duarte',  # LCB | 25 años | 29 min
-    ('Alex Franco', 'Olimpia'): 'Alex Franco',  # RCMF | 24 años | 735 min
-    ('Angel González', 'Club Libertad'): 'Angel González',  # GK | 23 años | 97 min
-    ('Aldo González', 'Deportivo Recoleta'): 'Aldo González',  # CF | 29 años | 858 min
-    ('Alan Gómez', '2 de Mayo'): 'Alan Gómez',  # RW | 23 años | 882 min
-    ('Alexandro Maidana', 'Guaraní'): 'Alexandro Maidana',  # LB | 20 años | 512 min
-    ('Amin Molinas', 'Club Libertad'): 'Amin Molinas',  # LCMF | 20 años | 710 min
-    ('Antonio Oviedo', 'Sportivo San Lorenzo'): 'Antonio Oviedo',  # CF | 29 años | 176 min
-    ('Aldo Pérez', 'Guaraní'): 'Aldo Pérez',  # GK | 25 años | 104 min
-    ('Alex Álvarez', 'Sportivo San Lorenzo'): 'Alex Álvarez',  # CF | 28 años | 694 min
-    ('Clementino González', 'Sportivo Trinidense'): 'Clementino González',  # CF | 35 años | 1067 min
-    ('Cesar Ramírez', 'Guaraní'): 'Cesar Ramírez',  # LCB | 22 años | 63 min
-    ('Diego Fernández', 'Guaraní'): 'Diego Fernández',  # RW | 23 años | 868 min
-    ('Derlis Rodríguez', 'Guaraní'): 'Derlis Rodríguez',  # LWF | 28 años | 951 min
-    ('Estifen Díaz', 'Club Libertad'): 'Estifen Díaz',  # RW | 21 años | 69 min
-    ('Fernando Benítez', 'Sportivo Luqueño'): 'Fernando Benítez',  # DMF | 26 años | 576 min
-    ('Fernando Díaz', 'Nacional Asunción'): 'Fernando Díaz',  # LB | 25 años | 958 min
-    ('Fernando Fernández', 'Guaraní'): 'Fernando Fernández',  # CF | 34 años | 651 min
-    ('Fabrizio Jara', 'Nacional Asunción'): 'Fabrizio Jara',  # RCMF | 23 años | 784 min
-    ('Fernando Romero', 'Sportivo Trinidense'): 'Fernando Romero',  # CF | 25 años | 1025 min
-    ('Fernando J. Román', 'Sportivo Trinidense'): 'Fernando J. Román',  # RCB | 25 años | 121 min
-    ('Fredy Vera', 'Sportivo Ameliano'): 'Fredy Vera',  # RAMF | 27 años | 833 min
+    ('A. Benítez', 'Club Libertad'): 'Alan Benítez',  # RAMF | 32 años | 470 min
+    ('A. Cano', 'Sportivo Trinidense'): 'Alan Cano',  # CF | 21 años | 143 min
+    ('A. Cañete', 'Nacional Asunción'): 'Alexis Cañete',  # RCB | 22 años | 1567 min
+    ('A. Cañete', 'Sportivo Trinidense'): 'Axel Cañete',  # RB | 24 años | 660 min
+    ('A. Duarte', 'Club Libertad'): 'Alexis Duarte',  # LCB | 25 años | 29 min
+    ('A. Franco', 'Olimpia'): 'Alex Franco',  # RCMF | 24 años | 735 min
+    ('A. González', 'Club Libertad'): 'Angel González',  # GK | 23 años | 97 min
+    ('A. González', 'Deportivo Recoleta'): 'Aldo González',  # CF | 29 años | 858 min
+    ('A. Gómez', '2 de Mayo'): 'Alan Gómez',  # RW | 23 años | 882 min
+    ('A. Maidana', 'Guaraní'): 'Alexandro Maidana',  # LB | 20 años | 512 min
+    ('A. Molinas', 'Club Libertad'): 'Amin Molinas',  # LCMF | 20 años | 710 min
+    ('A. Oviedo', 'Sportivo San Lorenzo'): 'Antonio Oviedo',  # CF | 29 años | 176 min
+    ('A. Pérez', 'Guaraní'): 'Aldo Pérez',  # GK | 25 años | 104 min
+    ('A. Álvarez', 'Sportivo San Lorenzo'): 'Alex Álvarez',  # CF | 28 años | 694 min
+    ('C. González', 'Sportivo Trinidense'): 'Clementino González',  # CF | 35 años | 1067 min
+    ('C. Ramírez', 'Guaraní'): 'Cesar Ramírez',  # LCB | 22 años | 63 min
+    ('D. Fernández', 'Guaraní'): 'Diego Fernández',  # RW | 23 años | 868 min
+    ('D. Rodríguez', 'Guaraní'): 'Derlis Rodríguez',  # LWF | 28 años | 951 min
+    ('E. Díaz', 'Club Libertad'): 'Estifen Díaz',  # RW | 21 años | 69 min
+    ('F. Benítez', 'Sportivo Luqueño'): 'Fernando Benítez',  # DMF | 26 años | 576 min
+    ('F. Díaz', 'Nacional Asunción'): 'Fernando Díaz',  # LB | 25 años | 958 min
+    ('F. Fernández', 'Guaraní'): 'Fernando Fernández',  # CF | 34 años | 651 min
+    ('F. Jara', 'Nacional Asunción'): 'Fabrizio Jara',  # RCMF | 23 años | 784 min
+    ('F. Romero', 'Sportivo Trinidense'): 'Fernando Romero',  # CF | 25 años | 1025 min
+    ('F. Román', 'Sportivo Trinidense'): 'Fernando J. Román',  # RCB | 25 años | 121 min
+    ('F. Vera', 'Sportivo Ameliano'): 'Fredy Vera',  # RAMF | 27 años | 833 min
     ('Fernando Martínez', 'Rubio Ñú'): 'Fernando Martínez',  # RCMF | 31 años | 1319 min
-    ('Angel G. Benítez', 'Cerro Porteño'): 'Angel G. Benítez',  # LB | 32 años | 469 min
-    ('Gaston Benítez', 'Nacional Asunción'): 'Gaston Benítez',  # LCB | 23 años | 208 min
-    ('Gustavo Viera', 'Sportivo Trinidense'): 'Gustavo Viera',  # RCMF | 30 años | 1042 min
-    ('Hugo J. Benítez', 'Nacional Asunción'): 'Hugo J. Benítez',  # CF | 22 años | 451 min
-    ('Hugo A. Benítez', 'Sportivo Ameliano'): 'Hugo A. Benítez',  # RB | 27 años | 8 min
-    ('Ivan Ramírez', 'Club Libertad'): 'Ivan Ramírez',  # RB | 31 años | 868 min
-    ('Jonathan Benítez', 'Sportivo Ameliano'): 'Jonathan Benítez',  # LDMF | 25 años | 1223 min
-    ('Juan A. Franco', 'Deportivo Recoleta'): 'Juan A. Franco',  # RCMF | 23 años | 1274 min
-    ('Jorge D. González', 'Rubio Ñú'): 'Jorge D. González',  # LCB | 29 años | 330 min
-    ('Julio González', 'Sportivo Ameliano'): 'Julio González',  # RCB | 33 años | 1580 min
-    ('Juan I. Núñez', 'Deportivo Recoleta'): 'Juan I. Núñez',  # LCB | 36 años | 162 min
-    ('Dani Pérez', 'Guaraní'): 'Dani Pérez',  # RB | 32 años | 969 min
-    ('John Jairo Sánchez', 'Guaraní'): 'John Jairo Sánchez',  # RWF | 26 años | 557 min
-    ('Jonatan Torres', 'Cerro Porteño'): 'Jonatan Torres',  # CF | 29 años | 632 min
-    ('Luis Ayala', 'Sportivo Ameliano'): 'Luis Ayala',  # RW | 20 años | 530 min
-    ('L. González Gamarra', 'Nacional Asunción'): 'L. González Gamarra',  # CF | 28 años | 463 min
-    ('Lucas D. González', 'Sportivo Trinidense'): 'Lucas D. González',  # RCMF | 21 años | 510 min
-    ('Lucas Gómez', 'Rubio Ñú'): 'Lucas Gómez',  # RCB | 20 años | 388 min
-    ('Luis Martínez', 'Guaraní'): 'Luis Martínez',  # DMF | 26 años | 985 min
-    ('Fernando M. Cáceres', '2 de Mayo'): 'Fernando M. Cáceres',  # CF | 29 años | 494 min
-    ('Marcelo Fernández', 'Club Libertad'): 'Marcelo Fernández',  # RW | 24 años | 236 min
-    ('Marcos Gómez', 'Guaraní'): 'Marcos Gómez',  # RCMF | 24 años | 76 min
-    ('Matias López', 'Guaraní'): 'Matias López',  # RCMF | 22 años | 1046 min
-    ('Mario López', 'Sportivo San Lorenzo'): 'Mario López',  # LCB | 30 años | 1207 min
-    ('Miguel Martínez', 'Sportivo Ameliano'): 'Miguel Martínez',  # GK | 27 años | 1580 min
-    ('Roberto Martínez', 'Sportivo San Lorenzo'): 'Roberto Martínez',  # LW | 31 años | 233 min
-    ('Matias Pérez', 'Cerro Porteño'): 'Matias Pérez',  # LCB | 27 años | 1164 min
-    ('Pedro Álvarez', 'Rubio Ñú'): 'Pedro Álvarez',  # LB | 25 años | 544 min
-    ('Romeo Benítez', 'Olimpia'): 'Romeo Benítez',  # LWF | 23 años | 106 min
-    ('Raul Cabral', 'Sportivo Ameliano'): 'Raul Cabral',  # AMF | 21 años | 927 min
-    ('Roberto Fernández', 'Cerro Porteño'): 'Roberto Fernández',  # GK | 38 años | 98 min
-    ('Rodrigo Gómez', 'Cerro Porteño'): 'Rodrigo Gómez',  # RB | 19 años | 286 min
-    ('Roberto Ramírez', 'Nacional Asunción'): 'Roberto Ramírez',  # RCMF | 25 años | 1074 min
-    ('Rodney Redes', 'Olimpia'): 'Rodney Redes',  # RWF | 26 años | 181 min
+    ('G. Benítez', 'Cerro Porteño'): 'Angel G. Benítez',  # LB | 32 años | 469 min
+    ('G. Benítez', 'Nacional Asunción'): 'Gaston Benítez',  # LCB | 23 años | 208 min
+    ('G. Viera', 'Sportivo Trinidense'): 'Gustavo Viera',  # RCMF | 30 años | 1042 min
+    ('H. Benítez', 'Nacional Asunción'): 'Hugo J. Benítez',  # CF | 22 años | 451 min
+    ('H. Benítez', 'Sportivo Ameliano'): 'Hugo A. Benítez',  # RB | 27 años | 8 min
+    ('I. Ramírez', 'Club Libertad'): 'Ivan Ramírez',  # RB | 31 años | 868 min
+    ('J. Benítez', 'Sportivo Ameliano'): 'Jonathan Benítez',  # LDMF | 25 años | 1223 min
+    ('J. Franco', 'Deportivo Recoleta'): 'Juan A. Franco',  # RCMF | 23 años | 1274 min
+    ('J. González', 'Rubio Ñú'): 'Jorge D. González',  # LCB | 29 años | 330 min
+    ('J. González', 'Sportivo Ameliano'): 'Julio González',  # RCB | 33 años | 1580 min
+    ('J. Núñez', 'Deportivo Recoleta'): 'Juan I. Núñez',  # LCB | 36 años | 162 min
+    ('J. Pérez', 'Guaraní'): 'Dani Pérez',  # RB | 32 años | 969 min
+    ('J. Sánchez', 'Guaraní'): 'John Jairo Sánchez',  # RWF | 26 años | 557 min
+    ('J. Torres', 'Cerro Porteño'): 'Jonatan Torres',  # CF | 29 años | 632 min
+    ('L. Ayala', 'Sportivo Ameliano'): 'Luis Ayala',  # RW | 20 años | 530 min
+    ('L. González', 'Nacional Asunción'): 'L. González Gamarra',  # CF | 28 años | 463 min
+    ('L. González', 'Sportivo Trinidense'): 'Lucas D. González',  # RCMF | 21 años | 510 min
+    ('L. Gómez', 'Rubio Ñú'): 'Lucas Gómez',  # RCB | 20 años | 388 min
+    ('L. Martínez', 'Guaraní'): 'Luis Martínez',  # DMF | 26 años | 985 min
+    ('M. Cáceres', '2 de Mayo'): 'Fernando M. Cáceres',  # CF | 29 años | 494 min
+    ('M. Fernández', 'Club Libertad'): 'Marcelo Fernández',  # RW | 24 años | 236 min
+    ('M. Gómez', 'Guaraní'): 'Marcos Gómez',  # RCMF | 24 años | 76 min
+    ('M. López', 'Guaraní'): 'Matias López',  # RCMF | 22 años | 1046 min
+    ('M. López', 'Sportivo San Lorenzo'): 'Mario López',  # LCB | 30 años | 1207 min
+    ('M. Martínez', 'Sportivo Ameliano'): 'Miguel Martínez',  # GK | 27 años | 1580 min
+    ('M. Martínez', 'Sportivo San Lorenzo'): 'Roberto Martínez',  # LW | 31 años | 233 min
+    ('M. Pérez', 'Cerro Porteño'): 'Matias Pérez',  # LCB | 27 años | 1164 min
+    ('P. Álvarez', 'Rubio Ñú'): 'Pedro Álvarez',  # LB | 25 años | 544 min
+    ('R. Benítez', 'Olimpia'): 'Romeo Benítez',  # LWF | 23 años | 106 min
+    ('R. Cabral', 'Sportivo Ameliano'): 'Raul Cabral',  # AMF | 21 años | 927 min
+    ('R. Fernández', 'Cerro Porteño'): 'Roberto Fernández',  # GK | 38 años | 98 min
+    ('R. Gómez', 'Cerro Porteño'): 'Rodrigo Gómez',  # RB | 19 años | 286 min
+    ('R. Ramírez', 'Nacional Asunción'): 'Roberto Ramírez',  # RCMF | 25 años | 1074 min
+    ('R. Redes', 'Olimpia'): 'Rodney Redes',  # RWF | 26 años | 181 min
     ('R. Rodríguez', '2 de Mayo'): 'R. Rodríguez',  # RB | 24 años | 272 min
-    ('Robert Rojas', 'Club Libertad'): 'Robert Rojas',  # RCB | 29 años | 330 min
-    ('Richard Sánchez', 'Olimpia'): 'Richard Sánchez',  # RCMF | 30 años | 432 min
-    ('Sergio Díaz', 'Sportivo Luqueño'): 'Sergio Díaz',  # LW | 28 años | 679 min
-    ('Stevens Gómez', 'Rubio Ñú'): 'Stevens Gómez',  # LCMF | 26 años | 27 min
-    ('Sergio Mendoza', 'Sportivo Trinidense'): 'Sergio Mendoza',  # LB | 31 años | 999 min
-    ('Ángel I. Martínez', '2 de Mayo'): 'Ángel I. Martínez',  # GK | 23 años | 1575 min
-    ('Álvaro Martínez', 'Sportivo Luqueño'): 'Álvaro Martínez',  # LB | 24 años | 755 min
-    ('Óscar Romero', '2 de Mayo'): 'Óscar Romero',  # LCMF | 27 años | 706 min
+    ('R. Rojas', 'Club Libertad'): 'Robert Rojas',  # RCB | 29 años | 330 min
+    ('R. Sánchez', 'Olimpia'): 'Richard Sánchez',  # RCMF | 30 años | 432 min
+    ('S. Díaz', 'Sportivo Luqueño'): 'Sergio Díaz',  # LW | 28 años | 679 min
+    ('S. Gómez', 'Rubio Ñú'): 'Stevens Gómez',  # LCMF | 26 años | 27 min
+    ('S. Mendoza', 'Sportivo Trinidense'): 'Sergio Mendoza',  # LB | 31 años | 999 min
+    ('Á. Martínez', '2 de Mayo'): 'Ángel I. Martínez',  # GK | 23 años | 1575 min
+    ('Á. Martínez', 'Sportivo Luqueño'): 'Álvaro Martínez',  # LB | 24 años | 755 min
+    ('Ó. Romero', '2 de Mayo'): 'Óscar Romero',  # LCMF | 27 años | 706 min
     # ─────────────── ARG ───────────────
     ('A. Benítez', 'Belgrano'): 'A. Benítez',  # RB | 23 años | 905 min
     ('A. Cardozo', 'Lanús'): 'A. Cardozo',  # LCMF | 28 años | 1163 min
@@ -480,6 +480,13 @@ def process_database(df):
             mask = df['Player'] == player
             if mask.any():
                 df.loc[mask, 'Position'] = pos
+
+    # Aplicar renombrado de jugadores homónimos
+    if 'Player' in df.columns and 'Team' in df.columns:
+        for (player, team), new_name in PLAYER_NAME_OVERRIDES.items():
+            mask = (df['Player'] == player) & (df['Team'] == team)
+            if mask.any():
+                df.loc[mask, 'Player'] = new_name
 
     # Drop PAdj columns
     padj_columns = [col for col in df.columns if 'PAdj' in col]
