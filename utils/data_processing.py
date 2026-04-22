@@ -80,7 +80,7 @@ POSITION_GROUP_MAPPING = {
     'RWF': 'Extremo',
     'LWF': 'Extremo',
     'LW': 'Extremo',
-    'AMF': 'Volante Central',
+    'AMF': 'Volante Ofensivo',
     'RAMF': 'Extremo',
     'LAMF': 'Extremo',
     'RCMF': 'Volante Central',

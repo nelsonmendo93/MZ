@@ -1437,8 +1437,9 @@ def _get_scout_score_data(player_data, comparison_df, selected_pos):
         group_weights = {
             'Central':         {'DEF': 35, 'PAS': 25, 'POS': 20, 'CRE': 10, 'ATQ': 10},
             'Lateral':         {'DEF': 25, 'POS': 25, 'PAS': 20, 'ATQ': 15, 'CRE': 15},
-            'Volante Central': {'POS': 30, 'PAS': 25, 'CRE': 20, 'DEF': 15, 'ATQ': 10},
-            'Extremo':         {'ATQ': 30, 'CRE': 25, 'POS': 20, 'PAS': 15, 'DEF': 10},
+            'Volante Central':  {'POS': 30, 'PAS': 25, 'CRE': 20, 'DEF': 15, 'ATQ': 10},
+            'Volante Ofensivo': {'CRE': 35, 'ATQ': 25, 'PAS': 20, 'POS': 15, 'DEF': 5},
+            'Extremo':          {'ATQ': 30, 'CRE': 25, 'POS': 20, 'PAS': 15, 'DEF': 10},
             'Delantero':       {'ATQ': 40, 'CRE': 20, 'POS': 15, 'PAS': 15, 'DEF': 10},
         }
         return group_weights.get(position_group, default_weights)
@@ -3387,6 +3388,14 @@ _B11_ROLE_METRICS = {
         ('Defensive duels won, %', 0.9), ('Successful defensive actions per 90', 0.9),
         ('Progressive runs per 90', 0.9), ('Shot assists per 90', 0.9),
         ('Key passes per 90', 1.0),
+    ],
+    'Volante Ofensivo': [
+        ('Key passes per 90', 1.4), ('Shot assists per 90', 1.3),
+        ('xA per 90', 1.2), ('Assists per 90', 1.1),
+        ('Goals per 90', 1.1), ('Accurate passes to final third per 90', 1.0),
+        ('Accurate passes to penalty area per 90', 1.0), ('Progressive runs per 90', 1.1),
+        ('Accurate progressive passes per 90', 1.0), ('Touches in box per 90', 0.9),
+        ('Dribbles won per 90', 0.9),
     ],
     'Extremo': [
         ('Goals per 90', 1.2), ('Shots on target per 90', 1.0),
