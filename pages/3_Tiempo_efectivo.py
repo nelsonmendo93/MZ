@@ -262,7 +262,7 @@ def _render_match_cards(matches_df: pd.DataFrame):
                     <div class="te-bar-effective" style="width:{width_pct:.2f}%;"></div>
                 </div>
                 <div class="te-match-bottom">
-                    <div class="te-match-meta">Tiempo efectivo sobre tiempo neto del partido</div>
+                    <div class="te-match-meta">Porcentaje jugado: {width_pct:.1f}%</div>
                     <div class="te-match-badge te-match-badge-dark">Tiempo total {row["Tiempo total corto"]}</div>
                 </div>
             </div>
@@ -532,6 +532,7 @@ else:
 
         table_df = ranking_df[["Equipo", "Partidos", "Tiempo efectivo"]].copy()
         _render_simple_table(table_df)
+        st.caption("(*) Cerro Porteño y Olimpia tienen un partido menos en el conteo por suspensión. El promedio se calcula sobre los partidos efectivamente jugados.")
 
     with tab_detalle:
         team_options = ranking_df["Equipo"].tolist()
