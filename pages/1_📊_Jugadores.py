@@ -597,7 +597,7 @@ _GK_ONLY_METRICS = {
 # Logo centrado
 _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
-    st.image(LOGO_BLANCO, use_column_width=True)
+    st.image(LOGO_BLANCO, use_container_width=True)
 
 st.markdown(f"""
 <div style="text-align:center; padding: 4px 0 16px 0;">
@@ -3704,7 +3704,7 @@ with tab_best11:
                     bbox_inches='tight', facecolor=fig_b11.get_facecolor())
     plt.close(fig_b11)
 
-    st.image(buf_b11.getvalue(), use_column_width=True)
+    st.image(buf_b11.getvalue(), use_container_width=True)
 
     st.download_button(
         "⬇️ Descargar imagen (alta resolución)",
