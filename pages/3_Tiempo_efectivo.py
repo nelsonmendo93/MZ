@@ -120,6 +120,8 @@ def load_effective_time_data():
             effective_total = float(match_group["Tiempo efectivo equipo (min)"].sum())
             rival = _extract_opponent(match_name, club_name)
 
+            pct_jugado = round(effective_total / total_minutes * 100, 1) if total_minutes > 0 else 0.0
+
             match_rows.append(
                 {
                     "Date": match_date,
@@ -130,6 +132,7 @@ def load_effective_time_data():
                     "Tiempo efectivo (min)": effective_total,
                     "Tiempo efectivo": _format_minutes_to_hhmmss(effective_total),
                     "Tiempo efectivo corto": _format_minutes_to_mmss(effective_total),
+                    "Porcentaje jugado (%)": pct_jugado,
                 }
             )
 
@@ -148,14 +151,17 @@ def load_effective_time_data():
                 "Tiempo efectivo",
                 "Tiempo efectivo corto",
                 "Tiempo efectivo (min)",
+                "Porcentaje jugado (%)",
             ]
         ].copy()
 
+        avg_pct = team_match_df["Porcentaje jugado (%)"].mean() if not team_match_df.empty else 0.0
         ranking_rows.append(
             {
                 "Equipo": club_name,
                 "Partidos": len(team_rows),
                 "Tiempo efectivo promedio (min)": team_rows["Tiempo efectivo equipo (min)"].mean(),
+                "Porcentaje promedio (%)": avg_pct,
             }
         )
 
@@ -164,15 +170,14 @@ def load_effective_time_data():
         return ranking_df, team_match_map
 
     ranking_df["Tiempo efectivo"] = ranking_df["Tiempo efectivo promedio (min)"].apply(_format_minutes_to_hhmmss)
-    ranking_df = ranking_df.sort_values(
-        "Tiempo efectivo promedio (min)", ascending=False
-    ).reset_index(drop=True)
+    ranking_df["Porcentaje"] = ranking_df["Porcentaje promedio (%)"].apply(lambda x: f"{x:.1f}%")
 
     return ranking_df, team_match_map
 
 
-def _render_ranking_chart(ranking_df: pd.DataFrame):
-    plot_df = ranking_df.sort_values("Tiempo efectivo promedio (min)", ascending=True)
+def _render_ranking_chart(ranking_df: pd.DataFrame, sort_col: str = "Tiempo efectivo promedio (min)"):
+    use_pct = sort_col == "Porcentaje promedio (%)"
+    plot_df = ranking_df.sort_values(sort_col, ascending=True)
 
     fig_h = max(5.5, len(plot_df) * 0.55)
     fig, ax = plt.subplots(figsize=(11, fig_h), facecolor="#0f172a")
@@ -180,34 +185,44 @@ def _render_ranking_chart(ranking_df: pd.DataFrame):
 
     bars = ax.barh(
         plot_df["Equipo"],
-        plot_df["Tiempo efectivo promedio (min)"],
+        plot_df[sort_col],
         color="#22c55e",
         edgecolor="#86efac",
         linewidth=1.1,
         height=0.68,
     )
 
-    for bar, hhmmss, mins in zip(bars, plot_df["Tiempo efectivo"], plot_df["Tiempo efectivo promedio (min)"]):
-        x = bar.get_width()
-        ax.text(
-            x + 0.35,
-            bar.get_y() + bar.get_height() / 2,
-            f"{hhmmss}  |  {mins:.1f} min",
-            va="center",
-            ha="left",
-            fontsize=10.5,
-            color="#e2e8f0",
-            fontweight="bold",
-        )
+    if use_pct:
+        for bar, pct in zip(bars, plot_df["Porcentaje promedio (%)"]):
+            x = bar.get_width()
+            ax.text(
+                x + 0.35,
+                bar.get_y() + bar.get_height() / 2,
+                f"{pct:.1f}%",
+                va="center",
+                ha="left",
+                fontsize=10.5,
+                color="#e2e8f0",
+                fontweight="bold",
+            )
+        ax.set_title("Porcentaje de tiempo efectivo promedio por partido", color="#f8fafc", fontsize=16, fontweight="bold", pad=16)
+        ax.set_xlabel("% tiempo efectivo", color="#cbd5e1", fontsize=11, labelpad=10)
+    else:
+        for bar, hhmmss, mins in zip(bars, plot_df["Tiempo efectivo"], plot_df["Tiempo efectivo promedio (min)"]):
+            x = bar.get_width()
+            ax.text(
+                x + 0.35,
+                bar.get_y() + bar.get_height() / 2,
+                f"{hhmmss}  |  {mins:.1f} min",
+                va="center",
+                ha="left",
+                fontsize=10.5,
+                color="#e2e8f0",
+                fontweight="bold",
+            )
+        ax.set_title("Tiempo efectivo promedio por partido", color="#f8fafc", fontsize=16, fontweight="bold", pad=16)
+        ax.set_xlabel("Minutos de tiempo efectivo", color="#cbd5e1", fontsize=11, labelpad=10)
 
-    ax.set_title(
-        "Tiempo efectivo promedio por partido",
-        color="#f8fafc",
-        fontsize=16,
-        fontweight="bold",
-        pad=16,
-    )
-    ax.set_xlabel("Minutos de tiempo efectivo", color="#cbd5e1", fontsize=11, labelpad=10)
     ax.tick_params(axis="x", colors="#94a3b8", labelsize=10)
     ax.tick_params(axis="y", colors="#f8fafc", labelsize=11)
     ax.grid(axis="x", color="#334155", linestyle="--", linewidth=0.8, alpha=0.6)
@@ -524,13 +539,22 @@ else:
     )
 
     with tab_ranking:
-        st.caption(
-            "Orden descendente por tiempo efectivo promedio por partido. "
-            "La etiqueta principal se muestra en HH:MM:SS."
+        sort_by = st.radio(
+            "Ordenar por",
+            ["Minutos efectivos", "Porcentaje jugado"],
+            horizontal=True,
+            key="te_sort",
         )
-        _render_ranking_chart(ranking_df)
+        sort_col = "Tiempo efectivo promedio (min)" if sort_by == "Minutos efectivos" else "Porcentaje promedio (%)"
+        sorted_df = ranking_df.sort_values(sort_col, ascending=False).reset_index(drop=True)
 
-        table_df = ranking_df[["Equipo", "Partidos", "Tiempo efectivo"]].copy()
+        st.caption(
+            "Orden descendente. Minutos efectivos en HH:MM:SS. "
+            "Porcentaje: tiempo efectivo total del partido sobre tiempo neto."
+        )
+        _render_ranking_chart(sorted_df, sort_col)
+
+        table_df = sorted_df[["Equipo", "Partidos", "Tiempo efectivo", "Porcentaje"]].copy()
         _render_simple_table(table_df)
         st.caption("(*) Cerro Porteño y Olimpia tienen un partido menos en el conteo por suspensión. El promedio se calcula sobre los partidos efectivamente jugados.")
 
