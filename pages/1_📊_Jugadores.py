@@ -597,7 +597,7 @@ _GK_ONLY_METRICS = {
 # Logo centrado
 _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
-    st.image(LOGO_BLANCO, use_container_width=True)
+    st.image(LOGO_BLANCO, use_column_width=True)
 
 st.markdown(f"""
 <div style="text-align:center; padding: 4px 0 16px 0;">
@@ -811,8 +811,8 @@ def _player_header_html(player_name, position_code, pos_group,
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_best11 = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm", "⚽ Mejor Once"]
+tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_best11, tab_query = st.tabs(
+    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm", "⚽ Mejor Once", "🔎 Buscador"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -3704,7 +3704,7 @@ with tab_best11:
                     bbox_inches='tight', facecolor=fig_b11.get_facecolor())
     plt.close(fig_b11)
 
-    st.image(buf_b11.getvalue(), use_container_width=True)
+    st.image(buf_b11.getvalue(), use_column_width=True)
 
     st.download_button(
         "⬇️ Descargar imagen (alta resolución)",
@@ -3717,6 +3717,338 @@ with tab_best11:
         f"Mínimo {_b11_min_min} min jugados · {b11_age_range[0]}-{b11_age_range[1]} años"
         f"  ·  X: @marca_zonal  ·  Instagram: @marca.zonal"
     )
+
+
+# ---------------------------------------------------------------------------
+# Tab: Buscador
+# ---------------------------------------------------------------------------
+with tab_query:
+
+    # ── Session state ──────────────────────────────────────────────────────
+    if 'bq_n' not in st.session_state:
+        st.session_state['bq_n'] = 3
+
+    st.subheader("Buscador avanzado")
+    st.caption("Filtrá jugadores que cumplan múltiples umbrales de métricas simultáneamente")
+
+    # ── Bloque 1: Posición y Club (cols reservadas, se rellenan más abajo) ──
+    bq_c1, bq_c2 = st.columns(2)
+
+    # ── Edad y Minutos ──────────────────────────────────────────────────────
+    _bq_ref = df_all if not df_all.empty else df
+    bq_age_min = int(pd.to_numeric(_bq_ref['Age'], errors='coerce').min()) if 'Age' in _bq_ref.columns else 15
+    bq_age_max = int(pd.to_numeric(_bq_ref['Age'], errors='coerce').max()) if 'Age' in _bq_ref.columns else 45
+    bq_min_v   = int(pd.to_numeric(_bq_ref['Minutes played'], errors='coerce').min()) if 'Minutes played' in _bq_ref.columns else 0
+    bq_max_v   = int(pd.to_numeric(_bq_ref['Minutes played'], errors='coerce').max()) if 'Minutes played' in _bq_ref.columns else 5000
+
+    bq_a1, bq_a2 = st.columns(2)
+    with bq_a1:
+        bq_age = st.slider("Rango de edad", bq_age_min, bq_age_max,
+                           (bq_age_min, bq_age_max), key="bq_age")
+    with bq_a2:
+        bq_mins = st.slider("Minutos mínimos", bq_min_v, bq_max_v,
+                            min(200, bq_max_v), key="bq_mins")
+
+    # ── Ligas ───────────────────────────────────────────────────────────────
+    _bq_liga_colors = {
+        'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
+        'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+    }
+    _bq_liga_codes = [k for k in ['PAR', 'ARG', 'BRA', 'URU', 'COL', 'ECU', 'CHI']
+                      if _LIGA_DFS.get(k) is not None]
+
+    _bq_ck_rules = '\n'.join(
+        f'div[data-testid="stCheckbox"]:has(input[aria-label="{_LIGA_LABELS[c]}"]) label p'
+        f' {{ color: {_bq_liga_colors.get(c, "#e2e8f0")} !important; }}'
+        for c in _bq_liga_codes if c in _bq_liga_colors
+    )
+    st.markdown(f"""
+    <style>
+    div[data-testid="stCheckbox"]:has(input[aria-label="🌐 TODAS"]) label p
+        {{ color: #22c55e !important; font-weight: 800 !important; }}
+    div[data-testid="stCheckbox"] label p
+        {{ font-weight: 800 !important; font-size: 0.9rem !important; }}
+    {_bq_ck_rules}
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown(
+        "<p style='margin:10px 0 5px 0; font-size:0.78rem; color:#9ca3af; font-weight:600;"
+        " text-transform:uppercase; letter-spacing:0.06em;'>Ligas</p>",
+        unsafe_allow_html=True,
+    )
+    _bq_todas_col, *_bq_ck_cols = st.columns([1] + [1] * len(_bq_liga_codes))
+    with _bq_todas_col:
+        bq_todas = st.checkbox("🌐 TODAS", value=True, key="bq_todas")
+
+    bq_liga_sel = {}
+    for _i, _code in enumerate(_bq_liga_codes):
+        with _bq_ck_cols[_i]:
+            bq_liga_sel[_code] = st.checkbox(
+                _LIGA_LABELS[_code],
+                value=True,
+                disabled=bq_todas,
+                key=f"bq_liga_{_code}",
+            )
+
+    selected_ligas_bq = _bq_liga_codes if bq_todas else [c for c, v in bq_liga_sel.items() if v]
+
+    # ── Por 90 / Total ──────────────────────────────────────────────────────
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    bq_mode = st.radio("Métricas", ["Por 90", "Total"], horizontal=True,
+                       key="bq_mode", label_visibility="collapsed")
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    # ── Pool completo (solo ligas seleccionadas) ────────────────────────────
+    _bq_parts = []
+    for _code in selected_ligas_bq:
+        _ldf = _LIGA_DFS.get(_code)
+        if _ldf is not None:
+            _p = _ldf.copy()
+            _p['Liga'] = _code
+            _bq_parts.append(_p)
+    bq_pool_full = pd.concat(_bq_parts, ignore_index=True) if _bq_parts else pd.DataFrame()
+
+    # Posición multiselect (cascada: primero sobre pool completo)
+    bq_pos_opts = sorted(bq_pool_full['Position Group'].dropna().unique()) if not bq_pool_full.empty else []
+    with bq_c1:
+        bq_pos = st.multiselect("Posición", bq_pos_opts, key="bq_pos",
+                                placeholder="Todas las posiciones")
+
+    bq_pool_pos = (bq_pool_full[bq_pool_full['Position Group'].isin(bq_pos)].copy()
+                   if bq_pos else bq_pool_full.copy())
+
+    # Club multiselect (cascada desde posición)
+    _bq_tc = ('Team within selected timeframe'
+              if not bq_pool_pos.empty and 'Team within selected timeframe' in bq_pool_pos.columns
+              else 'Team')
+    bq_clubs_avail = sorted(bq_pool_pos[_bq_tc].dropna().unique()) if not bq_pool_pos.empty else []
+    with bq_c2:
+        bq_club = st.multiselect("Club", bq_clubs_avail, key="bq_club",
+                                 placeholder="Todos los clubes")
+
+    # ── Pool base (pre-métricas) ────────────────────────────────────────────
+    bq_pool = bq_pool_pos.copy()
+    if bq_club:
+        bq_pool = bq_pool[bq_pool[_bq_tc].isin(bq_club)]
+    if 'Age' in bq_pool.columns:
+        bq_pool = bq_pool[pd.to_numeric(bq_pool['Age'], errors='coerce').between(bq_age[0], bq_age[1])]
+    if 'Minutes played' in bq_pool.columns:
+        bq_pool = bq_pool[pd.to_numeric(bq_pool['Minutes played'], errors='coerce') >= bq_mins]
+    bq_pool = bq_pool.reset_index(drop=True)
+
+    # ── Métricas disponibles ────────────────────────────────────────────────
+    if bq_mode == "Por 90":
+        bq_avail = sorted([c for c in metric_columns
+                           if c.endswith(' per 90') and c in bq_pool.columns])
+    else:
+        bq_avail = sorted([c for c in metric_columns
+                           if not c.endswith(' per 90')
+                           and not c.endswith(', %')
+                           and 'Average' not in c
+                           and c in bq_pool.columns])
+
+    # ── Selectores de métricas dinámicos ──────────────────────────────────
+    st.markdown(
+        "<p style='margin:14px 0 5px 0; font-size:0.78rem; color:#9ca3af; font-weight:600;"
+        " text-transform:uppercase; letter-spacing:0.06em;'>Métricas y umbrales</p>",
+        unsafe_allow_html=True,
+    )
+
+    bq_active_filters = []  # list of (col_name, min_val, max_val)
+
+    for _i in range(st.session_state['bq_n']):
+        _mc1, _mc2 = st.columns([1, 2])
+        with _mc1:
+            _sel = st.selectbox(
+                f"Métrica {_i + 1}",
+                ['—'] + bq_avail,
+                key=f"bq_metric_{_i}",
+                format_func=lambda x: '—' if x == '—' else translate(x),
+            )
+        if _sel != '—' and not bq_pool.empty and _sel in bq_pool.columns:
+            _series = pd.to_numeric(bq_pool[_sel], errors='coerce').dropna()
+            if len(_series) >= 2:
+                _s_min = float(round(_series.min(), 2))
+                _s_max = float(round(_series.max(), 2))
+                if _s_min == _s_max:
+                    _s_max = _s_min + 0.01
+                _step = max(round((_s_max - _s_min) / 200, 3), 0.01)
+                with _mc2:
+                    _rng = st.slider(
+                        translate(_sel),
+                        min_value=_s_min, max_value=_s_max,
+                        value=(_s_min, _s_max),
+                        step=_step,
+                        key=f"bq_rng_{_i}_{_sel}",
+                    )
+                bq_active_filters.append((_sel, _rng[0], _rng[1]))
+        else:
+            with _mc2:
+                st.markdown("<div style='height:38px'></div>", unsafe_allow_html=True)
+
+    # Botones agregar / quitar
+    _bq_b1, _bq_b2, _ = st.columns([1, 1, 5])
+    with _bq_b1:
+        if st.session_state['bq_n'] < 7:
+            if st.button("＋ Agregar métrica", key="bq_add", use_container_width=True):
+                st.session_state['bq_n'] += 1
+                st.rerun()
+    with _bq_b2:
+        if st.session_state['bq_n'] > 1:
+            if st.button("－ Quitar", key="bq_remove", use_container_width=True):
+                st.session_state['bq_n'] -= 1
+                st.rerun()
+
+    # ── Aplicar filtros de métricas ─────────────────────────────────────────
+    bq_result = bq_pool.copy()
+    for _col, _mn, _mx in bq_active_filters:
+        if _col in bq_result.columns:
+            _n = pd.to_numeric(bq_result[_col], errors='coerce')
+            bq_result = bq_result[(_n >= _mn) & (_n <= _mx)]
+    bq_result = bq_result.reset_index(drop=True)
+    n_bq = len(bq_result)
+
+    # ── Controles de orden ──────────────────────────────────────────────────
+    _bq_sort_opts = ['Jugador', 'Edad', 'Minutos'] + [translate(f[0]) for f in bq_active_filters]
+    _bq_sort_map  = {'Jugador': 'Player', 'Edad': 'Age', 'Minutos': 'Minutes played'}
+    for _col, _, _ in bq_active_filters:
+        _bq_sort_map[translate(_col)] = _col
+
+    _bs1, _bs2 = st.columns([2, 1])
+    with _bs1:
+        bq_sort_lbl = st.selectbox("Ordenar por", _bq_sort_opts, key="bq_sort")
+    with _bs2:
+        bq_sort_dir = st.radio("Orden", ["↓ Mayor a menor", "↑ Menor a mayor"],
+                               key="bq_ord", horizontal=True, label_visibility="collapsed")
+
+    bq_sort_col = _bq_sort_map.get(bq_sort_lbl, 'Player')
+    bq_asc      = (bq_sort_dir == "↑ Menor a mayor")
+
+    if not bq_result.empty and bq_sort_col in bq_result.columns:
+        try:
+            bq_result = bq_result.sort_values(
+                bq_sort_col, ascending=bq_asc,
+                key=lambda s: pd.to_numeric(s, errors='coerce') if bq_sort_col != 'Player' else s
+            ).reset_index(drop=True)
+        except Exception:
+            pass
+
+    # ── Contador de resultados ─────────────────────────────────────────────
+    st.markdown(
+        f"<p style='margin:12px 0 6px 0; font-size:0.9rem; color:#94a3b8;'>"
+        f"<b style='color:#22c55e; font-size:1rem;'>{n_bq}</b> "
+        f"jugador{'es' if n_bq != 1 else ''} encontrado{'s' if n_bq != 1 else ''}"
+        f"</p>",
+        unsafe_allow_html=True,
+    )
+
+    # ── HTML Table ──────────────────────────────────────────────────────────
+    if not bq_result.empty and n_bq > 0 and bq_active_filters:
+        _bq_tc_r = ('Team within selected timeframe'
+                    if 'Team within selected timeframe' in bq_result.columns else 'Team')
+        _show_liga = ('Liga' in bq_result.columns and len(selected_ligas_bq) > 1)
+        _bq_badge = {
+            'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
+            'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+        }
+
+        # Cabeceras métricas con rango del slider
+        def _fmt_threshold(mn, mx, col):
+            _all = pd.to_numeric(bq_pool[col], errors='coerce') if col in bq_pool.columns else pd.Series(dtype=float)
+            _pool_min = float(_all.min()) if len(_all) > 0 else mn
+            _pool_max = float(_all.max()) if len(_all) > 0 else mx
+            at_min = abs(mn - _pool_min) < 0.011
+            at_max = abs(mx - _pool_max) < 0.011
+            if at_min and at_max:
+                return ''
+            if at_min:
+                return f'≤ {mx:.2f}'
+            if at_max:
+                return f'≥ {mn:.2f}'
+            return f'{mn:.2f} – {mx:.2f}'
+
+        # Header row
+        _th_metric = ''.join(
+            f'<th class="mth">{translate(col)}'
+            f'{"<br><span class=thr>" + _fmt_threshold(mn, mx, col) + "</span>" if _fmt_threshold(mn, mx, col) else ""}'
+            f'</th>'
+            for col, mn, mx in bq_active_filters
+        )
+        _liga_th = '<th>Liga</th>' if _show_liga else ''
+
+        # Data rows
+        _rows = ''
+        for _, row in bq_result.iterrows():
+            _player = str(row.get('Player', ''))
+            _age    = str(int(row['Age'])) if pd.notna(row.get('Age')) and str(row.get('Age')) != 'nan' else '—'
+            _nat    = str(row.get('Birth country', '—')).strip() or '—'
+            _club   = str(row.get(_bq_tc_r, '—'))
+
+            _rows += '<tr>'
+            _rows += f'<td class="pname">{_player}</td>'
+            _rows += f'<td class="ctr">{_age}</td>'
+            _rows += f'<td class="nat">{_nat}</td>'
+            _rows += f'<td>{_club}</td>'
+
+            if _show_liga:
+                _lc = str(row.get('Liga', ''))
+                _bc = _bq_badge.get(_lc, '#64748b')
+                _rows += (f'<td><span style="background:{_bc};color:#fff;padding:2px 7px;'
+                          f'border-radius:4px;font-size:10px;font-weight:700;">{_lc}</span></td>')
+
+            for _col, _mn, _mx in bq_active_filters:
+                _v = pd.to_numeric(row.get(_col), errors='coerce')
+                if pd.isna(_v):
+                    _rows += '<td class="ctr">—</td>'
+                else:
+                    _vs = f'{_v:.2f}' if bq_mode == "Por 90" else (f'{int(_v)}' if _v == int(_v) else f'{_v:.2f}')
+                    _rows += f'<td class="mval">{_vs}</td>'
+
+            _rows += '</tr>'
+
+        _table_h = min(580, 46 + n_bq * 40 + 20)
+
+        _html = f"""<!DOCTYPE html><html>
+<head>
+<link href="https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#0f172a;color:#e2e8f0;font-family:'Cousine',monospace;font-size:13px}}
+.wrap{{overflow-x:auto;overflow-y:auto;max-height:{_table_h}px}}
+table{{width:100%;border-collapse:collapse;min-width:500px}}
+thead tr{{background:#1e293b;position:sticky;top:0;z-index:1}}
+th{{padding:10px 14px;text-align:left;color:#94a3b8;font-size:10.5px;
+    font-family:'Poppins',sans-serif;text-transform:uppercase;letter-spacing:0.07em;
+    font-weight:700;border-bottom:2px solid #334155;white-space:nowrap}}
+th.mth{{color:#f59e0b}}
+.thr{{color:#64748b;font-size:9px;font-weight:400;text-transform:none;letter-spacing:0}}
+td{{padding:8px 14px;border-bottom:1px solid #1e293b;white-space:nowrap}}
+tr:hover td{{background:rgba(255,255,255,0.03)}}
+.pname{{color:#f1f5f9;font-weight:700}}
+.mval{{color:#22c55e;font-weight:700}}
+.ctr{{text-align:center}}
+.nat{{color:#94a3b8;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<table>
+<thead><tr>
+<th>Jugador</th><th class="ctr">Edad</th><th>Nac.</th><th>Club</th>
+{_liga_th}{_th_metric}
+</tr></thead>
+<tbody>{_rows}</tbody>
+</table>
+</div>
+</body></html>"""
+
+        components.html(_html, height=_table_h + 30, scrolling=False)
+
+    elif bq_active_filters and n_bq == 0:
+        st.info("Ningún jugador cumple todos los criterios. Probá ampliar los rangos.")
+    elif not bq_active_filters:
+        st.info("Seleccioná al menos una métrica para ver resultados.")
 
 
 # ---------------------------------------------------------------------------
