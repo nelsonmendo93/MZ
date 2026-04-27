@@ -1765,7 +1765,7 @@ with tab_table:
                             category_scores=scout_category_scores,
                             player_position=str(player_data.get('Position', '')),
                         )
-                        components.html(scout_html, height=1820, scrolling=True)
+                        components.html(scout_html, height=1400, scrolling=True)
                         st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
                     else:
                         st.info("No hay suficientes métricas del radial para construir la vista scout.")

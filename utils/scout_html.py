@@ -196,42 +196,43 @@ def build_scout_html(
     score = max(0, min(100, float(overall_score)))
     return f"""
     <style>
+      /* ── Base (desktop / export) ─────────────────────────────────── */
       .mz-root {{
         background:#050b14;
         color:#f8fafc;
-        font-family:'Cousine', 'DejaVu Sans Mono', monospace;
-        padding:18px 18px 12px 18px;
+        font-family:'Cousine','DejaVu Sans Mono',monospace;
+        padding:13px 13px 9px 13px;
       }}
       .mz-label-top {{
         color:#14b8a6;
         font-weight:800;
-        font-size:14px;
-        margin-bottom:10px;
+        font-size:13px;
+        margin-bottom:7px;
       }}
       .mz-player {{
-        font-size:46px;
+        font-size:36px;
         font-weight:900;
         line-height:1;
-        margin-bottom:10px;
+        margin-bottom:6px;
       }}
       .mz-subtitle {{
         color:#94a3b8;
-        font-size:13px;
-        margin-bottom:18px;
+        font-size:12px;
+        margin-bottom:10px;
       }}
       .mz-grid {{
         display:grid;
-        grid-template-columns: 1.05fr 1.45fr;
-        gap:14px;
+        grid-template-columns:1.05fr 1.45fr;
+        gap:9px;
       }}
       .mz-left, .mz-right {{
         display:flex;
         flex-direction:column;
-        gap:14px;
+        gap:9px;
       }}
       .mz-logo-space {{
         flex:1;
-        min-height:70px;
+        min-height:44px;
         display:flex;
         align-items:center;
         justify-content:center;
@@ -241,31 +242,31 @@ def build_scout_html(
         align-items:center;
         justify-content:flex-end;
         width:100%;
-        margin-top:14px;
+        margin-top:8px;
         padding:0 2px;
       }}
       .mz-footer-social {{
         color:#6b7280;
-        font-size:12px;
+        font-size:11px;
         text-align:right;
-        line-height:1.5;
+        line-height:1.4;
       }}
       .mz-card {{
         background:{SCOUT_PANEL_BG};
         border:1px solid {SCOUT_BORDER};
-        border-radius:18px;
-        box-shadow:0 10px 25px rgba(0,0,0,.18);
+        border-radius:14px;
+        box-shadow:0 6px 16px rgba(0,0,0,.18);
       }}
       .mz-score-card {{
-        padding:26px 24px 24px;
-        min-height:360px;
+        padding:16px 18px 14px;
       }}
       .mz-score-title {{
         color:#38bdf8;
         font-weight:900;
-        font-size:24px;
-        margin-bottom:16px;
+        font-size:17px;
+        margin-bottom:8px;
         line-height:1.05;
+        text-align:center;
       }}
       .mz-score-wrap {{
         display:flex;
@@ -273,8 +274,8 @@ def build_scout_html(
         align-items:center;
       }}
       .mz-score-ring {{
-        width:250px;
-        height:250px;
+        width:180px;
+        height:180px;
         border-radius:50%;
         background:conic-gradient(from 0deg, #22c55e 0deg, #22c55e {score*3.6}deg, #223047 {score*3.6}deg, #223047 360deg);
         display:flex;
@@ -282,96 +283,96 @@ def build_scout_html(
         justify-content:center;
       }}
       .mz-score-hole {{
-        width:158px;
-        height:158px;
+        width:114px;
+        height:114px;
         border-radius:50%;
         background:#08111d;
         display:flex;
         align-items:center;
         justify-content:center;
-        font-size:58px;
+        font-size:42px;
         font-weight:900;
       }}
       .mz-axis-card {{
-        padding:22px 22px 22px;
+        padding:10px 13px;
         background:{SCOUT_CARD_BG};
         border:1px solid {SCOUT_BORDER};
-        border-radius:16px;
+        border-radius:12px;
       }}
       .mz-axis-top {{
         display:flex;
         justify-content:space-between;
         align-items:center;
-        margin-bottom:16px;
+        margin-bottom:7px;
       }}
       .mz-axis-label {{
-        font-size:21px;
+        font-size:15px;
         font-weight:900;
       }}
       .mz-axis-score {{
-        font-size:22px;
+        font-size:16px;
         font-weight:900;
       }}
       .mz-pill-row {{
         display:grid;
-        grid-template-columns:repeat(12, 1fr);
-        gap:7px;
+        grid-template-columns:repeat(12,1fr);
+        gap:4px;
       }}
       .mz-pill {{
-        height:16px;
+        height:10px;
         border-radius:999px;
       }}
       .mz-panel {{
-        padding:20px 22px 18px;
+        padding:12px 14px 10px;
       }}
       .mz-panel-title {{
-        font-size:16px;
+        font-size:13px;
         font-weight:900;
-        margin-bottom:16px;
+        margin-bottom:9px;
       }}
       .mz-panel-title-summary {{
-        font-size:18px;
+        font-size:14px;
       }}
       .mz-panel-title.blue {{ color:#38bdf8; }}
       .mz-panel-title.green {{ color:#22c55e; }}
       .mz-panel-title.orange {{ color:#f59e0b; }}
       .mz-summary-layout {{
         display:grid;
-        grid-template-columns: 1.1fr .65fr;
-        gap:16px;
+        grid-template-columns:1.1fr .65fr;
+        gap:10px;
         align-items:stretch;
       }}
       .mz-summary-grid {{
         display:grid;
-        grid-template-columns: 1fr 1fr;
-        gap:14px;
+        grid-template-columns:1fr 1fr;
+        gap:8px;
       }}
       .mz-summary-card {{
         background:{SCOUT_CARD_BG};
         border:1px solid {SCOUT_BORDER};
-        border-radius:14px;
-        padding:16px 18px;
-        min-height:66px;
+        border-radius:11px;
+        padding:10px 12px;
+        min-height:52px;
       }}
       .mz-summary-card-wide {{
         grid-column:1 / span 2;
       }}
       .mz-meta-label {{
-        font-size:14px;
+        font-size:10px;
         color:#64748b;
         font-weight:800;
-        margin-bottom:6px;
+        margin-bottom:4px;
         letter-spacing:.04em;
       }}
       .mz-meta-value {{
-        font-size:22px;
+        font-size:17px;
         font-weight:900;
       }}
       .mz-pos-card {{
         background:{SCOUT_CARD_BG};
         border:1px solid {SCOUT_BORDER};
-        border-radius:14px;
-        padding:14px 12px 12px;
+        border-radius:11px;
+        padding:10px 8px 8px;
         display:flex;
         flex-direction:column;
         align-items:center;
@@ -379,12 +380,12 @@ def build_scout_html(
       }}
       .mz-pitch {{
         position:relative;
-        width:128px;
-        height:258px;
-        margin-top:8px;
+        width:90px;
+        height:180px;
+        margin-top:6px;
         background:#1c2435;
         border:2px solid #d8dee9;
-        border-radius:6px;
+        border-radius:5px;
       }}
       .mz-pitch-box {{
         position:absolute;
@@ -392,35 +393,35 @@ def build_scout_html(
         transform:translateX(-50%);
         border:2px solid #d8dee9;
       }}
-      .mz-pitch-box-top {{ top:0; width:76px; height:36px; border-top:0; }}
-      .mz-pitch-goal-top {{ top:0; width:42px; height:18px; border-top:0; }}
-      .mz-pitch-box-bottom {{ bottom:0; width:76px; height:36px; border-bottom:0; }}
-      .mz-pitch-goal-bottom {{ bottom:0; width:42px; height:18px; border-bottom:0; }}
+      .mz-pitch-box-top {{ top:0; width:54px; height:25px; border-top:0; }}
+      .mz-pitch-goal-top {{ top:0; width:30px; height:13px; border-top:0; }}
+      .mz-pitch-box-bottom {{ bottom:0; width:54px; height:25px; border-bottom:0; }}
+      .mz-pitch-goal-bottom {{ bottom:0; width:30px; height:13px; border-bottom:0; }}
       .mz-pitch-midline {{
         position:absolute; left:0; right:0; top:50%;
         border-top:2px solid #d8dee9;
       }}
       .mz-pitch-circle {{
         position:absolute; left:50%; top:50%;
-        width:44px; height:44px; transform:translate(-50%, -50%);
+        width:30px; height:30px; transform:translate(-50%,-50%);
         border:2px solid #d8dee9; border-radius:50%;
       }}
       .mz-pitch-dot {{
-        position:absolute; left:50%; width:4px; height:4px; transform:translateX(-50%);
+        position:absolute; left:50%; width:3px; height:3px; transform:translateX(-50%);
         background:#d8dee9; border-radius:50%;
       }}
       .mz-pitch-dot-top {{ top:22%; }}
-      .mz-pitch-dot-mid {{ top:50%; margin-top:-2px; }}
+      .mz-pitch-dot-mid {{ top:50%; margin-top:-1px; }}
       .mz-pitch-dot-bottom {{ bottom:22%; }}
       .mz-position-marker {{
         position:absolute;
-        width:30px; height:30px;
-        transform:translate(-50%, -50%);
+        width:22px; height:22px;
+        transform:translate(-50%,-50%);
         border-radius:50%;
         background:#38bdf8;
         border:2px solid #ffffff;
         color:#ffffff;
-        font-size:10px;
+        font-size:8px;
         font-weight:900;
         display:flex;
         align-items:center;
@@ -429,24 +430,24 @@ def build_scout_html(
       .mz-list-card {{
         background:{SCOUT_CARD_BG};
         border:1px solid {SCOUT_BORDER};
-        border-radius:14px;
-        padding:12px 16px;
+        border-radius:11px;
+        padding:8px 12px;
         display:flex;
         align-items:center;
         justify-content:space-between;
-        gap:14px;
+        gap:10px;
       }}
-      .mz-list-card + .mz-list-card {{ margin-top:10px; }}
+      .mz-list-card + .mz-list-card {{ margin-top:6px; }}
       .mz-list-card-metric {{
         position:relative;
-        padding-left:18px;
+        padding-left:14px;
       }}
       .mz-list-accent {{
         position:absolute;
         left:0;
-        top:10px;
-        bottom:10px;
-        width:6px;
+        top:8px;
+        bottom:8px;
+        width:5px;
         border-radius:999px;
         background:#22c55e;
       }}
@@ -455,36 +456,34 @@ def build_scout_html(
         min-width:0;
       }}
       .mz-list-title {{
-        font-size:12px;
+        font-size:11px;
         font-weight:800;
         line-height:1.25;
         white-space:normal;
         word-break:break-word;
       }}
       .mz-list-sub {{
-        font-size:11px;
+        font-size:10px;
         color:#cbd5e1;
         font-weight:700;
-        margin-top:4px;
+        margin-top:3px;
       }}
       .mz-list-right {{
         flex:none;
-        font-size:12px;
+        font-size:11px;
         font-weight:900;
       }}
       .mz-list-rank {{ color:#22c55e; }}
       .mz-sim-grid {{
         width:100%;
         display:grid;
-        grid-template-columns:minmax(0,2fr) 36px minmax(0,1.3fr) 44px 54px;
-        gap:8px;
+        grid-template-columns:minmax(0,2fr) 32px minmax(0,1.3fr) 40px 50px;
+        gap:6px;
         align-items:center;
       }}
-      .mz-sim-col {{
-        min-width:0;
-      }}
+      .mz-sim-col {{ min-width:0; }}
       .mz-sim-player {{
-        font-size:13px;
+        font-size:12px;
         font-weight:900;
         color:#f8fafc;
         line-height:1.15;
@@ -492,7 +491,7 @@ def build_scout_html(
         word-break:break-word;
       }}
       .mz-sim-team {{
-        font-size:12px;
+        font-size:11px;
         color:#cbd5e1;
         font-weight:700;
         line-height:1.15;
@@ -500,32 +499,86 @@ def build_scout_html(
         word-break:break-word;
       }}
       .mz-age-chip, .mz-league-chip {{
-        height:22px;
-        border-radius:8px;
+        height:20px;
+        border-radius:7px;
         display:inline-flex;
         align-items:center;
         justify-content:center;
-        font-size:11px;
+        font-size:10px;
         font-weight:800;
       }}
-      .mz-age-chip {{
-        background:#0f1c2e;
-        color:#cbd5e1;
-        width:100%;
-      }}
-      .mz-league-chip {{
-        color:#fff;
-        width:100%;
-      }}
+      .mz-age-chip {{ background:#0f1c2e; color:#cbd5e1; width:100%; }}
+      .mz-league-chip {{ color:#fff; width:100%; }}
       .mz-sim-score {{
         min-width:0;
         text-align:right;
-        font-size:12px;
+        font-size:11px;
         font-weight:900;
       }}
-      .mz-footer {{
-        display:none;
+      .mz-footer {{ display:none; }}
+
+      /* ── Mobile: layout apilado — activado via JS (.mz-mobile) ─────── */
+      /* Se usa clase JS en vez de @media para poder exportar en desktop  */
+      .mz-mobile {{ padding:10px 10px 8px !important; }}
+      .mz-mobile .mz-player {{ font-size:22px !important; margin-bottom:4px !important; }}
+      .mz-mobile .mz-label-top {{ font-size:11px !important; margin-bottom:5px !important; }}
+      .mz-mobile .mz-subtitle {{ font-size:10px !important; margin-bottom:8px !important; }}
+
+      .mz-mobile .mz-grid {{ grid-template-columns:1fr !important; gap:8px !important; }}
+
+      .mz-mobile .mz-left {{
+        display:grid !important;
+        grid-template-columns:auto 1fr !important;
+        gap:7px !important;
+        align-items:start !important;
       }}
+      .mz-mobile .mz-card.mz-score-card {{
+        grid-column:1 !important;
+        grid-row:1 / span 6 !important;
+        padding:10px 12px !important;
+        align-self:start !important;
+      }}
+      .mz-mobile .mz-score-title {{ font-size:10px !important; margin-bottom:6px !important; }}
+      .mz-mobile .mz-score-ring {{ width:110px !important; height:110px !important; }}
+      .mz-mobile .mz-score-hole {{ width:70px !important; height:70px !important; font-size:26px !important; }}
+
+      .mz-mobile .mz-axis-card {{
+        grid-column:2 !important;
+        padding:6px 10px !important;
+        border-radius:9px !important;
+      }}
+      .mz-mobile .mz-axis-top {{ margin-bottom:4px !important; }}
+      .mz-mobile .mz-axis-label {{ font-size:12px !important; }}
+      .mz-mobile .mz-axis-score {{ font-size:13px !important; }}
+      .mz-mobile .mz-pill {{ height:7px !important; }}
+      .mz-mobile .mz-pill-row {{ gap:3px !important; }}
+
+      .mz-mobile .mz-logo-space {{
+        grid-column:1 / span 2 !important;
+        min-height:30px !important;
+      }}
+
+      .mz-mobile .mz-right {{ gap:7px !important; }}
+      .mz-mobile .mz-panel {{ padding:9px 11px 8px !important; }}
+      .mz-mobile .mz-panel-title {{ font-size:11px !important; margin-bottom:7px !important; }}
+
+      .mz-mobile .mz-summary-layout {{ grid-template-columns:1fr !important; gap:6px !important; }}
+      .mz-mobile .mz-pos-card {{ display:none !important; }}
+      .mz-mobile .mz-summary-grid {{ grid-template-columns:repeat(3,1fr) !important; gap:6px !important; }}
+      .mz-mobile .mz-summary-card {{ padding:7px 9px !important; min-height:42px !important; border-radius:9px !important; }}
+      .mz-mobile .mz-meta-label {{ font-size:9px !important; margin-bottom:2px !important; }}
+      .mz-mobile .mz-meta-value {{ font-size:13px !important; }}
+
+      .mz-mobile .mz-list-card {{ padding:6px 10px !important; gap:8px !important; border-radius:9px !important; }}
+      .mz-mobile .mz-list-card + .mz-list-card {{ margin-top:5px !important; }}
+      .mz-mobile .mz-list-title {{ font-size:10px !important; }}
+      .mz-mobile .mz-list-sub {{ font-size:9px !important; }}
+      .mz-mobile .mz-list-right {{ font-size:10px !important; }}
+      .mz-mobile .mz-sim-player {{ font-size:10px !important; }}
+      .mz-mobile .mz-sim-team {{ font-size:9px !important; }}
+
+      .mz-mobile .mz-footer-bar {{ margin-top:6px !important; }}
+      .mz-mobile .mz-footer-social {{ font-size:9px !important; }}
     </style>
     <div class="mz-root">
       <div class="mz-label-top">VISTA SCOUT</div>
@@ -614,11 +667,22 @@ def build_scout_html(
       }});
     }}
 
-    // Dibuja el logo al cargar la página
+    // Dibuja el logo al cargar la página + aplica layout móvil si corresponde
+    function mzApplyResponsive() {{
+      var root = document.querySelector('.mz-root');
+      if (!root) return;
+      if (window.innerWidth <= 540) {{
+        root.classList.add('mz-mobile');
+      }} else {{
+        root.classList.remove('mz-mobile');
+      }}
+    }}
     document.addEventListener('DOMContentLoaded', function() {{
       var c = document.getElementById('mz-logo-canvas');
       if (c) mzDrawLogo(c);
+      mzApplyResponsive();
     }});
+    window.addEventListener('resize', mzApplyResponsive);
 
     function mzGenerate() {{
       var btn    = document.getElementById('mz-dl-btn');
@@ -630,12 +694,15 @@ def build_scout_html(
       btn.textContent = 'Generando...';
       status.textContent = '';
 
-      var canvas = document.getElementById('mz-logo-canvas');
-      var node   = document.querySelector('.mz-root');
-      var scale  = 2;
+      var logoCanvas = document.getElementById('mz-logo-canvas');
+      var node       = document.querySelector('.mz-root');
+      var scale      = 2;
 
-      // Redibujar logo en canvas justo antes de capturar
-      mzDrawLogo(canvas).then(function() {{
+      // Quitar layout móvil para capturar siempre en desktop
+      var wasMobile = node.classList.contains('mz-mobile');
+      node.classList.remove('mz-mobile');
+
+      mzDrawLogo(logoCanvas).then(function() {{
         return domtoimage.toPng(node, {{
           width:  node.scrollWidth  * scale,
           height: node.scrollHeight * scale,
@@ -649,24 +716,50 @@ def build_scout_html(
         }});
       }})
       .then(function(dataUrl) {{
-        img.src          = dataUrl;
-        wrap.style.display = 'block';
-        btn.disabled     = false;
-        btn.textContent  = '⬇ GENERAR PNG';
-        status.textContent = '✓ Imagen lista — guardala con click derecho (desktop) o mantené presionado (móvil)';
-
-        try {{
-          var a = document.createElement('a');
-          a.href     = dataUrl;
-          a.download = '{_esc(player_name).replace(" ", "_")}_scout.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }} catch(e) {{}}
+        // Componer en canvas exactamente 3:4
+        var srcImg = new Image();
+        srcImg.onload = function() {{
+          var srcW = srcImg.width;
+          var srcH = srcImg.height;
+          var outW = srcW;
+          var outH = Math.round(srcW * 4 / 3);
+          var oc   = document.createElement('canvas');
+          oc.width  = outW;
+          oc.height = outH;
+          var ctx = oc.getContext('2d');
+          ctx.fillStyle = '#050b14';
+          ctx.fillRect(0, 0, outW, outH);
+          if (srcH <= outH) {{
+            // Contenido más corto: pegar al top, fondo rellena el resto
+            ctx.drawImage(srcImg, 0, 0, srcW, srcH);
+          }} else {{
+            // Contenido más alto: escalar proporcional para que entre
+            var scaledW = Math.round(srcW * outH / srcH);
+            ctx.drawImage(srcImg, Math.round((outW - scaledW) / 2), 0, scaledW, outH);
+          }}
+          var finalUrl = oc.toDataURL('image/png');
+          img.src = finalUrl;
+          wrap.style.display = 'block';
+          btn.disabled    = false;
+          btn.textContent = '⬇ GENERAR PNG';
+          status.textContent = '✓ Imagen lista — guardala con click derecho (desktop) o mantené presionado (móvil)';
+          // Restaurar layout móvil si estaba activo
+          if (wasMobile) node.classList.add('mz-mobile');
+          try {{
+            var a = document.createElement('a');
+            a.href     = finalUrl;
+            a.download = '{_esc(player_name).replace(" ", "_")}_scout.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }} catch(e) {{}}
+        }};
+        srcImg.src = dataUrl;
       }})
       .catch(function(err) {{
-        btn.disabled     = false;
-        btn.textContent  = '⬇ GENERAR PNG';
+        if (wasMobile) node.classList.add('mz-mobile');
+        btn.disabled    = false;
+        btn.textContent = '⬇ GENERAR PNG';
         status.textContent = 'Error: ' + String(err);
       }});
     }}
