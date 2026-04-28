@@ -500,6 +500,88 @@ _ALWAYS_COLS = {
     'Received long passes per 90',
 }
 
+# Pesos de métricas individuales por grupo de posición.
+# ⭐ High = 3.0 | Normal = 1.0 | Bajo = 0.3
+# Las métricas no listadas reciben peso 1.0 por defecto.
+_POSITION_METRIC_WEIGHTS = {
+    'Delantero': {
+        'Goals per 90':                          3.0,
+        'xG per 90':                             3.0,
+        'Shots on target per 90':                2.5,
+        'Non-penalty goals per 90':              2.0,
+        'Touches in box per 90':                 2.0,
+        'Successful attacking actions per 90':   2.0,
+        'xA per 90':                             2.0,
+        'Key passes per 90':                     1.5,
+        'Dribbles per 90':                       1.5,
+        'Aerial duels won, %':                   1.5,
+        'Accurate back passes, %':               0.3,
+        'Yellow cards per 90':                   0.3,
+        'Red cards per 90':                      0.3,
+    },
+    'Extremo': {
+        'Goals per 90':                          3.0,
+        'xG per 90':                             3.0,
+        'Shots on target per 90':                3.0,
+        'Successful attacking actions per 90':   3.0,
+        'xA per 90':                             3.0,
+        'Key passes per 90':                     3.0,
+        'Dribbles per 90':                       3.0,
+        'Progressive runs per 90':               3.0,
+        'Touches in box per 90':                 2.0,
+        'Shot assists per 90':                   1.5,
+        'Accurate crosses per 90':               1.5,
+        'Successful defensive actions per 90':   0.5,
+        'Accurate back passes, %':               0.3,
+        'Yellow cards per 90':                   0.3,
+        'Red cards per 90':                      0.3,
+    },
+    'Volante Central': {
+        'Accurate passes, %':                    3.0,
+        'Accurate progressive passes per 90':    3.0,
+        'Received passes per 90':                3.0,
+        'Successful defensive actions per 90':   3.0,
+        'Accurate forward passes, %':            2.0,
+        'Interceptions per 90':                  2.0,
+        'Defensive duels won, %':                2.0,
+        'Key passes per 90':                     2.0,
+        'xA per 90':                             2.0,
+        'Progressive runs per 90':               1.5,
+        'Goals per 90':                          0.5,
+        'Shots on target per 90':                0.5,
+    },
+    'Lateral': {
+        'Successful defensive actions per 90':   3.0,
+        'Defensive duels won, %':                3.0,
+        'Accurate progressive passes per 90':    3.0,
+        'Interceptions per 90':                  2.0,
+        'Accurate crosses per 90':               2.5,
+        'Successful attacking actions per 90':   2.0,
+        'xA per 90':                             2.0,
+        'Progressive runs per 90':               2.0,
+        'Key passes per 90':                     1.5,
+        'Dribbles per 90':                       1.5,
+        'Goals per 90':                          0.5,
+        'Yellow cards per 90':                   0.3,
+        'Red cards per 90':                      0.3,
+    },
+    'Central': {
+        'Aerial duels won, %':                   3.0,
+        'Successful defensive actions per 90':   3.0,
+        'Interceptions per 90':                  3.0,
+        'Defensive duels won, %':                3.0,
+        'Accurate passes, %':                    2.5,
+        'Accurate long passes, %':               2.0,
+        'Accurate progressive passes per 90':    2.0,
+        'Shots blocked per 90':                  1.5,
+        'Goals per 90':                          0.3,
+        'Shots on target per 90':                0.3,
+        'Dribbles per 90':                       0.5,
+        'Yellow cards per 90':                   0.3,
+        'Red cards per 90':                      0.3,
+    },
+}
+
 # Columnas GK curadas: portería, distribución, duelos aéreos, acciones defensivas
 _GK_DISPLAY_COLS = [
     # Portería — solo métricas por 90 y % (comparables entre porteros con distinto tiempo)
@@ -973,9 +1055,13 @@ GK_PENTAGON_LABELS_ES = {
 }
 
 
-def _compute_pentagon_scores(player_data, comparison_df, all_cols):
-    """Calcula los 5 puntajes del pentágono promediando percentiles por macro-categoría."""
+def _compute_pentagon_scores(player_data, comparison_df, all_cols, position_group=None):
+    """Calcula los 5 puntajes del pentágono promediando percentiles por macro-categoría.
+    Si se pasa position_group, aplica pesos diferenciados por métrica según posición."""
+    weights_map = _POSITION_METRIC_WEIGHTS.get(position_group, {}) if position_group else {}
+
     pcts_by_cat = defaultdict(list)
+    wgts_by_cat = defaultdict(list)
     for c in all_cols:
         val = player_data.get(c, None)
         if pd.isnull(val):
@@ -984,19 +1070,24 @@ def _compute_pentagon_scores(player_data, comparison_df, all_cols):
         pct = _compute_percentile(pv, comparison_df[c]) if c in comparison_df.columns else 0
         cat = categorize_metric(c)
         pcts_by_cat[cat].append(pct)
+        wgts_by_cat[cat].append(weights_map.get(c, 1.0))
 
-    def avg_cats(*cats):
+    def wavg_cats(*cats):
         vals = []
+        wgts = []
         for cat in cats:
             vals.extend(pcts_by_cat.get(cat, []))
-        return float(np.mean(vals)) if vals else 0.0
+            wgts.extend(wgts_by_cat.get(cat, []))
+        if not vals:
+            return 0.0
+        return float(np.average(vals, weights=wgts))
 
-    atq = avg_cats('\u26bd Goles y Remates')
-    pos = avg_cats('\u26a1 Posesi\u00f3n')
-    pas = avg_cats('\U0001f4d0 Pases', '\u2197\ufe0f Centros')
-    cre = avg_cats('\U0001f3af Creaci\u00f3n')
-    def_pos = avg_cats('\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos')
-    def_neg = avg_cats('\U0001f4cb Disciplina')
+    atq = wavg_cats('\u26bd Goles y Remates')
+    pos = wavg_cats('\u26a1 Posesi\u00f3n')
+    pas = wavg_cats('\U0001f4d0 Pases', '\u2197\ufe0f Centros')
+    cre = wavg_cats('\U0001f3af Creaci\u00f3n')
+    def_pos = wavg_cats('\U0001f6e1\ufe0f Defensa', '\U0001f4aa Duelos')
+    def_neg = wavg_cats('\U0001f4cb Disciplina')
     def_score = float(np.clip(def_pos - def_neg * 0.25, 0, 99))
 
     return {
@@ -1458,7 +1549,7 @@ def _get_scout_score_data(player_data, comparison_df, selected_pos):
         return overall_score, category_scores
 
     all_cols = _get_display_cols(df)
-    scores = _compute_pentagon_scores(player_data, comparison_df, all_cols)
+    scores = _compute_pentagon_scores(player_data, comparison_df, all_cols, position_group=selected_pos)
     ordered_axes = ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
     category_scores = [
         {'code': axis, 'label': PENTAGON_LABELS_ES.get(axis, axis), 'score': float(scores.get(axis, 0))}
@@ -1968,7 +2059,8 @@ with tab_bar:
                 else:
                     all_pent_cols = _get_display_cols(df)
                     scores = _compute_pentagon_scores(
-                        pent_player_data, pent_comparison_df, all_pent_cols
+                        pent_player_data, pent_comparison_df, all_pent_cols,
+                        position_group=str(pent_player_data.get('Position Group', '')) or None,
                     )
                     avg_scores = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
                     pent_axes = ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']
@@ -1990,7 +2082,10 @@ with tab_bar:
                         if is_pent_gk:
                             scores2 = _compute_pentagon_scores_gk(p2_data, pent_comparison_df, all_pent_cols)
                         else:
-                            scores2 = _compute_pentagon_scores(p2_data, pent_comparison_df, all_pent_cols)
+                            scores2 = _compute_pentagon_scores(
+                                p2_data, pent_comparison_df, all_pent_cols,
+                                position_group=str(p2_data.get('Position Group', '')) or None,
+                            )
 
                 team_display = str(pent_player_data.get(pent_team_col, ''))
                 subtitle_pent = (
