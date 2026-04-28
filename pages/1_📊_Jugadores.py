@@ -2463,6 +2463,8 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
         'COL': '#eab308',   # amarillo
         'ECU': '#7c3aed',   # violeta profundo
         'CHI': '#f97316',   # naranja
+        'PER': '#e879f9',   # fucsia
+        'VEN': '#2dd4bf',   # cian
     }
     _has_liga = 'Liga' in pool_df.columns
 
@@ -3848,8 +3850,9 @@ with tab_query:
     _bq_liga_colors = {
         'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
         'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+        'PER': '#e879f9', 'VEN': '#2dd4bf',
     }
-    _bq_liga_codes = [k for k in ['PAR', 'ARG', 'BRA', 'URU', 'COL', 'ECU', 'CHI']
+    _bq_liga_codes = [k for k in ['PAR', 'ARG', 'BRA', 'URU', 'COL', 'ECU', 'CHI', 'PER', 'VEN']
                       if _LIGA_DFS.get(k) is not None]
 
     _bq_ck_rules = '\n'.join(
@@ -4046,6 +4049,7 @@ with tab_query:
         _bq_badge = {
             'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
             'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+            'PER': '#e879f9', 'VEN': '#2dd4bf',
         }
 
         # Cabeceras métricas con rango del slider
