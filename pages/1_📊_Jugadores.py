@@ -893,8 +893,8 @@ def _player_header_html(player_name, position_code, pos_group,
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_best11, tab_query = st.tabs(
-    ["📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm", "⚽ Mejor Once", "🔎 Buscador"]
+tab_home, tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_best11, tab_query = st.tabs(
+    ["🏠 Inicio", "📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm", "⚽ Mejor Once", "🔎 Buscador"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -1522,18 +1522,241 @@ def _get_scout_top5_metrics(player_data, comparison_df, selected_pos):
     return scored[:5]
 
 
+_DEFAULT_AXIS_WEIGHTS = {'ATQ': 20, 'POS': 20, 'PAS': 20, 'DEF': 20, 'CRE': 20}
+_AXIS_WEIGHTS_BY_POS = {
+    'Central':         {'DEF': 35, 'PAS': 25, 'POS': 20, 'CRE': 10, 'ATQ': 10},
+    'Lateral':         {'DEF': 25, 'POS': 25, 'PAS': 20, 'ATQ': 15, 'CRE': 15},
+    'Volante Central': {'POS': 30, 'PAS': 25, 'CRE': 20, 'DEF': 15, 'ATQ': 10},
+    'Volante Ofensivo':{'CRE': 35, 'ATQ': 25, 'PAS': 20, 'POS': 15, 'DEF':  5},
+    'Extremo':         {'ATQ': 30, 'CRE': 25, 'POS': 20, 'PAS': 15, 'DEF': 10},
+    'Delantero':       {'ATQ': 40, 'CRE': 20, 'POS': 15, 'PAS': 15, 'DEF': 10},
+}
+
+
+@st.cache_data
+def _compute_liga_home_ranking(source_df, min_minutes=300):
+    """Calcula MARCA ZONAL SCORE para todos los jugadores outfield del df activo.
+    Retorna DataFrame con columnas: Player, Team, Position Group, Score."""
+    all_cols = _get_display_cols(source_df)
+    pos_groups = ['Delantero', 'Extremo', 'Volante Central', 'Lateral', 'Central']
+    records = []
+    for pg in pos_groups:
+        pg_df = source_df[
+            (source_df['Position Group'] == pg) &
+            (pd.to_numeric(source_df.get('Minutes played', pd.Series(dtype=float)), errors='coerce') >= min_minutes)
+        ]
+        if pg_df.empty:
+            continue
+        axis_w = _AXIS_WEIGHTS_BY_POS.get(pg, _DEFAULT_AXIS_WEIGHTS)
+        total_w = sum(axis_w.values())
+        for _, row in pg_df.iterrows():
+            scores = _compute_pentagon_scores(row, pg_df, all_cols, position_group=pg)
+            overall = sum(scores.get(k, 0) * v for k, v in axis_w.items()) / total_w
+            team_col = 'Team within selected timeframe' if 'Team within selected timeframe' in row.index else 'Team'
+            records.append({
+                'Player': row.get('Player', ''),
+                'Team': row.get(team_col, ''),
+                'Position Group': pg,
+                'Score': round(overall, 1),
+            })
+    if not records:
+        return pd.DataFrame(columns=['Player', 'Team', 'Position Group', 'Score'])
+    return pd.DataFrame(records).sort_values('Score', ascending=False).reset_index(drop=True)
+
+
+# ---- Tab 0: Inicio -------------------------------------------------------
+with tab_home:
+    _home_ranking = _compute_liga_home_ranking(df)
+    _team_col_home = 'Team within selected timeframe' if 'Team within selected timeframe' in df.columns else 'Team'
+    _torneo_home   = _LIGA_TORNEO.get(liga_activa, '2026')
+    _liga_home     = _LIGA_LABELS.get(liga_activa, liga_activa)
+    _total_home    = len(df)
+
+    # ── Hero ───────────────────────────────────────────────────────────────
+    st.markdown(f"""
+    <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
+                border:1px solid rgba(34,197,94,0.18);border-radius:16px;
+                padding:18px 24px;margin-bottom:24px;display:flex;
+                align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-family:'Poppins',sans-serif;font-size:1.35rem;font-weight:800;
+                    color:#e2e8f0;letter-spacing:1px;">{_liga_home}</div>
+        <div style="font-size:0.8rem;color:#64748b;letter-spacing:1px;margin-top:2px;">
+          {_torneo_home}
+        </div>
+      </div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;
+                      color:#22c55e;">{_total_home}</div>
+          <div style="font-size:0.62rem;letter-spacing:2px;color:#475569;text-transform:uppercase;">Jugadores</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:'Poppins',sans-serif;font-size:1.6rem;font-weight:800;
+                      color:#38bdf8;">{df[_team_col_home].nunique() if _team_col_home in df.columns else '—'}</div>
+          <div style="font-size:0.62rem;letter-spacing:2px;color:#475569;text-transform:uppercase;">Clubes</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Jugador Destacado ──────────────────────────────────────────────────
+    if not _home_ranking.empty:
+        _top = _home_ranking.iloc[0]
+        _top_score = _top['Score']
+        _top_name  = _top['Player']
+        _top_team  = _top['Team']
+        _top_pg    = _top['Position Group']
+        _score_color = '#22c55e' if _top_score >= 70 else '#f59e0b' if _top_score >= 50 else '#ef4444'
+        _bar_pct = int(_top_score)
+
+        st.markdown(f"""
+        <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(245,158,11,0.3);
+                    border-radius:14px;padding:20px 24px;margin-bottom:24px;">
+          <div style="font-size:0.62rem;letter-spacing:2.5px;color:#f59e0b;
+                      text-transform:uppercase;font-weight:700;margin-bottom:12px;">
+            ⭐ Jugador Destacado · Mayor MARCA ZONAL SCORE
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;
+                      flex-wrap:wrap;gap:16px;">
+            <div>
+              <div style="font-family:'Poppins',sans-serif;font-size:1.5rem;font-weight:800;
+                          color:#e2e8f0;">{_top_name}</div>
+              <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">
+                {_top_team} &nbsp;·&nbsp; {_top_pg}
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-family:'Poppins',sans-serif;font-size:2.8rem;font-weight:800;
+                          color:{_score_color};line-height:1;">{_top_score:.0f}</div>
+              <div style="font-size:0.6rem;letter-spacing:2px;color:#475569;
+                          text-transform:uppercase;">MZ Score</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;background:rgba(255,255,255,0.06);
+                      border-radius:6px;height:6px;overflow:hidden;">
+            <div style="width:{_bar_pct}%;height:100%;
+                        background:linear-gradient(90deg,{_score_color}aa,{_score_color});
+                        border-radius:6px;"></div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── TOP 5 por posición ─────────────────────────────────────────────────
+    _pos_order   = ['Delantero', 'Extremo', 'Volante Central', 'Lateral', 'Central']
+    _pos_icons   = {'Delantero': '⚽', 'Extremo': '🏃', 'Volante Central': '⚙️',
+                    'Lateral': '🔁', 'Central': '🛡️'}
+    _rank_colors = ['#f59e0b', '#94a3b8', '#cd7c3a', '#64748b', '#64748b']
+
+    st.markdown("""
+    <div style="font-family:'Poppins',sans-serif;font-size:1rem;font-weight:700;
+                color:#94a3b8;letter-spacing:1px;margin-bottom:14px;">
+      🏅 TOP 5 POR POSICIÓN · MARCA ZONAL SCORE
+    </div>
+    """, unsafe_allow_html=True)
+
+    for _pg in _pos_order:
+        _pg_top = _home_ranking[_home_ranking['Position Group'] == _pg].head(5)
+        if _pg_top.empty:
+            continue
+        _icon = _pos_icons.get(_pg, '•')
+        st.markdown(f"""
+        <div style="font-size:0.7rem;letter-spacing:2px;color:#475569;
+                    text-transform:uppercase;font-weight:700;margin:16px 0 8px;">
+          {_icon} {_pg}
+        </div>
+        """, unsafe_allow_html=True)
+
+        _cols = st.columns(5, gap="small")
+        for _ci, (_, _pr) in enumerate(zip(_cols, _pg_top.itertuples())):
+            _sc   = _pr.Score
+            _rc   = _rank_colors[_ci] if _ci < len(_rank_colors) else '#64748b'
+            _sc_c = '#22c55e' if _sc >= 70 else '#f59e0b' if _sc >= 50 else '#ef4444'
+            with _cols[_ci]:
+                st.markdown(f"""
+                <div style="background:rgba(30,41,59,0.6);
+                            border:1px solid rgba(148,163,184,0.1);
+                            border-radius:10px;padding:10px 10px 8px;
+                            border-top:2px solid {_rc};">
+                  <div style="font-size:0.58rem;color:{_rc};font-weight:700;
+                              letter-spacing:1px;margin-bottom:5px;">#{_ci+1}</div>
+                  <div style="font-family:'Poppins',sans-serif;font-size:0.75rem;
+                              font-weight:700;color:#e2e8f0;line-height:1.25;
+                              margin-bottom:3px;word-break:break-word;">{_pr.Player}</div>
+                  <div style="font-size:0.6rem;color:#64748b;margin-bottom:8px;
+                              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    {_pr.Team}</div>
+                  <div style="font-family:'Poppins',sans-serif;font-size:1.1rem;
+                              font-weight:800;color:{_sc_c};">{_sc:.0f}</div>
+                  <div style="margin-top:5px;background:rgba(255,255,255,0.06);
+                              border-radius:4px;height:3px;overflow:hidden;">
+                    <div style="width:{int(_sc)}%;height:100%;
+                                background:{_sc_c};border-radius:4px;opacity:0.7;"></div>
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ── Stats Líderes ──────────────────────────────────────────────────────
+    st.markdown("""
+    <div style="font-family:'Poppins',sans-serif;font-size:1rem;font-weight:700;
+                color:#94a3b8;letter-spacing:1px;margin:28px 0 14px;">
+      📊 LÍDERES DE LA LIGA
+    </div>
+    """, unsafe_allow_html=True)
+
+    _min_min_stats = 300
+    _df_stats = df[pd.to_numeric(df.get('Minutes played', pd.Series(dtype=float)), errors='coerce') >= _min_min_stats]
+
+    def _stat_leader(col, label, icon, fmt='{:.2f}', higher_is_better=True):
+        if col not in _df_stats.columns:
+            return
+        _s = pd.to_numeric(_df_stats[col], errors='coerce').dropna()
+        if _s.empty:
+            return None
+        _idx = _s.idxmax() if higher_is_better else _s.idxmin()
+        _row = _df_stats.loc[_idx]
+        _val = _s[_idx]
+        _name = _row.get('Player', '—')
+        _team = _row.get(_team_col_home, '—')
+        return {'label': label, 'icon': icon, 'name': _name, 'team': _team,
+                'value': fmt.format(_val)}
+
+    _stat_cards = [
+        _stat_leader('Goals', 'Goleador', '⚽', '{:.0f}'),
+        _stat_leader('Assists', 'Asistidor', '🎯', '{:.0f}'),
+        _stat_leader('Duels won per 90', 'Duelos ganados/90', '💪', '{:.1f}'),
+        _stat_leader('Minutes played', 'Minutos jugados', '⏱️', '{:.0f}'),
+    ]
+    _stat_cards = [c for c in _stat_cards if c]
+
+    if _stat_cards:
+        _scols = st.columns(len(_stat_cards), gap="small")
+        for _sci, _sc_data in enumerate(_stat_cards):
+            with _scols[_sci]:
+                st.markdown(f"""
+                <div style="background:rgba(30,41,59,0.6);
+                            border:1px solid rgba(148,163,184,0.1);
+                            border-radius:10px;padding:14px 14px 12px;">
+                  <div style="font-size:0.62rem;letter-spacing:1.5px;color:#475569;
+                              text-transform:uppercase;margin-bottom:8px;">
+                    {_sc_data['icon']} {_sc_data['label']}
+                  </div>
+                  <div style="font-family:'Poppins',sans-serif;font-size:0.8rem;
+                              font-weight:700;color:#e2e8f0;margin-bottom:2px;
+                              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    {_sc_data['name']}</div>
+                  <div style="font-size:0.65rem;color:#64748b;margin-bottom:10px;
+                              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    {_sc_data['team']}</div>
+                  <div style="font-family:'Poppins',sans-serif;font-size:1.4rem;
+                              font-weight:800;color:#22c55e;">{_sc_data['value']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+
 def _get_scout_score_data(player_data, comparison_df, selected_pos):
     def _resolve_scout_weights(position_group):
-        default_weights = {'ATQ': 20, 'POS': 20, 'PAS': 20, 'DEF': 20, 'CRE': 20}
-        group_weights = {
-            'Central':         {'DEF': 35, 'PAS': 25, 'POS': 20, 'CRE': 10, 'ATQ': 10},
-            'Lateral':         {'DEF': 25, 'POS': 25, 'PAS': 20, 'ATQ': 15, 'CRE': 15},
-            'Volante Central':  {'POS': 30, 'PAS': 25, 'CRE': 20, 'DEF': 15, 'ATQ': 10},
-            'Volante Ofensivo': {'CRE': 35, 'ATQ': 25, 'PAS': 20, 'POS': 15, 'DEF': 5},
-            'Extremo':          {'ATQ': 30, 'CRE': 25, 'POS': 20, 'PAS': 15, 'DEF': 10},
-            'Delantero':       {'ATQ': 40, 'CRE': 20, 'POS': 15, 'PAS': 15, 'DEF': 10},
-        }
-        return group_weights.get(position_group, default_weights)
+        return _AXIS_WEIGHTS_BY_POS.get(position_group, _DEFAULT_AXIS_WEIGHTS)
 
     if selected_pos == 'Portero':
         category_scores = []
