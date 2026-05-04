@@ -716,45 +716,21 @@ def build_scout_html(
         }});
       }})
       .then(function(dataUrl) {{
-        // Componer en canvas exactamente 3:4
-        var srcImg = new Image();
-        srcImg.onload = function() {{
-          var srcW = srcImg.width;
-          var srcH = srcImg.height;
-          var outW = srcW;
-          var outH = Math.round(srcW * 4 / 3);
-          var oc   = document.createElement('canvas');
-          oc.width  = outW;
-          oc.height = outH;
-          var ctx = oc.getContext('2d');
-          ctx.fillStyle = '#050b14';
-          ctx.fillRect(0, 0, outW, outH);
-          if (srcH <= outH) {{
-            // Contenido más corto: pegar al top, fondo rellena el resto
-            ctx.drawImage(srcImg, 0, 0, srcW, srcH);
-          }} else {{
-            // Contenido más alto: escalar proporcional para que entre
-            var scaledW = Math.round(srcW * outH / srcH);
-            ctx.drawImage(srcImg, Math.round((outW - scaledW) / 2), 0, scaledW, outH);
-          }}
-          var finalUrl = oc.toDataURL('image/png');
-          img.src = finalUrl;
-          wrap.style.display = 'block';
-          btn.disabled    = false;
-          btn.textContent = '⬇ GENERAR PNG';
-          status.textContent = '✓ Imagen lista — guardala con click derecho (desktop) o mantené presionado (móvil)';
-          // Restaurar layout móvil si estaba activo
-          if (wasMobile) node.classList.add('mz-mobile');
-          try {{
-            var a = document.createElement('a');
-            a.href     = finalUrl;
-            a.download = '{_esc(player_name).replace(" ", "_")}_scout.png';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-          }} catch(e) {{}}
-        }};
-        srcImg.src = dataUrl;
+        img.src = dataUrl;
+        wrap.style.display = 'block';
+        btn.disabled    = false;
+        btn.textContent = '⬇ GENERAR PNG';
+        status.textContent = '✓ Imagen lista — guardala con click derecho (desktop) o mantené presionado (móvil)';
+        // Restaurar layout móvil si estaba activo
+        if (wasMobile) node.classList.add('mz-mobile');
+        try {{
+          var a = document.createElement('a');
+          a.href     = dataUrl;
+          a.download = '{_esc(player_name).replace(" ", "_")}_scout.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }} catch(e) {{}}
       }})
       .catch(function(err) {{
         if (wasMobile) node.classList.add('mz-mobile');
