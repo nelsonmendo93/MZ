@@ -1524,12 +1524,12 @@ def _get_scout_top5_metrics(player_data, comparison_df, selected_pos):
 
 _DEFAULT_AXIS_WEIGHTS = {'ATQ': 20, 'POS': 20, 'PAS': 20, 'DEF': 20, 'CRE': 20}
 _AXIS_WEIGHTS_BY_POS = {
-    'Central':         {'DEF': 35, 'PAS': 25, 'POS': 20, 'CRE': 10, 'ATQ': 10},
-    'Lateral':         {'DEF': 25, 'POS': 25, 'PAS': 20, 'ATQ': 15, 'CRE': 15},
-    'Volante Central': {'POS': 30, 'PAS': 25, 'CRE': 20, 'DEF': 15, 'ATQ': 10},
+    'Central':         {'DEF': 35, 'PAS': 20, 'POS': 20, 'CRE': 10, 'ATQ': 15},
+    'Lateral':         {'DEF': 20, 'POS': 25, 'PAS': 20, 'ATQ': 20, 'CRE': 15},
+    'Volante Central': {'POS': 25, 'PAS': 25, 'CRE': 15, 'DEF': 20, 'ATQ': 15},
     'Volante Ofensivo':{'CRE': 35, 'ATQ': 25, 'PAS': 20, 'POS': 15, 'DEF':  5},
-    'Extremo':         {'ATQ': 30, 'CRE': 25, 'POS': 20, 'PAS': 15, 'DEF': 10},
-    'Delantero':       {'ATQ': 40, 'CRE': 20, 'POS': 15, 'PAS': 15, 'DEF': 10},
+    'Extremo':         {'ATQ': 30, 'CRE': 25, 'POS': 15, 'PAS': 20, 'DEF': 10},
+    'Delantero':       {'ATQ': 45, 'CRE': 25, 'POS': 15, 'PAS': 10, 'DEF':  5},
 }
 
 
