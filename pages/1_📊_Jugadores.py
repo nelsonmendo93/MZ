@@ -3856,10 +3856,10 @@ def _compute_best_eleven_score(row, comparison_df, metric_weights):
 
 def _compute_best_eleven(df, min_minutes=None):
     """Selecciona el mejor once por posición exacta usando MARCA ZONAL SCORE."""
-    # Mínimo de minutos = 40% del jugador con más minutos
+    # Mínimo de minutos = 33% del jugador con más minutos
     if 'Minutes played' in df.columns:
         max_min = pd.to_numeric(df['Minutes played'], errors='coerce').max()
-        threshold = math.ceil(max_min * 0.40) if pd.notnull(max_min) else 90
+        threshold = math.ceil(max_min * 0.33) if pd.notnull(max_min) else 90
     else:
         threshold = 90
     df_filt = df[pd.to_numeric(df.get('Minutes played', pd.Series(dtype=float)), errors='coerce') >= threshold].copy()
@@ -4153,7 +4153,7 @@ with tab_best11:
         key="dl_b11",
     )
     st.caption(
-        f"Mínimo {_b11_min_min} min jugados (40% del máximo) · {b11_age_range[0]}-{b11_age_range[1]} años"
+        f"Mínimo {_b11_min_min} min jugados (33% del máximo) · {b11_age_range[0]}-{b11_age_range[1]} años"
         f"  ·  X: @marca_zonal  ·  Instagram: @marca.zonal"
     )
 
