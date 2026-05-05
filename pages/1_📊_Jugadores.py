@@ -2364,6 +2364,103 @@ with tab_bar:
                     hide_index=True,
                 )
 
+    # ── Glosario de métricas por eje ─────────────────────────────────────────
+    st.markdown("---")
+    with st.expander("📖 Glosario: métricas por eje del MARCA ZONAL SCORE", expanded=False):
+        st.markdown("""
+<style>
+.gz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 8px; }
+.gz-card { background: #1e293b; border-radius: 8px; padding: 14px 16px; border-top: 3px solid var(--gz-c); }
+.gz-title { font-size: 15px; font-weight: 700; color: var(--gz-c); margin-bottom: 8px; letter-spacing: .5px; }
+.gz-sub { font-size: 11px; color: #94a3b8; margin-bottom: 6px; font-style: italic; }
+.gz-list { list-style: none; padding: 0; margin: 0; }
+.gz-list li { font-size: 12px; color: #cbd5e1; padding: 2px 0; }
+.gz-list li::before { content: "·  "; color: var(--gz-c); font-weight: 700; }
+.gz-note { font-size: 11px; color: #f59e0b; margin-top: 6px; }
+</style>
+<div class="gz-grid">
+
+  <div class="gz-card" style="--gz-c:#ef4444">
+    <div class="gz-title">⚽ ATQ — Ataque</div>
+    <div class="gz-sub">Capacidad goleadora y de remate</div>
+    <ul class="gz-list">
+      <li>Goles por 90</li>
+      <li>Goles sin penales por 90</li>
+      <li>Goles de cabeza por 90</li>
+      <li>Remates por 90</li>
+      <li>Remates al arco por 90</li>
+      <li>xG por 90</li>
+      <li>Conversión de gol (%)</li>
+      <li>Diferencia Goles − xG</li>
+    </ul>
+  </div>
+
+  <div class="gz-card" style="--gz-c:#06b6d4">
+    <div class="gz-title">⚡ POS — Posesión</div>
+    <div class="gz-sub">Manejo del balón, movilidad y acciones ofensivas</div>
+    <ul class="gz-list">
+      <li>Regates exitosos por 90</li>
+      <li>Regates exitosos (%)</li>
+      <li>Toques en área por 90</li>
+      <li>Carreras progresivas por 90</li>
+      <li>Aceleraciones por 90</li>
+      <li>Duelos ofensivos ganados (%)</li>
+      <li>Acciones ofensivas exitosas por 90</li>
+      <li>Faltas recibidas por 90</li>
+      <li>Pases recibidos por 90</li>
+      <li>Pases largos recibidos por 90</li>
+    </ul>
+  </div>
+
+  <div class="gz-card" style="--gz-c:#8b5cf6">
+    <div class="gz-title">📐 PAS — Pases</div>
+    <div class="gz-sub">Circulación, distribución y centros</div>
+    <ul class="gz-list">
+      <li>Pases precisos por 90</li>
+      <li>Pases hacia adelante por 90</li>
+      <li>Pases hacia atrás por 90</li>
+      <li>Pases laterales por 90</li>
+      <li>Pases cortos/medios por 90</li>
+      <li>Pases largos por 90</li>
+      <li>Pases progresivos por 90</li>
+      <li>Pases al último tercio por 90</li>
+      <li>Pases al área por 90</li>
+      <li>Pases de ruptura por 90</li>
+      <li>Completados en profundidad por 90</li>
+      <li>Centros por 90 · Centros precisos (%)</li>
+      <li>Centros en profundidad por 90</li>
+    </ul>
+  </div>
+
+  <div class="gz-card" style="--gz-c:#f59e0b">
+    <div class="gz-title">🎯 CRE — Creatividad</div>
+    <div class="gz-sub">Generación de peligro y asistencias</div>
+    <ul class="gz-list">
+      <li>Asistencias por 90</li>
+      <li>xA (xAsistencias) por 90</li>
+      <li>Pases de tiro por 90</li>
+      <li>Pases clave por 90</li>
+    </ul>
+  </div>
+
+  <div class="gz-card" style="--gz-c:#22c55e">
+    <div class="gz-title">🛡️ DEF — Defensa</div>
+    <div class="gz-sub">Acciones defensivas, duelos y disciplina</div>
+    <ul class="gz-list">
+      <li>Duelos defensivos ganados (%)</li>
+      <li>Acciones defensivas exitosas por 90</li>
+      <li>Entradas deslizantes por 90</li>
+      <li>Intercepciones por 90</li>
+      <li>Remates bloqueados por 90</li>
+      <li>CBIT por 90 (entradas + interc. + bloq.)</li>
+      <li>Duelos aéreos ganados (%)</li>
+    </ul>
+    <div class="gz-note">⚠️ Penalización (−25%): faltas cometidas, tarjetas amarillas y rojas</div>
+  </div>
+
+</div>
+        """, unsafe_allow_html=True)
+
 
 # ---- Tab 4: Pizza/Radar Chart ---------------------------------------------
 with tab_pizza:
@@ -3757,24 +3854,51 @@ def _compute_best_eleven_score(row, comparison_df, metric_weights):
     return round(float(sum(weighted_scores) / total_weight), 1)
 
 
-def _compute_best_eleven(df, min_minutes=200):
-    """Selecciona el mejor once por posición exacta usando promedio de percentiles."""
-    df_filt = df[df['Minutes played'] >= min_minutes].copy()
+def _compute_best_eleven(df, min_minutes=None):
+    """Selecciona el mejor once por posición exacta usando MARCA ZONAL SCORE."""
+    # Mínimo de minutos = 40% del jugador con más minutos
+    if 'Minutes played' in df.columns:
+        max_min = pd.to_numeric(df['Minutes played'], errors='coerce').max()
+        threshold = math.ceil(max_min * 0.40) if pd.notnull(max_min) else 90
+    else:
+        threshold = 90
+    df_filt = df[pd.to_numeric(df.get('Minutes played', pd.Series(dtype=float)), errors='coerce') >= threshold].copy()
     team_col = ('Team within selected timeframe'
                 if 'Team within selected timeframe' in df.columns else 'Team')
+    all_cols = _get_display_cols(df_filt)
 
-    # 1. Calcular PUNTAJE de cada jugador vs su Position Group
+    # 1. Calcular MARCA ZONAL SCORE para cada jugador vs su Position Group
     all_scores = {}
-    for pos_group in df_filt['Position Group'].dropna().unique():
-        metric_weights = _B11_ROLE_METRICS.get(pos_group)
-        if not metric_weights:
-            continue
-        pos_df = df_filt[df_filt['Position Group'] == pos_group]
-        for _, row in pos_df.iterrows():
-            avg_pct = _compute_best_eleven_score(row, pos_df, metric_weights)
+
+    # Porteros: usar pentágono GK (promedio simple de los 5 ejes)
+    gk_df = df_filt[df_filt['Position Group'] == 'Portero']
+    if not gk_df.empty:
+        for _, row in gk_df.iterrows():
+            gk_scores = _compute_pentagon_scores_gk(row, gk_df, all_cols)
+            overall = float(np.mean(list(gk_scores.values()))) if gk_scores else 0.0
             all_scores[row['Player']] = {
                 'name':     row['Player'],
-                'puntaje':  avg_pct,
+                'puntaje':  round(overall, 1),
+                'club':     str(row.get(team_col, '—')),
+                'age':      (int(row['Age']) if 'Age' in row.index
+                             and pd.notnull(row['Age']) else '—'),
+                'position': str(row.get('Position', '')),
+                'position_group': 'Portero',
+            }
+
+    # Outfield: usar pentágono + pesos por posición (_AXIS_WEIGHTS_BY_POS)
+    for pos_group in ['Delantero', 'Extremo', 'Volante Central', 'Lateral', 'Central']:
+        pos_df = df_filt[df_filt['Position Group'] == pos_group]
+        if pos_df.empty:
+            continue
+        axis_w = _AXIS_WEIGHTS_BY_POS.get(pos_group, _DEFAULT_AXIS_WEIGHTS)
+        total_w = sum(axis_w.values())
+        for _, row in pos_df.iterrows():
+            scores = _compute_pentagon_scores(row, pos_df, all_cols, position_group=pos_group)
+            overall = sum(scores.get(k, 0) * v for k, v in axis_w.items()) / total_w if total_w else 0.0
+            all_scores[row['Player']] = {
+                'name':     row['Player'],
+                'puntaje':  round(overall, 1),
                 'club':     str(row.get(team_col, '—')),
                 'age':      (int(row['Age']) if 'Age' in row.index
                              and pd.notnull(row['Age']) else '—'),
@@ -3790,7 +3914,7 @@ def _compute_best_eleven(df, min_minutes=200):
         cands.sort(key=lambda x: x['puntaje'], reverse=True)
         return cands[:n]
 
-    return {slot: _best_for_slot(slot) for slot in _B11_POS_MAP}
+    return {slot: _best_for_slot(slot) for slot in _B11_POS_MAP}, threshold
 
 
 def _draw_best_eleven_fig(best_eleven, min_minutes, season_label=None, logo_path=None):
@@ -3993,15 +4117,10 @@ with tab_best11:
             ⚽ MEJOR ONCE
         </div>
         <div style="font-size:13px; color:#94a3b8; margin-top:4px;">
-            Selección automática por posición · {_LIGA_TORNEO.get(liga_activa, '2026')} · Percentil promedio por rol
+            Selección automática por posición · {_LIGA_TORNEO.get(liga_activa, '2026')} · Criterio: MARCA ZONAL SCORE
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    # Minutos mínimos: promedio de minutos jugados de la liga activa.
-    # Para "Todas las ligas" se usa el promedio del dataset combinado,
-    # lo que respeta las distintas duraciones de temporada de cada competición.
-    _b11_min_min = max(1, math.ceil(df['Minutes played'].mean())) if 'Minutes played' in df.columns else 90
 
     b11_age_min, b11_age_max = _get_age_bounds(df)
     b11_age_range = st.slider(
@@ -4010,7 +4129,7 @@ with tab_best11:
     )
     b11_df = _apply_age_filter(df, b11_age_range)
 
-    best_eleven = _compute_best_eleven(b11_df, min_minutes=_b11_min_min)
+    best_eleven, _b11_min_min = _compute_best_eleven(b11_df)
 
     # ── Figura (se genera una sola vez, se reutiliza para display y descarga) ──
     fig_b11     = _draw_best_eleven_fig(best_eleven, min_minutes=_b11_min_min,
@@ -4034,7 +4153,7 @@ with tab_best11:
         key="dl_b11",
     )
     st.caption(
-        f"Mínimo {_b11_min_min} min jugados · {b11_age_range[0]}-{b11_age_range[1]} años"
+        f"Mínimo {_b11_min_min} min jugados (40% del máximo) · {b11_age_range[0]}-{b11_age_range[1]} años"
         f"  ·  X: @marca_zonal  ·  Instagram: @marca.zonal"
     )
 
