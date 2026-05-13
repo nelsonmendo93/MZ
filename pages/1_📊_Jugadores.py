@@ -1983,21 +1983,6 @@ with tab_perfil:
     if not player_rows.empty:
         player_data = player_rows.iloc[0]
 
-        # Player header card (campo táctico + stats)
-        components.html(
-            _player_header_html(
-                player_name=selected_player_tab1,
-                position_code=str(player_data.get('Position', '')),
-                pos_group=selected_pos,
-                team=str(player_data.get(team_col_tab1, '')),
-                age=player_data.get('Age', None),
-                matches=player_data.get('Matches played', None),
-                minutes=player_data.get('Minutes played', None),
-                nationality=str(player_data.get('Birth country', '')),
-            ),
-            height=220,
-        )
-
         # Bloqueo por minutos — el jugador seleccionado también debe cumplir el mínimo
         _player_mins = player_data.get('Minutes played', None)
         _player_mins_val = float(_player_mins) if _player_mins is not None and pd.notnull(_player_mins) else 0
