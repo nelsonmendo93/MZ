@@ -113,6 +113,7 @@ def build_scout_html(
     overall_score=0.0,
     category_scores=None,
     player_position='',
+    pentagon_img_b64=None,
 ):
     summary_items = summary_items or []
     top_metrics = top_metrics or []
@@ -586,15 +587,7 @@ def build_scout_html(
       <div class="mz-subtitle">{_esc(player_team)} | {_esc(subtitle)}</div>
       <div class="mz-grid">
         <div class="mz-left">
-          <div class="mz-card mz-score-card">
-            <div class="mz-score-title" style="text-align:center;">MARCA ZONAL SCORE</div>
-            <div class="mz-score-wrap">
-              <div class="mz-score-ring">
-                <div class="mz-score-hole">{score:.0f}</div>
-              </div>
-            </div>
-          </div>
-          {''.join(pill_cards)}
+          {'<div class="mz-card mz-score-card" style="padding:10px 12px;"><div class="mz-score-title" style="text-align:center;margin-bottom:6px;">MARCA ZONAL SCORE</div><img src="data:image/png;base64,' + pentagon_img_b64 + '" style="width:100%;border-radius:6px;display:block;" /></div>' if pentagon_img_b64 else '<div class="mz-card mz-score-card"><div class="mz-score-title" style="text-align:center;">MARCA ZONAL SCORE</div><div class="mz-score-wrap"><div class="mz-score-ring"><div class="mz-score-hole">' + f'{score:.0f}' + '</div></div></div></div>' + ''.join(pill_cards)}
           <div class="mz-logo-space">
             <canvas id="mz-logo-canvas" width="320" height="120" style="opacity:.92;filter:drop-shadow(0 2px 10px rgba(0,0,0,.4));max-width:100%;"></canvas>
           </div>

@@ -5,6 +5,7 @@ import numpy as np
 import io
 import os
 import json
+import base64
 import urllib.request
 import math
 import matplotlib
@@ -893,8 +894,8 @@ def _player_header_html(player_name, position_code, pos_group,
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_home, tab_table, tab_xy, tab_bar, tab_pizza, tab_similar, tab_ranking, tab_swarm, tab_best11, tab_query = st.tabs(
-    ["🏠 Inicio", "📊 Tabla de datos", "📈 Gráfico XY", "🏆 OVERALL", "🎯 Radial", "🔍 Similares", "🏅 Rankings", "🐝 Swarm", "⚽ Mejor Once", "🔎 Buscador"]
+tab_home, tab_perfil, tab_xy, tab_similar, tab_ranking, tab_best11, tab_query = st.tabs(
+    ["🏠 Inicio", "👤 Perfil", "📈 Gráfico XY", "🔍 Similares", "🏅 Rankings", "⚽ Mejor Once", "🔎 Buscador"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -1909,7 +1910,7 @@ def _build_scout_similars(selected_player, selected_pos, min_minutes, age_range,
     return similars
 
 
-with tab_table:
+with tab_perfil:
     # Determine team column
     team_col_tab1 = 'Team within selected timeframe'
     if team_col_tab1 not in df.columns:
@@ -2068,6 +2069,37 @@ with tab_table:
                             for item in scout_top5_metrics
                         ]
 
+                        # Pentagon chart → base64 para embed en Vista Scout
+                        _is_gk_scout = (selected_pos == 'Portero')
+                        if _is_gk_scout:
+                            _pent_cols = _get_display_cols_gk(df)
+                            _pent_scores = _compute_pentagon_scores_gk(player_data, comparison_df, _pent_cols)
+                            _pent_avg = _compute_avg_pentagon_scores_gk(comparison_df, _pent_cols)
+                            _pent_labels = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
+                        else:
+                            _pent_cols = _get_display_cols(df)
+                            _pent_scores = _compute_pentagon_scores(
+                                player_data, comparison_df, _pent_cols,
+                                position_group=selected_pos,
+                            )
+                            _pent_avg = _compute_avg_pentagon_scores(comparison_df, _pent_cols)
+                            _pent_labels = None
+                        _pent_subtitle = (
+                            f"vs. {n_comp} {selected_pos.lower()}s · +{tab1_min_minutes} min "
+                            f"· {_LIGA_TORNEO.get(liga_activa, '2026')}"
+                        )
+                        _fig_pent = _create_pentagon_chart(
+                            _pent_scores, selected_player_tab1, team_display,
+                            _pent_subtitle, avg_scores=_pent_avg, pos_label=selected_pos,
+                            custom_labels=_pent_labels if _is_gk_scout else None,
+                        )
+                        _buf_pent = io.BytesIO()
+                        _fig_pent.savefig(_buf_pent, format='png', dpi=150,
+                                          bbox_inches='tight', facecolor=_fig_pent.get_facecolor())
+                        plt.close(_fig_pent)
+                        _buf_pent.seek(0)
+                        _pentagon_b64 = base64.b64encode(_buf_pent.read()).decode('utf-8')
+
                         scout_html = build_scout_html(
                             player_name=selected_player_tab1,
                             player_team=team_display,
@@ -2078,6 +2110,7 @@ with tab_table:
                             overall_score=scout_overall_score,
                             category_scores=scout_category_scores,
                             player_position=str(player_data.get('Position', '')),
+                            pentagon_img_b64=_pentagon_b64,
                         )
                         components.html(scout_html, height=1400, scrolling=True)
                         st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
@@ -2182,401 +2215,6 @@ with tab_xy:
             st.download_button("⬇️ Descargar grafica", buf.getvalue(),
                                file_name="grafico_xy_marcazonal.png", mime="image/png")
             st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
-
-# ---- Tab 3: Resumen Pentágono estilo Sofascore ----------------------------
-with tab_bar:
-    st.subheader("Resumen de atributos")
-    st.caption("Puntaje compuesto (0–99) por macro-categoría, calculado como promedio de percentiles")
-
-    # Inicializar session state para el comparador
-    if 'pent_show_compare' not in st.session_state:
-        st.session_state['pent_show_compare'] = False
-
-    # Selectores: Posición → Club → Jugador
-    pent_team_col = 'Team within selected timeframe'
-    if pent_team_col not in df.columns:
-        pent_team_col = 'Team'
-
-    pent_col1, pent_col2, pent_col3 = st.columns(3)
-    pent_pos_groups = sorted([p for p in df['Position Group'].dropna().unique()
-                               if p != 'Portero'])
-    pent_pos_groups_all = ['Portero'] + pent_pos_groups   # GK al final del selectbox
-    pent_pos_groups_all = sorted(df['Position Group'].dropna().unique())
-    with pent_col1:
-        pent_pos = st.selectbox("Posición", pent_pos_groups_all, key="pent_pos")
-    pent_pos_df = df[df['Position Group'] == pent_pos].copy()
-    pent_age_min, pent_age_max = _get_age_bounds(pent_pos_df)
-    pent_age_range = st.slider(
-        "Rango de edad", pent_age_min, pent_age_max,
-        value=(pent_age_min, pent_age_max), key=f"pent_age_range_{pent_pos}"
-    )
-    pent_pos_df = _apply_age_filter(pent_pos_df, pent_age_range)
-    if pent_pos_df.empty:
-        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
-    else:
-        pent_clubs  = sorted(pent_pos_df[pent_team_col].dropna().unique())
-        with pent_col2:
-            pent_club = st.selectbox("Club", pent_clubs, key="pent_club")
-        pent_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club]
-        pent_players = sorted(pent_club_df['Player'].dropna().unique())
-        with pent_col3:
-            pent_player = st.selectbox("Jugador", pent_players, key="pent_player")
-
-    # Slider de minutos mínimos para el pool de comparación
-    pent_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
-    pent_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
-    pent_min_minutes = st.slider(
-        "Minutos mínimos (pool de comparación)", pent_min_v, pent_max_v,
-        value=min(200, pent_max_v), key="pent_min_minutes"
-    )
-
-    # Botón "Comparar" (toggle)
-    compare_label = "❌ Cancelar comparación" if st.session_state['pent_show_compare'] else "⚔️ Comparar jugadores"
-    if st.button(compare_label, key="btn_comparar"):
-        st.session_state['pent_show_compare'] = not st.session_state['pent_show_compare']
-        st.rerun()
-
-    pent_player2 = None
-    if not pent_pos_df.empty and pent_player and st.session_state['pent_show_compare']:
-        st.markdown("---")
-        st.markdown("**Segundo jugador** *(misma posición: {})*".format(pent_pos))
-        cmp_col1, cmp_col2 = st.columns(2)
-        with cmp_col1:
-            pent_club2 = st.selectbox("Club (jugador 2)", pent_clubs, key="pent_club2_fix")
-        cmp_club_df = pent_pos_df[pent_pos_df[pent_team_col] == pent_club2]
-        cmp_players = sorted(cmp_club_df['Player'].dropna().unique())
-        cmp_players_filt = [p for p in cmp_players if p != pent_player] or cmp_players
-        with cmp_col2:
-            pent_player2 = st.selectbox("Jugador 2", cmp_players_filt, key="pent_player2_fix")
-        st.markdown("---")
-
-    if not pent_pos_df.empty and pent_player:
-        pent_player_rows = pent_club_df[pent_club_df['Player'] == pent_player]
-        if pent_player_rows.empty:
-            st.warning("Jugador no encontrado.")
-        else:
-            pent_player_data = pent_player_rows.iloc[0]
-            pent_comparison_df = pent_pos_df[
-                (pent_pos_df['Minutes played'] >= pent_min_minutes)
-            ].copy()
-            n_pent = len(pent_comparison_df)
-
-            if pent_comparison_df[pent_comparison_df['Player'] == pent_player].empty:
-                st.warning("El jugador no alcanza el mínimo de minutos. Reducí el slider.")
-            else:
-                is_pent_gk = (pent_pos == 'Portero')
-                if is_pent_gk:
-                    all_pent_cols = _get_display_cols_gk(df)
-                    scores = _compute_pentagon_scores_gk(
-                        pent_player_data, pent_comparison_df, all_pent_cols
-                    )
-                    avg_scores = _compute_avg_pentagon_scores_gk(pent_comparison_df, all_pent_cols)
-                    pent_axes = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
-                    pent_group_desc = {
-                        'REF': 'Reflejos (remates recibidos, efectividad de atajadas)',
-                        'EFE': 'Efectividad (goles concedidos, xG en contra, goles evitados)',
-                        'DIS': 'Distribución (precisión de pases generales)',
-                        'DISP': 'Distribución de peligro (pases al último tercio, área y progresivos)',
-                        'ALCP': 'Alcance de pase (longitud promedio de pases)',
-                    }
-                else:
-                    all_pent_cols = _get_display_cols(df)
-                    scores = _compute_pentagon_scores(
-                        pent_player_data, pent_comparison_df, all_pent_cols,
-                        position_group=str(pent_player_data.get('Position Group', '')) or None,
-                    )
-                    avg_scores = _compute_avg_pentagon_scores(pent_comparison_df, all_pent_cols)
-                    pent_axes = ['ATQ', 'POS', 'PAS', 'CRE', 'DEF']
-                    pent_group_desc = {
-                        'ATQ': 'Goles y Remates',
-                        'POS': 'Posesión (Dribbling, Recepción, Acciones ofensivas)',
-                        'PAS': 'Pases y Centros',
-                        'CRE': 'Creatividad',
-                        'DEF': 'Defensa y Duelos (con penalización por Disciplina)',
-                    }
-
-                scores2 = None
-                team2_display = ''
-                if st.session_state['pent_show_compare'] and pent_player2:
-                    p2_rows = pent_pos_df[pent_pos_df['Player'] == pent_player2]
-                    if not p2_rows.empty:
-                        p2_data = p2_rows.iloc[0]
-                        team2_display = str(p2_data.get(pent_team_col, ''))
-                        if is_pent_gk:
-                            scores2 = _compute_pentagon_scores_gk(p2_data, pent_comparison_df, all_pent_cols)
-                        else:
-                            scores2 = _compute_pentagon_scores(
-                                p2_data, pent_comparison_df, all_pent_cols,
-                                position_group=str(p2_data.get('Position Group', '')) or None,
-                            )
-
-                team_display = str(pent_player_data.get(pent_team_col, ''))
-                subtitle_pent = (
-                    f"vs. {n_pent} {pent_pos.lower()}s · +{pent_min_minutes} min "
-                    f"· {pent_age_range[0]}-{pent_age_range[1]} años · {_LIGA_TORNEO.get(liga_activa, '2026')}"
-                )
-
-                _, col_center, _ = st.columns([1, 2, 1])
-                with col_center:
-                    fig_pent = _create_pentagon_chart(
-                        scores, pent_player, team_display, subtitle_pent,
-                        avg_scores=avg_scores, pos_label=pent_pos,
-                        scores2=scores2, player2_name=pent_player2 or '',
-                        team2=team2_display,
-                        custom_labels=pent_axes if is_pent_gk else None,
-                    )
-                    st.pyplot(fig_pent)
-
-                    buf_pent = io.BytesIO()
-                    fig_pent.savefig(buf_pent, format='png', dpi=200, bbox_inches='tight',
-                                     facecolor=fig_pent.get_facecolor())
-                    dl_fname = (
-                        f"pentagono_{pent_player.replace(' ', '_')}_vs_{pent_player2.replace(' ', '_')}.png"
-                        if scores2 and pent_player2
-                        else f"pentagono_{pent_player.replace(' ', '_')}.png"
-                    )
-                    st.download_button(
-                        "⬇️ Descargar gráfico", buf_pent.getvalue(),
-                        file_name=dl_fname,
-                        mime="image/png", key="dl_pent_fixed"
-                    )
-                    st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
-
-                st.markdown("#### Detalle de puntajes")
-                summary_rows = []
-                for key in pent_axes:
-                    diff = scores[key] - avg_scores[key]
-                    row = {
-                        'Categoría': key,
-                        'Descripción': pent_group_desc[key],
-                        pent_player[:20]: scores[key],
-                        f'Prom. {pent_pos}': avg_scores[key],
-                        'Dif. P1': f"+{diff}" if diff >= 0 else str(diff),
-                    }
-                    if scores2 and pent_player2:
-                        diff2 = scores2[key] - avg_scores[key]
-                        row[pent_player2[:20]] = scores2[key]
-                        row['Dif. P2'] = f"+{diff2}" if diff2 >= 0 else str(diff2)
-                    summary_rows.append(row)
-                st.dataframe(
-                    pd.DataFrame(summary_rows),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-    # ── Glosario de métricas por eje ─────────────────────────────────────────
-    st.markdown("---")
-    with st.expander("📖 Glosario: métricas por eje del MARCA ZONAL SCORE", expanded=False):
-        st.markdown("""
-<style>
-.gz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 8px; }
-.gz-card { background: #1e293b; border-radius: 8px; padding: 14px 16px; border-top: 3px solid var(--gz-c); }
-.gz-title { font-size: 15px; font-weight: 700; color: var(--gz-c); margin-bottom: 8px; letter-spacing: .5px; }
-.gz-sub { font-size: 11px; color: #94a3b8; margin-bottom: 6px; font-style: italic; }
-.gz-list { list-style: none; padding: 0; margin: 0; }
-.gz-list li { font-size: 12px; color: #cbd5e1; padding: 2px 0; }
-.gz-list li::before { content: "·  "; color: var(--gz-c); font-weight: 700; }
-.gz-note { font-size: 11px; color: #f59e0b; margin-top: 6px; }
-</style>
-<div class="gz-grid">
-
-  <div class="gz-card" style="--gz-c:#ef4444">
-    <div class="gz-title">⚽ ATQ — Ataque</div>
-    <div class="gz-sub">Capacidad goleadora y de remate</div>
-    <ul class="gz-list">
-      <li>Goles por 90</li>
-      <li>Goles sin penales por 90</li>
-      <li>Goles de cabeza por 90</li>
-      <li>Remates por 90</li>
-      <li>Remates al arco por 90</li>
-      <li>xG por 90</li>
-      <li>Conversión de gol (%)</li>
-      <li>Diferencia Goles − xG</li>
-    </ul>
-  </div>
-
-  <div class="gz-card" style="--gz-c:#06b6d4">
-    <div class="gz-title">⚡ POS — Posesión</div>
-    <div class="gz-sub">Manejo del balón, movilidad y acciones ofensivas</div>
-    <ul class="gz-list">
-      <li>Regates exitosos por 90</li>
-      <li>Regates exitosos (%)</li>
-      <li>Toques en área por 90</li>
-      <li>Carreras progresivas por 90</li>
-      <li>Aceleraciones por 90</li>
-      <li>Duelos ofensivos ganados (%)</li>
-      <li>Acciones ofensivas exitosas por 90</li>
-      <li>Faltas recibidas por 90</li>
-      <li>Pases recibidos por 90</li>
-      <li>Pases largos recibidos por 90</li>
-    </ul>
-  </div>
-
-  <div class="gz-card" style="--gz-c:#8b5cf6">
-    <div class="gz-title">📐 PAS — Pases</div>
-    <div class="gz-sub">Circulación, distribución y centros</div>
-    <ul class="gz-list">
-      <li>Pases precisos por 90</li>
-      <li>Pases hacia adelante por 90</li>
-      <li>Pases hacia atrás por 90</li>
-      <li>Pases laterales por 90</li>
-      <li>Pases cortos/medios por 90</li>
-      <li>Pases largos por 90</li>
-      <li>Pases progresivos por 90</li>
-      <li>Pases al último tercio por 90</li>
-      <li>Pases al área por 90</li>
-      <li>Pases de ruptura por 90</li>
-      <li>Completados en profundidad por 90</li>
-      <li>Centros por 90 · Centros precisos (%)</li>
-      <li>Centros en profundidad por 90</li>
-    </ul>
-  </div>
-
-  <div class="gz-card" style="--gz-c:#f59e0b">
-    <div class="gz-title">🎯 CRE — Creatividad</div>
-    <div class="gz-sub">Generación de peligro y asistencias</div>
-    <ul class="gz-list">
-      <li>Asistencias por 90</li>
-      <li>xA (xAsistencias) por 90</li>
-      <li>Pases de tiro por 90</li>
-      <li>Pases clave por 90</li>
-    </ul>
-  </div>
-
-  <div class="gz-card" style="--gz-c:#22c55e">
-    <div class="gz-title">🛡️ DEF — Defensa</div>
-    <div class="gz-sub">Acciones defensivas, duelos y disciplina</div>
-    <ul class="gz-list">
-      <li>Duelos defensivos ganados (%)</li>
-      <li>Acciones defensivas exitosas por 90</li>
-      <li>Entradas deslizantes por 90</li>
-      <li>Intercepciones por 90</li>
-      <li>Remates bloqueados por 90</li>
-      <li>CBIT por 90 (entradas + interc. + bloq.)</li>
-      <li>Duelos aéreos ganados (%)</li>
-    </ul>
-    <div class="gz-note">⚠️ Penalización (−25%): faltas cometidas, tarjetas amarillas y rojas</div>
-  </div>
-
-</div>
-        """, unsafe_allow_html=True)
-
-
-# ---- Tab 4: Pizza/Radar Chart ---------------------------------------------
-with tab_pizza:
-    st.subheader("Gráfico Radial por percentiles")
-
-    # Club → Player selection
-    pizza_team_col = 'Team within selected timeframe'
-    if pizza_team_col not in df.columns:
-        pizza_team_col = 'Team'
-    pizza_all_clubs = sorted(df[pizza_team_col].dropna().unique())
-
-    pizza_col1, pizza_col2, pizza_col3 = st.columns(3)
-    with pizza_col1:
-        pizza_club = st.selectbox("Club", pizza_all_clubs, key="pizza_club")
-
-    # Filter positions available in the selected club
-    pizza_club_df = df[df[pizza_team_col] == pizza_club]
-    pizza_positions = sorted(pizza_club_df['Position Group'].dropna().unique())
-    with pizza_col2:
-        pizza_position = st.selectbox("Posición", pizza_positions, key="pizza_position")
-
-    # Filter players by club + position
-    pizza_club_pos_df = pizza_club_df[pizza_club_df['Position Group'] == pizza_position]
-    pizza_club_players = sorted(pizza_club_pos_df['Player'].dropna().unique())
-    with pizza_col3:
-        pizza_player = st.selectbox("Jugador", pizza_club_players, key="pizza_player")
-
-    pizza_age_min, pizza_age_max = _get_age_bounds(df)
-    pizza_age_range = st.slider(
-        "Rango de edad", pizza_age_min, pizza_age_max,
-        value=(pizza_age_min, pizza_age_max), key="pizza_age_range"
-    )
-
-    # Minutes slider
-    pizza_min_min = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
-    pizza_max_min = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
-    pizza_min_minutes = st.slider(
-        "Minutos mínimos jugados", pizza_min_min, pizza_max_min,
-        value=min(200, pizza_max_min), key="pizza_min_minutes"
-    )
-
-    # Find the player's position group
-    pizza_player_rows = df[df['Player'] == pizza_player]
-    if pizza_player_rows.empty:
-        st.warning("Jugador no encontrado.")
-    else:
-        pizza_player_data = pizza_player_rows.iloc[0]
-        pizza_pos_group = pizza_player_data.get('Position Group', None)
-
-        if pd.isna(pizza_pos_group):
-            st.warning("El jugador no tiene grupo de posición asignado.")
-        else:
-            # Filter comparison group: same position group + min minutes
-            pizza_group_df = df[
-                (df['Position Group'] == pizza_pos_group)
-                & (df['Minutes played'] >= pizza_min_minutes)
-            ].copy()
-            pizza_group_df = _apply_age_filter(pizza_group_df, pizza_age_range)
-
-            pizza_player_in_group = pizza_group_df[pizza_group_df['Player'] == pizza_player]
-            if pizza_player_in_group.empty:
-                st.warning("El jugador no cumple el filtro de minutos mínimos. Reducí el slider.")
-            else:
-                pizza_player_data = pizza_player_in_group.iloc[0]
-                n_pizza_players = len(pizza_group_df)
-
-                # Build params, values, min_range, max_range from PIZZA_METRICS
-                params = []
-                values = []
-                min_range = []
-                max_range = []
-
-                for cat_name, metric_list in PIZZA_METRICS.items():
-                    for m in metric_list:
-                        if m not in pizza_group_df.columns:
-                            continue
-                        col = pd.to_numeric(pizza_group_df[m], errors='coerce')
-                        val = pd.to_numeric(pizza_player_data[m], errors='coerce')
-                        mn = float(col.min()) if pd.notnull(col.min()) else 0
-                        mx = float(col.max()) if pd.notnull(col.max()) else 1
-                        if mn == mx:
-                            mx = mn + 1
-                        v = float(val) if pd.notnull(val) else 0
-                        params.append(translate(m))
-                        values.append(round(v, 2))
-                        min_range.append(round(mn, 2))
-                        max_range.append(round(mx, 2))
-
-                if len(params) < 3:
-                    st.warning("No hay suficientes métricas para generar el gráfico radial.")
-                else:
-                    team_display = str(pizza_player_data.get(pizza_team_col, ''))
-                    subtitle = (
-                        f"Entre {n_pizza_players} {pizza_pos_group.lower()}s +{pizza_min_minutes} min "
-                        f"| {pizza_age_range[0]}-{pizza_age_range[1]} años | {_LIGA_TORNEO.get(liga_activa, '2026')}"
-                    )
-
-                    fig_pizza = create_pizza_chart(
-                        player_name=pizza_player,
-                        player_team=team_display,
-                        subtitle=subtitle,
-                        params=params,
-                        values=values,
-                        min_range=min_range,
-                        max_range=max_range,
-                        center_image=LOGO_BLANCO,
-                    )
-                    st.pyplot(fig_pizza)
-
-                    buf3 = io.BytesIO()
-                    fig_pizza.savefig(buf3, format='png', dpi=200, bbox_inches='tight',
-                                     facecolor=fig_pizza.get_facecolor())
-                    st.download_button("⬇️ Descargar gráfica", buf3.getvalue(),
-                                       file_name="radial_marcazonal.png", mime="image/png",
-                                       key="dl_pizza")
-                    st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 5: Jugadores Similares -------------------------------------------
 def _get_similarity_cols(df, selected_pos=''):
@@ -3437,306 +3075,6 @@ with tab_ranking:
             key="dl_rk_card",
         )
         st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
-
-# ---------------------------------------------------------------------------
-# Tab 7: Swarm
-# ---------------------------------------------------------------------------
-
-def _get_top5_metrics(player_data, comparison_df, metric_cols):
-    """Devuelve las 5 métricas donde el jugador tiene mayor percentil."""
-    scored = []
-    for c in metric_cols:
-        if c not in comparison_df.columns:
-            continue
-        val = player_data.get(c, None)
-        if val is None or pd.isnull(val):
-            continue
-        pct = _compute_percentile(float(val), comparison_df[c])
-        scored.append((c, pct, float(val)))
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return scored[:5]
-
-
-def _create_swarm_chart(player_data, comparison_df, metrics5, player_name, team,
-                        pos_label, player_age='', player_pos='', player_mins=0):
-    """
-    Gráfico tipo swarm: 5 paneles verticales, uno por métrica.
-    metrics5: lista de 5 col names (ya seleccionadas por el usuario o auto top-5).
-    """
-    import matplotlib.pyplot as plt
-    import matplotlib.patheffects as pe
-
-    n = len(metrics5)
-    if n == 0:
-        return None
-
-    fig, axes = plt.subplots(1, n, figsize=(15, 8), facecolor='#0e1117')
-    if n == 1:
-        axes = [axes]
-
-    for i, (ax, col) in enumerate(zip(axes, metrics5)):
-        series = pd.to_numeric(comparison_df[col], errors='coerce').dropna()
-        if col not in comparison_df.columns or len(series) == 0:
-            ax.axis('off')
-            continue
-
-        pv = player_data.get(col, None)
-        player_val = float(pv) if pv is not None and not pd.isnull(pv) else None
-
-        # ── Jitter horizontal ──────────────────────────────────────────────
-        rng = np.random.default_rng(seed=42 + i)
-        x_all = rng.uniform(-0.30, 0.30, len(series))
-
-        # Gradiente de color: celeste oscuro → celeste brillante
-        s_min, s_max = series.min(), series.max()
-        norm = (series.values - s_min) / (s_max - s_min + 1e-9)
-        colors = plt.cm.Blues(0.30 + norm * 0.65)
-
-        ax.scatter(x_all, series.values, c=colors, s=55, alpha=0.75,
-                   zorder=2, linewidths=0)
-
-        # ── Jugador seleccionado ───────────────────────────────────────────
-        if player_val is not None:
-            ax.scatter([0], [player_val],
-                       c='#f97316', s=220, zorder=6,
-                       edgecolors='#ffffff', linewidths=2.0)
-
-            # Valor anotado a la derecha del punto
-            ax.text(0.36, player_val, f"{player_val:.2f}",
-                    fontsize=11.5, color='#fb923c', fontweight='bold',
-                    va='center', ha='left',
-                    path_effects=[pe.withStroke(linewidth=2.5, foreground='#0e1117')])
-
-            # Posición ordinal en el pool (1º = mejor)
-            n_above = int((series > player_val).sum())
-            rank = n_above + 1
-            rank_str = f"{rank}º"
-
-            badge_y = s_max + (s_max - s_min) * 0.07
-            ax.text(0, badge_y, rank_str,
-                    fontsize=12, color='#fbbf24', fontweight='bold',
-                    ha='center', va='bottom',
-                    path_effects=[pe.withStroke(linewidth=2.5, foreground='#0e1117')])
-
-        # ── Línea y etiqueta de promedio ───────────────────────────────────
-        mean_val = float(series.mean())
-        ax.axhline(mean_val, color='#64748b', linewidth=1.2,
-                   linestyle='--', zorder=1, alpha=0.85)
-        ax.text(0, mean_val, ' Promedio',
-                fontsize=8.5, color='#94a3b8', va='bottom', ha='center',
-                path_effects=[pe.withStroke(linewidth=2, foreground='#0e1117')])
-
-        # ── Estilo del panel ───────────────────────────────────────────────
-        ax.set_facecolor('#0e1117')
-        ax.set_xlim(-0.65, 0.82)
-        ax.set_xticks([])
-        for spine in ['top', 'right', 'bottom']:
-            ax.spines[spine].set_visible(False)
-        ax.spines['left'].set_color('#374151')
-        ax.spines['left'].set_linewidth(1.0)
-        ax.tick_params(axis='y', colors='#6b7280', labelsize=9.5)
-
-        # Nombre de la métrica debajo del panel
-        label_es = translate(col)
-        if len(label_es) > 26:
-            label_es = label_es[:24] + '…'
-        ax.set_xlabel(label_es, color='#cbd5e1', fontsize=10,
-                      labelpad=10, fontweight='bold')
-
-    # ── Cabecera: nombre + equipo ─────────────────────────────────────────
-    fig.suptitle(
-        f"{player_name}  ·  {team}",
-        color='#f1f5f9', fontsize=15, fontweight='bold', y=1.03,
-    )
-
-    # Info del jugador: Edad · Posición · Minutos
-    info_parts = []
-    if player_age:
-        info_parts.append(f"{player_age} años")
-    if player_pos:
-        info_parts.append(str(player_pos))
-    if player_mins:
-        info_parts.append(f"{int(player_mins)} min")
-    info_line = '  ·  '.join(info_parts) if info_parts else pos_label
-    fig.text(0.5, 0.995, info_line,
-             color='#94a3b8', fontsize=10.5, ha='center', va='top')
-
-    # Subtítulo con pool
-    fig.text(0.5, 0.968, f"Por 90 min  ·  {pos_label}",
-             color='#64748b', fontsize=9.5, ha='center', va='top')
-
-    # ── Branding redes sociales (esquina superior derecha) ─────────────────
-    fig.text(0.99, 1.02,
-             "X @marca_zonal   |   Instagram @marca.zonal",
-             color='#e2e8f0', fontsize=10, fontweight='bold',
-             ha='right', va='bottom',
-             path_effects=[pe.withStroke(linewidth=2, foreground='#0e1117')])
-
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
-    return fig
-
-
-with tab_swarm:
-    st.subheader("🐝 Swarm")
-    st.caption("Distribución de métricas del jugador vs. su grupo posicional.")
-
-    sw_team_col = ('Team within selected timeframe'
-                   if 'Team within selected timeframe' in df.columns else 'Team')
-
-    # ── Filtros jugador ───────────────────────────────────────────────────
-    sw_c1, sw_c2, sw_c3 = st.columns([1, 1, 1])
-
-    with sw_c1:
-        sw_pos_opts = sorted(df['Position Group'].dropna().unique())
-        sw_pos = st.selectbox("Posición", sw_pos_opts, key="sw_pos")
-
-    sw_pos_df = df[df['Position Group'] == sw_pos].copy()
-    sw_age_min, sw_age_max = _get_age_bounds(sw_pos_df)
-    sw_age_range = st.slider(
-        "Rango de edad", sw_age_min, sw_age_max,
-        value=(sw_age_min, sw_age_max), key=f"sw_age_range_{sw_pos}"
-    )
-    sw_pos_df = _apply_age_filter(sw_pos_df, sw_age_range)
-    if sw_pos_df.empty:
-        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
-        sw_player = None
-        sw_club_df = sw_pos_df.copy()
-    else:
-        with sw_c2:
-            sw_club_opts = sorted(sw_pos_df[sw_team_col].dropna().unique())
-            sw_club = st.selectbox("Club", sw_club_opts, key="sw_club")
-
-        sw_club_df = sw_pos_df[sw_pos_df[sw_team_col] == sw_club]
-
-        with sw_c3:
-            sw_player_opts = sorted(sw_club_df['Player'].dropna().unique())
-            if not sw_player_opts:
-                st.warning("No hay jugadores para este filtro.")
-                sw_player = None
-            else:
-                sw_player = st.selectbox("Jugador", sw_player_opts, key="sw_player")
-
-    # ── Slider de minutos mínimos ─────────────────────────────────────────
-    if 'Minutes played' in sw_pos_df.columns and len(sw_pos_df) > 0:
-        _sw_mp_min = int(sw_pos_df['Minutes played'].min())
-        _sw_mp_max = int(sw_pos_df['Minutes played'].max())
-        if _sw_mp_min >= _sw_mp_max:
-            _sw_mp_max = _sw_mp_min + 1
-        sw_min_min = st.slider(
-            "Minutos mínimos del pool (percentiles)",
-            _sw_mp_min, _sw_mp_max,
-            value=min(200, _sw_mp_max),
-            key="sw_min_minutes",
-        )
-    else:
-        sw_min_min = 0
-
-    # Pool de comparación
-    sw_comparison_df = sw_pos_df[sw_pos_df['Minutes played'] >= sw_min_min].copy() \
-        if 'Minutes played' in sw_pos_df.columns else sw_pos_df.copy()
-
-    # Métricas disponibles para este grupo posicional
-    if sw_pos == 'Portero':
-        sw_metric_cols = [c for c in _GK_RANKING_COLS_PER90 if c in sw_comparison_df.columns]
-    else:
-        sw_metric_cols = [c for c in _PER90_COLS if c in sw_comparison_df.columns]
-
-    if sw_player and not sw_comparison_df.empty and sw_metric_cols:
-        sw_player_rows = sw_pos_df[sw_pos_df['Player'] == sw_player]
-
-        if sw_player_rows.empty:
-            st.warning("No se encontraron datos para el jugador seleccionado.")
-        else:
-            sw_player_data = sw_player_rows.iloc[0]
-            sw_team_name   = str(sw_player_data.get(sw_team_col, ''))
-            _sw_player_mins = float(sw_player_data.get('Minutes played', 0) or 0)
-
-            if _sw_player_mins < sw_min_min:
-                st.warning(
-                    f"⚠️ **{sw_player}** tiene **{int(_sw_player_mins)} min** jugados, "
-                    f"por debajo del umbral de **{sw_min_min} min**. "
-                    "Reducí el slider para incluirlo en el análisis."
-                )
-            else:
-                # Calcular top-5 automático (para defaults y modo auto)
-                sw_auto_top5 = _get_top5_metrics(
-                    sw_player_data, sw_comparison_df, sw_metric_cols)
-                sw_auto_cols = [c for c, _, _ in sw_auto_top5]
-
-                st.markdown("---")
-
-                # ── Toggle auto / manual ──────────────────────────────────
-                sw_auto = st.checkbox(
-                    "✨ Sugerir las 5 mejores estadísticas automáticamente",
-                    value=True, key="sw_auto",
-                )
-
-                if sw_auto:
-                    sw_selected_cols = sw_auto_cols
-                else:
-                    # 5 selectboxes manuales (default = top-5 auto)
-                    st.caption("Elegí manualmente las 5 métricas a visualizar:")
-                    sw_sel_cols_row = st.columns(5)
-                    sw_selected_cols = []
-                    for _idx, _scol in enumerate(sw_sel_cols_row):
-                        _default_col = sw_auto_cols[_idx] if _idx < len(sw_auto_cols) else sw_metric_cols[0]
-                        _default_idx = sw_metric_cols.index(_default_col) if _default_col in sw_metric_cols else 0
-                        _chosen = _scol.selectbox(
-                            f"Métrica {_idx + 1}",
-                            sw_metric_cols,
-                            index=_default_idx,
-                            format_func=translate,
-                            key=f"sw_metric_{_idx}",
-                        )
-                        sw_selected_cols.append(_chosen)
-
-                # ── Datos del jugador para el header del gráfico ──────────
-                sw_age  = sw_player_data.get('Age', '')
-                sw_orig_pos = sw_player_data.get('Position', '')
-                sw_mins_val = int(_sw_player_mins)
-
-                # Construir lista final (col, rank, val) para el gráfico
-                sw_metrics5 = []
-                for c in sw_selected_cols:
-                    pv = sw_player_data.get(c, None)
-                    if pv is not None and not pd.isnull(pv):
-                        sw_metrics5.append(c)
-                    else:
-                        sw_metrics5.append(c)   # igual lo pasamos; el gráfico lo maneja
-
-                n_comp = len(sw_comparison_df)
-                st.caption(
-                    f"Pool: **{n_comp} {sw_pos.lower()}s** · +{sw_min_min} min "
-                    f"· {sw_age_range[0]}-{sw_age_range[1]} años · {_LIGA_TORNEO.get(liga_activa, '2026')}"
-                )
-
-                _, col_center, _ = st.columns([0.3, 9.4, 0.3])
-                with col_center:
-                    fig_sw = _create_swarm_chart(
-                        sw_player_data, sw_comparison_df, sw_metrics5,
-                        sw_player, sw_team_name, sw_pos,
-                        player_age=str(sw_age) if sw_age else '',
-                        player_pos=str(sw_orig_pos),
-                        player_mins=sw_mins_val,
-                    )
-                    if fig_sw:
-                        st.pyplot(fig_sw)
-
-                        buf_sw = io.BytesIO()
-                        fig_sw.savefig(buf_sw, format='png', dpi=180,
-                                       bbox_inches='tight',
-                                       facecolor=fig_sw.get_facecolor())
-                        plt.close(fig_sw)
-                        _sw_fname = f"swarm_{sw_player.replace(' ', '_')[:25]}.png"
-                        st.download_button(
-                            "⬇️ Descargar gráfico",
-                            buf_sw.getvalue(),
-                            file_name=_sw_fname,
-                            mime="image/png",
-                            key="dl_sw",
-                        )
-                        st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
-
 
 # ---- Tab 8: Mejor Once -----------------------------------------------------
 # Colores por slot de posición exacta
