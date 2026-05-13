@@ -1916,38 +1916,53 @@ with tab_perfil:
     if team_col_tab1 not in df.columns:
         team_col_tab1 = 'Team'
 
-    # 3 cascading dropdowns
-    col_pos, col_club, col_player = st.columns(3)
+    # 3 cascading dropdowns: Club → Posición → Jugador
+    col_club, col_pos, col_player = st.columns(3)
 
-    position_groups = sorted(df['Position Group'].dropna().unique())
-    with col_pos:
-        selected_pos = st.selectbox("Posición", position_groups, key="tab1_pos")
+    # Step 1: Club (todas las ligas / liga activa)
+    if liga_activa == 'ALL' and 'Liga' in df.columns:
+        _df_sel = df.copy()
+        _df_sel['_club_display'] = _df_sel[team_col_tab1].astype(str) + ' [' + _df_sel['Liga'].astype(str) + ']'
+        _club_col = '_club_display'
+    else:
+        _df_sel = df
+        _club_col = team_col_tab1
 
-    pos_df = df[df['Position Group'] == selected_pos].copy()
-    t1_age_min, t1_age_max = _get_age_bounds(pos_df)
+    all_clubs_perfil = sorted(_df_sel[_club_col].dropna().unique())
+    with col_club:
+        selected_club_perfil = st.selectbox("Club", all_clubs_perfil, key="tab1_club")
+
+    _club_df = _df_sel[_df_sel[_club_col] == selected_club_perfil].copy()
+
+    # Age slider (sobre el club seleccionado)
+    t1_age_min, t1_age_max = _get_age_bounds(_club_df)
     tab1_age_range = st.slider(
         "Rango de edad", t1_age_min, t1_age_max,
-        value=(t1_age_min, t1_age_max), key=f"tab1_age_range_{selected_pos}"
+        value=(t1_age_min, t1_age_max), key=f"tab1_age_range_{selected_club_perfil}"
     )
-    pos_df = _apply_age_filter(pos_df, tab1_age_range)
-    if pos_df.empty:
-        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
+    _club_df = _apply_age_filter(_club_df, tab1_age_range)
+
+    # Step 2: Posición (posiciones disponibles en ese club)
+    positions_in_club = sorted(_club_df['Position Group'].dropna().unique())
+    if not positions_in_club:
+        st.warning("No hay jugadores que cumplan los filtros.")
         players_list = []
-        club_pos_df = pos_df.copy()
+        club_pos_df = pd.DataFrame()
+        pos_df = pd.DataFrame()
+        selected_pos = ''
         selected_player_tab1 = None
     else:
-        if liga_activa == 'ALL' and 'Liga' in pos_df.columns:
-            pos_df = pos_df.copy()
-            pos_df['_club_display'] = pos_df[team_col_tab1].astype(str) + ' [' + pos_df['Liga'].astype(str) + ']'
-            clubs_in_pos = sorted(pos_df['_club_display'].dropna().unique())
-            with col_club:
-                selected_club_disp = st.selectbox("Club", clubs_in_pos, key="tab1_club")
-            club_pos_df = pos_df[pos_df['_club_display'] == selected_club_disp]
-        else:
-            clubs_in_pos = sorted(pos_df[team_col_tab1].dropna().unique())
-            with col_club:
-                selected_club = st.selectbox("Club", clubs_in_pos, key="tab1_club")
-            club_pos_df = pos_df[pos_df[team_col_tab1] == selected_club]
+        with col_pos:
+            selected_pos = st.selectbox("Posición", positions_in_club, key="tab1_pos")
+
+        # pos_df = todos los jugadores de esa posición (para percentiles de comparación)
+        pos_df = df[df['Position Group'] == selected_pos].copy()
+        pos_df = _apply_age_filter(pos_df, tab1_age_range)
+
+        # club_pos_df = jugadores del club en esa posición
+        club_pos_df = _club_df[_club_df['Position Group'] == selected_pos].copy()
+
+        # Step 3: Jugador
         players_list = sorted(club_pos_df['Player'].dropna().unique())
         with col_player:
             selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
