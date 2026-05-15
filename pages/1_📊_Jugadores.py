@@ -3618,11 +3618,11 @@ with tab_query:
     # ── Métricas disponibles ────────────────────────────────────────────────
     if bq_mode == "Por 90":
         bq_avail = sorted([c for c in metric_columns
-                           if c.endswith(' per 90') and c in bq_pool.columns])
+                           if (c.endswith(' per 90') or c.endswith(', %'))
+                           and c in bq_pool.columns])
     else:
         bq_avail = sorted([c for c in metric_columns
                            if not c.endswith(' per 90')
-                           and not c.endswith(', %')
                            and 'Average' not in c
                            and c in bq_pool.columns])
 
