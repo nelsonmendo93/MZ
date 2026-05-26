@@ -3061,9 +3061,10 @@ with tab_ranking:
     if rk_tipo == "Por 90":
         rk_min_v = int(df['Minutes played'].min()) if 'Minutes played' in df.columns else 0
         rk_max_v = int(df['Minutes played'].max()) if 'Minutes played' in df.columns else 100
+        rk_default_min = math.ceil(rk_max_v * 0.50) if rk_max_v > 0 else rk_min_v
         rk_min_minutes = st.slider(
             "Minutos mínimos jugados", rk_min_v, rk_max_v,
-            value=min(200, rk_max_v), key="rk_min_minutes"
+            value=rk_default_min, key="rk_min_minutes"
         )
     else:
         rk_min_minutes = 0
@@ -3257,7 +3258,7 @@ def _compute_best_eleven(df, min_minutes=None):
     # Mínimo de minutos = 33% del jugador con más minutos
     if 'Minutes played' in df.columns:
         max_min = pd.to_numeric(df['Minutes played'], errors='coerce').max()
-        threshold = math.ceil(max_min * 0.33) if pd.notnull(max_min) else 90
+        threshold = math.ceil(max_min * 0.50) if pd.notnull(max_min) else 90
     else:
         threshold = 90
     df_filt = df[pd.to_numeric(df.get('Minutes played', pd.Series(dtype=float)), errors='coerce') >= threshold].copy()
@@ -3551,7 +3552,7 @@ with tab_best11:
         key="dl_b11",
     )
     st.caption(
-        f"Mínimo {_b11_min_min} min jugados (33% del máximo) · {b11_age_range[0]}-{b11_age_range[1]} años"
+        f"Mínimo {_b11_min_min} min jugados (50% del máximo) · {b11_age_range[0]}-{b11_age_range[1]} años"
         f"  ·  X: @marca_zonal  ·  Instagram: @marca.zonal"
     )
 
