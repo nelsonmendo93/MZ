@@ -1588,7 +1588,7 @@ def _compute_liga_home_ranking(source_df, min_minutes=300):
     """Calcula MARCA ZONAL SCORE para todos los jugadores outfield del df activo.
     Retorna DataFrame con columnas: Player, Team, Position Group, Score."""
     all_cols = _get_display_cols(source_df)
-    pos_groups = ['Delantero', 'Extremo', 'Volante Central', 'Lateral', 'Central']
+    pos_groups = ['Delantero', 'Extremo', 'Volante Central', 'Volante Ofensivo', 'Lateral', 'Central']
     records = []
     for pg in pos_groups:
         pg_df = source_df[
@@ -1693,9 +1693,9 @@ with tab_home:
         """, unsafe_allow_html=True)
 
     # ── TOP 5 por posición ─────────────────────────────────────────────────
-    _pos_order   = ['Delantero', 'Extremo', 'Volante Central', 'Lateral', 'Central']
+    _pos_order   = ['Delantero', 'Extremo', 'Volante Central', 'Volante Ofensivo', 'Lateral', 'Central']
     _pos_icons   = {'Delantero': '⚽', 'Extremo': '🏃', 'Volante Central': '⚙️',
-                    'Lateral': '🔁', 'Central': '🛡️'}
+                    'Volante Ofensivo': '🎨', 'Lateral': '🔁', 'Central': '🛡️'}
     _rank_colors = ['#f59e0b', '#94a3b8', '#cd7c3a', '#64748b', '#64748b']
 
     st.markdown("""
@@ -1706,7 +1706,10 @@ with tab_home:
     """, unsafe_allow_html=True)
 
     for _pg in _pos_order:
-        _pg_top = _home_ranking[_home_ranking['Position Group'] == _pg].head(5)
+        _pg_all = _home_ranking[_home_ranking['Position Group'] == _pg]
+        if _pg == 'Volante Ofensivo' and len(_pg_all) < 5:
+            continue
+        _pg_top = _pg_all.head(5)
         if _pg_top.empty:
             continue
         _icon = _pos_icons.get(_pg, '•')
