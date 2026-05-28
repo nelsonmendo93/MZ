@@ -360,13 +360,13 @@ _LIGA_TORNEO = {
     'CHI': '1ra Div Chile 2026',
     'PER': '1ra Div Perú 2026',
     'VEN': '1ra Div Venezuela 2026',
-    'ING': 'Premier League 2024/25',
-    'ITA': 'Serie A Calcio 2024/25',
-    'ALE': 'Bundesliga 2024/25',
-    'ESP': 'La Liga 2024/25',
-    'FRA': 'Ligue 1 2024/25',
+    'ING': 'Premier League 2025/26',
+    'ITA': 'Serie A Calcio 2025/26',
+    'ALE': 'Bundesliga 2025/26',
+    'ESP': 'La Liga 2025/26',
+    'FRA': 'Ligue 1 2025/26',
     'ALL_SA': 'Fútbol Sudamericano 2026',
-    'ALL_EU': 'TOP 5 Europa 2024/25',
+    'ALL_EU': 'TOP 5 Europa 2025/26',
 }
 
 # Agregar SA
