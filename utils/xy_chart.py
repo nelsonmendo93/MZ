@@ -14,8 +14,56 @@ _LIGA_COLORS = {
     'CHI': '#f97316',
     'PER': '#e879f9',
     'VEN': '#2dd4bf',
+    'ALE': '#facc15',
+    'ESP': '#f43f5e',
+    'FRA': '#60a5fa',
+    'ING': '#a78bfa',
+    'ITA': '#34d399',
 }
 _DEFAULT_COLOR = '#22c55e'
+
+
+def _select_auto_labels(df, x_col, y_col, forced_set, min_dist=0.06):
+    """
+    Greedy: elige qué jugadores pueden tener etiqueta automática sin encimarse.
+    Usa distancia euclídea normalizada entre puntos.
+    Los de forced_set se incluyen siempre y reservan su espacio.
+
+    Args:
+        min_dist: distancia mínima entre puntos para coexistir (fracción del rango)
+    Returns:
+        set de nombres de jugadores con etiqueta auto (NO incluye forced_set)
+    """
+    x_data = df[x_col].astype(float).values
+    y_data = df[y_col].astype(float).values
+    players = df['Player'].values
+
+    x_range = x_data.max() - x_data.min() or 1.0
+    y_range = y_data.max() - y_data.min() or 1.0
+
+    x_norm = (x_data - x_data.min()) / x_range
+    y_norm = (y_data - y_data.min()) / y_range
+
+    # índices de forced primero para reservar espacio
+    occupied = []
+    for i, player in enumerate(players):
+        if player in forced_set:
+            occupied.append((x_norm[i], y_norm[i]))
+
+    auto_labeled = set()
+    for i, player in enumerate(players):
+        if player in forced_set:
+            continue
+        xi, yi = x_norm[i], y_norm[i]
+        too_close = any(
+            ((xi - xj) ** 2 + (yi - yj) ** 2) ** 0.5 < min_dist
+            for xj, yj in occupied
+        )
+        if not too_close:
+            auto_labeled.add(player)
+            occupied.append((xi, yi))
+
+    return auto_labeled
 
 
 def create_xy_chart(df, x_col, y_col, labeled_players=None,
@@ -23,15 +71,19 @@ def create_xy_chart(df, x_col, y_col, labeled_players=None,
                     liga_col='Liga'):
     """
     Scatter XY con puntos coloreados por liga.
-    Solo muestra nombres para los jugadores en `labeled_players` (máx 5).
+
+    Etiquetado en dos capas:
+    - AUTO: todos los jugadores cuyo punto no se encima con otro → font pequeño, alpha moderado
+    - FORZADO (labeled_players): siempre muestran nombre → font grande, bold, punto destacado
 
     Args:
         df: DataFrame con columnas Player, x_col, y_col y opcionalmente liga_col
         x_col / y_col: columnas de métricas
-        labeled_players: lista de nombres a etiquetar (máx 5)
+        labeled_players: lista de nombres a forzar etiqueta (máx 5)
         liga_col: nombre de la columna de liga (default 'Liga')
     """
     labeled_players = [p for p in (labeled_players or []) if p]
+    forced_set = set(labeled_players)
 
     if x_label is None:
         x_label = x_col
@@ -67,50 +119,85 @@ def create_xy_chart(df, x_col, y_col, labeled_players=None,
             return _DEFAULT_COLOR
         return _LIGA_COLORS.get(str(row.get(liga_col, '')), _DEFAULT_COLOR)
 
-    # Separar jugadores etiquetados del resto
-    labeled_set = set(labeled_players)
-    others = df[~df['Player'].isin(labeled_set)]
-    labeled_df = df[df['Player'].isin(labeled_set)]
+    # Calcular qué jugadores tienen etiqueta auto (sin encimarse)
+    auto_set = _select_auto_labels(df, x_col, y_col, forced_set, min_dist=0.06)
 
-    # Plotear puntos del resto (sin nombre)
-    if has_liga:
-        for liga in ligas_presentes:
-            grp = others[others[liga_col] == liga]
-            if grp.empty:
-                continue
-            color = _LIGA_COLORS.get(liga, _DEFAULT_COLOR)
-            ax.scatter(grp[x_col].astype(float), grp[y_col].astype(float),
-                       c=color, alpha=0.55, s=70, zorder=5,
-                       edgecolors='none')
-        # También los sin liga conocida
-        grp_none = others[~others[liga_col].isin(ligas_presentes)]
-        if not grp_none.empty:
-            ax.scatter(grp_none[x_col].astype(float), grp_none[y_col].astype(float),
-                       c=_DEFAULT_COLOR, alpha=0.55, s=70, zorder=5, edgecolors='none')
-    else:
-        ax.scatter(others[x_col].astype(float), others[y_col].astype(float),
-                   c=_DEFAULT_COLOR, alpha=0.55, s=70, zorder=5, edgecolors='none')
+    # Separar en 3 grupos: forzados, auto, sin etiqueta
+    df_forced = df[df['Player'].isin(forced_set)]
+    df_auto = df[df['Player'].isin(auto_set)]
+    df_plain = df[~df['Player'].isin(forced_set | auto_set)]
 
-    # Plotear jugadores etiquetados (más grandes, borde blanco)
-    texts = []
-    for _, row in labeled_df.iterrows():
+    # ---- Plotear puntos sin etiqueta ----
+    def _scatter_group(grp_df, alpha=0.50, size=65):
+        if grp_df.empty:
+            return
+        if has_liga:
+            for liga in ligas_presentes:
+                grp = grp_df[grp_df[liga_col] == liga]
+                if grp.empty:
+                    continue
+                color = _LIGA_COLORS.get(liga, _DEFAULT_COLOR)
+                ax.scatter(grp[x_col].astype(float), grp[y_col].astype(float),
+                           c=color, alpha=alpha, s=size, zorder=5, edgecolors='none')
+            grp_none = grp_df[~grp_df[liga_col].isin(ligas_presentes)]
+            if not grp_none.empty:
+                ax.scatter(grp_none[x_col].astype(float), grp_none[y_col].astype(float),
+                           c=_DEFAULT_COLOR, alpha=alpha, s=size, zorder=5, edgecolors='none')
+        else:
+            ax.scatter(grp_df[x_col].astype(float), grp_df[y_col].astype(float),
+                       c=_DEFAULT_COLOR, alpha=alpha, s=size, zorder=5, edgecolors='none')
+
+    _scatter_group(df_plain, alpha=0.50, size=65)
+
+    # ---- Etiquetas automáticas (fondo semi-transparente, font pequeño) ----
+    texts_auto = []
+    for _, row in df_auto.iterrows():
         xv, yv = float(row[x_col]), float(row[y_col])
         color = _point_color(row)
-        ax.scatter(xv, yv, c=color, s=220, zorder=10,
-                   edgecolors='white', linewidths=1.8)
-        t = ax.text(xv, yv, row['Player'], fontsize=10, color='white',
-                    ha='center', va='bottom', fontweight='bold', zorder=15)
-        texts.append(t)
+        ax.scatter(xv, yv, c=color, alpha=0.65, s=65, zorder=6, edgecolors='none')
+        t = ax.text(
+            xv, yv, row['Player'],
+            fontsize=7.5, color='white', alpha=0.75,
+            ha='center', va='bottom', zorder=11,
+            bbox=dict(boxstyle='round,pad=0.15', facecolor='#0f1117',
+                      alpha=0.35, edgecolor='none'),
+        )
+        texts_auto.append(t)
 
-    # adjustText solo para etiquetados — params mínimos para compatibilidad cross-version
-    if texts:
+    # ---- Etiquetas forzadas (siempre visibles, bold) ----
+    texts_forced = []
+    for _, row in df_forced.iterrows():
+        xv, yv = float(row[x_col]), float(row[y_col])
+        color = _point_color(row)
+        ax.scatter(xv, yv, c=color, s=230, zorder=12,
+                   edgecolors='white', linewidths=1.8)
+        t = ax.text(
+            xv, yv, row['Player'],
+            fontsize=10, color='white', fontweight='bold',
+            ha='center', va='bottom', zorder=16,
+        )
+        texts_forced.append(t)
+
+    # ---- adjustText separado por capa ----
+    if texts_auto:
         try:
             adjust_text(
-                texts, ax=ax,
-                arrowprops=dict(color='gray', alpha=0.5, lw=0.6, shrinkA=4, shrinkB=4),
+                texts_auto, ax=ax,
+                arrowprops=dict(color='gray', alpha=0.35, lw=0.5,
+                                shrinkA=3, shrinkB=3),
             )
         except Exception:
-            pass  # si falla por versión, los textos se muestran sin ajuste de posición
+            pass
+
+    if texts_forced:
+        try:
+            adjust_text(
+                texts_forced, ax=ax,
+                arrowprops=dict(color='gray', alpha=0.55, lw=0.7,
+                                shrinkA=4, shrinkB=4),
+            )
+        except Exception:
+            pass
 
     # Leyenda de ligas (solo las presentes en el gráfico)
     if has_liga and ligas_presentes:
@@ -129,7 +216,6 @@ def create_xy_chart(df, x_col, y_col, labeled_players=None,
             handlelength=1.2,
             handleheight=1.0,
         )
-        # labelcolor='white' requiere matplotlib>=3.3; fallback manual
         for txt in leg.get_texts():
             txt.set_color('white')
 

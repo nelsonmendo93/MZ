@@ -1,6 +1,6 @@
 # CLAUDE.md — Marca Zonal: Portal de Análisis de Fútbol Paraguayo
 
-**Última actualización:** Abril 20, 2026  
+**Última actualización:** Junio 03, 2026  
 **Propósito:** Documentación completa del proyecto para Claude en futuras sesiones  
 **Estado:** En producción (Streamlit Cloud) + Desarrollo activo
 
@@ -210,7 +210,7 @@ futbol-app/
 
 ## 📊 DATOS Y ESTRUCTURA
 
-### Ligas disponibles (7 en total)
+### Ligas disponibles (12 en total)
 
 | Archivo | Liga | Estado |
 |---------|------|--------|
@@ -221,6 +221,13 @@ futbol-app/
 | `COL.xlsx` | Colombia | Activo en Similares |
 | `ECU.xlsx` | Ecuador | Activo en Similares |
 | `CHI.xlsx` | Chile | Activo en Similares |
+| `PER.xlsx` | Perú | Activo en Similares |
+| `VEN.xlsx` | Venezuela | Activo en Similares |
+| `ALE.xlsx` | Alemania (Bundesliga) | Activo en Similares |
+| `ESP.xlsx` | España (La Liga) | Activo en Similares |
+| `FRA.xlsx` | Francia (Ligue 1) | Activo en Similares |
+| `ING.xlsx` | Inglaterra (Premier League) | Activo en Similares |
+| `ITA.xlsx` | Italia (Serie A) | Activo en Similares |
 
 ### Team Stats (12 archivos para Tiempo Efectivo)
 ```
@@ -407,12 +414,12 @@ API en Railway/Render + publicación App Store/Google Play
 | **Jugadores.py** | ✅ 8 tabs completos | Scout, Swarm, Mejor Once, PCA multi-liga |
 | **Predictor.py** | ✅ Funcional | Poisson sin scipy |
 | **Tiempo Efectivo** | ✅ Funcional | 12 equipos, formato HH:MM:SS |
-| **Ligas comparación** | ✅ 7 ligas | PAR, ARG, BRA, URU, COL, ECU, CHI |
+| **Ligas comparación** | ✅ 12 ligas | PAR, ARG, BRA, URU, COL, ECU, CHI, PER, VEN, ALE, ESP, FRA, ING, ITA |
 | **Vista Scout + PNG** | ✅ Operativo | scout_html.py + dom-to-image |
 | **MARCA ZONAL SCORE** | ✅ Por posición | Pesos diferenciados por grupo |
 | **App Móvil** | 🚧 Planificación | Fase 1: API Backend pendiente |
 
 ---
 
-**Última actualización:** 2026-04-20  
+**Última actualización:** 2026-06-03  
 **Próxima revisión:** Al iniciar Fase 1 (API Backend)
