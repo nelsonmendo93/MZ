@@ -157,7 +157,7 @@ def create_xy_chart(df, x_col, y_col, labeled_players=None,
         ax.scatter(xv, yv, c=color, alpha=0.65, s=65, zorder=6, edgecolors='none')
         t = ax.text(
             xv, yv, row['Player'],
-            fontsize=7.5, color='white', alpha=0.75,
+            fontsize=9.5, color='white', alpha=0.75,
             ha='center', va='bottom', zorder=11,
             bbox=dict(boxstyle='round,pad=0.15', facecolor='#0f1117',
                       alpha=0.35, edgecolor='none'),
@@ -173,7 +173,7 @@ def create_xy_chart(df, x_col, y_col, labeled_players=None,
                    edgecolors='white', linewidths=1.8)
         t = ax.text(
             xv, yv, row['Player'],
-            fontsize=10, color='white', fontweight='bold',
+            fontsize=12.5, color='white', fontweight='bold',
             ha='center', va='bottom', zorder=16,
         )
         texts_forced.append(t)
