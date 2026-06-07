@@ -311,9 +311,17 @@ df_ale = load_external_league('ALE')
 df_esp = load_external_league('ESP')
 df_fra = load_external_league('FRA')
 
+# Torneos Internacionales
+df_lib  = load_external_league('LIB')
+df_sud  = load_external_league('SUD')
+df_ucl  = load_external_league('UCL')
+df_uel  = load_external_league('UEL')
+df_uecl = load_external_league('UECL')
+
 # Grupos de ligas — fuente de verdad para agrupación y comparación
-_SA_CODES = ['PAR', 'ARG', 'BRA', 'URU', 'COL', 'ECU', 'CHI', 'PER', 'VEN']
-_EU_CODES = ['ING', 'ITA', 'ALE', 'ESP', 'FRA']
+_SA_CODES   = ['PAR', 'ARG', 'BRA', 'URU', 'COL', 'ECU', 'CHI', 'PER', 'VEN']
+_EU_CODES   = ['ING', 'ITA', 'ALE', 'ESP', 'FRA']
+_INTL_CODES = ['LIB', 'SUD', 'UCL', 'UEL', 'UECL']
 
 # Mapa de ligas disponibles
 _LIGA_DFS = {
@@ -331,6 +339,11 @@ _LIGA_DFS = {
     'ALE': df_ale,
     'ESP': df_esp,
     'FRA': df_fra,
+    'LIB':  df_lib,
+    'SUD':  df_sud,
+    'UCL':  df_ucl,
+    'UEL':  df_uel,
+    'UECL': df_uecl,
 }
 _LIGA_LABELS = {
     'PAR': 'Paraguay',
@@ -347,8 +360,14 @@ _LIGA_LABELS = {
     'ALE': 'Bundesliga',
     'ESP': 'La Liga',
     'FRA': 'Ligue 1',
-    'ALL_SA': '🌎 Sudamérica (todas)',
-    'ALL_EU': '🌍 Europa (todas)',
+    'LIB':  'Copa Libertadores',
+    'SUD':  'Copa Sudamericana',
+    'UCL':  'Champions League',
+    'UEL':  'Europa League',
+    'UECL': 'Conference League',
+    'ALL_SA':   '🌎 Sudamérica (todas)',
+    'ALL_EU':   '🌍 Europa (todas)',
+    'ALL_INTL': '🏆 Torneos Internacionales (todos)',
 }
 _LIGA_TORNEO = {
     'PAR': 'Torneo Local 2026',
@@ -365,8 +384,14 @@ _LIGA_TORNEO = {
     'ALE': 'Bundesliga 2025/26',
     'ESP': 'La Liga 2025/26',
     'FRA': 'Ligue 1 2025/26',
-    'ALL_SA': 'Fútbol Sudamericano 2026',
-    'ALL_EU': 'TOP 5 Europa 2025/26',
+    'LIB':  'Copa Libertadores 2026',
+    'SUD':  'Copa Sudamericana 2026',
+    'UCL':  'UEFA Champions League 2025/26',
+    'UEL':  'UEFA Europa League 2025/26',
+    'UECL': 'UEFA Conference League 2025/26',
+    'ALL_SA':   'Fútbol Sudamericano 2026',
+    'ALL_EU':   'TOP 5 Europa 2025/26',
+    'ALL_INTL': 'Torneos Internacionales 2025/26',
 }
 
 # Agregar SA
@@ -391,8 +416,19 @@ for _code in _EU_CODES:
 df_all_eu = pd.concat(_eu_parts, ignore_index=True) if _eu_parts else pd.DataFrame()
 _LIGA_DFS['ALL_EU'] = df_all_eu
 
+# Agregar Torneos Internacionales
+_intl_parts = []
+for _code in _INTL_CODES:
+    _ldf = _LIGA_DFS.get(_code)
+    if _ldf is not None:
+        _part = _ldf.copy()
+        _part['Liga'] = _code
+        _intl_parts.append(_part)
+df_all_intl = pd.concat(_intl_parts, ignore_index=True) if _intl_parts else pd.DataFrame()
+_LIGA_DFS['ALL_INTL'] = df_all_intl
+
 # df_all: todas las ligas combinadas (usado en Buscador para bounds globales)
-df_all = pd.concat([df_all_sa, df_all_eu], ignore_index=True) if (_sa_parts or _eu_parts) else pd.DataFrame()
+df_all = pd.concat([df_all_sa, df_all_eu, df_all_intl], ignore_index=True) if (_sa_parts or _eu_parts or _intl_parts) else pd.DataFrame()
 
 # Ligas disponibles por grupo (individuales + agregado)
 _AVAILABLE_SA = [k for k in _SA_CODES if _LIGA_DFS.get(k) is not None] + (
@@ -401,18 +437,26 @@ _AVAILABLE_SA = [k for k in _SA_CODES if _LIGA_DFS.get(k) is not None] + (
 _AVAILABLE_EU = [k for k in _EU_CODES if _LIGA_DFS.get(k) is not None] + (
     ['ALL_EU'] if not df_all_eu.empty else []
 )
-_AVAILABLE_LIGAS = _AVAILABLE_SA + _AVAILABLE_EU
+_AVAILABLE_INTL = [k for k in _INTL_CODES if _LIGA_DFS.get(k) is not None] + (
+    ['ALL_INTL'] if not df_all_intl.empty else []
+)
+_AVAILABLE_LIGAS = _AVAILABLE_SA + _AVAILABLE_EU + _AVAILABLE_INTL
 
 # Selector de liga — dos pasos: Grupo → Liga
 _sel_c1, _sel_c2, _ = st.columns([1, 1, 2])
 with _sel_c1:
     _grupo = st.selectbox(
         "🌍 Grupo",
-        options=['Sudamérica', 'Europa'],
+        options=['Sudamérica', 'Europa', 'Torneos Internacionales'],
         key="grupo_selector",
     )
 with _sel_c2:
-    _ligas_options = _AVAILABLE_SA if _grupo == 'Sudamérica' else _AVAILABLE_EU
+    if _grupo == 'Sudamérica':
+        _ligas_options = _AVAILABLE_SA
+    elif _grupo == 'Europa':
+        _ligas_options = _AVAILABLE_EU
+    else:
+        _ligas_options = _AVAILABLE_INTL
     liga_activa = st.selectbox(
         "🌎 Liga",
         options=_ligas_options,
@@ -2477,6 +2521,11 @@ def _render_similarity_table(results, pool_df, team_col, top_n):
         'CHI': '#f97316',   # naranja
         'PER': '#e879f9',   # fucsia
         'VEN': '#2dd4bf',   # cian
+        'LIB':  '#10b981',  # esmeralda (Libertadores)
+        'SUD':  '#a78bfa',  # violeta claro (Sudamericana)
+        'UCL':  '#3b82f6',  # azul Champions
+        'UEL':  '#fb923c',  # naranja Europa League
+        'UECL': '#22d3ee',  # cyan Conference League
     }
     _has_liga = 'Liga' in pool_df.columns
 
@@ -2616,12 +2665,16 @@ with tab_similar:
         'PER': '#e879f9', 'VEN': '#2dd4bf',
         'ING': '#e11d48', 'ITA': '#4ade80', 'ALE': '#f59e0b',
         'ESP': '#fb923c', 'FRA': '#60a5fa',
+        'LIB':  '#10b981', 'SUD':  '#a78bfa',
+        'UCL':  '#3b82f6', 'UEL':  '#fb923c', 'UECL': '#22d3ee',
     }
-    # Checkboxes solo dentro del mismo grupo continental
+    # Checkboxes solo dentro del mismo grupo
     if liga_activa in _SA_CODES:
         _other_ligas_sim = [k for k in _AVAILABLE_SA if k not in (liga_activa, 'ALL_SA')]
     elif liga_activa in _EU_CODES:
         _other_ligas_sim = [k for k in _AVAILABLE_EU if k not in (liga_activa, 'ALL_EU')]
+    elif liga_activa in _INTL_CODES:
+        _other_ligas_sim = [k for k in _AVAILABLE_INTL if k not in (liga_activa, 'ALL_INTL')]
     else:
         _other_ligas_sim = []
     _active_label_sim = _LIGA_LABELS[liga_activa]
@@ -2651,11 +2704,16 @@ with tab_similar:
     </style>
     """, unsafe_allow_html=True)
 
-    if liga_activa in ('ALL_SA', 'ALL_EU'):
-        _pool_label = '🌎 <b>Pool Sudamericano activo</b>' if liga_activa == 'ALL_SA' else '🌍 <b>Pool Europeo activo</b>'
+    if liga_activa in ('ALL_SA', 'ALL_EU', 'ALL_INTL'):
+        _pool_label_map = {
+            'ALL_SA':   '🌎 <b>Pool Sudamericano activo</b>',
+            'ALL_EU':   '🌍 <b>Pool Europeo activo</b>',
+            'ALL_INTL': '🏆 <b>Pool Torneos Internacionales activo</b>',
+        }
+        _pool_label = _pool_label_map[liga_activa]
         st.markdown(
             f"<p style='margin:10px 0 8px 0; font-size:0.9rem; color:#9ca3af;'>"
-            f"{_pool_label} — comparando contra todas las ligas del grupo.</p>",
+            f"{_pool_label} — comparando contra todos los torneos del grupo.</p>",
             unsafe_allow_html=True,
         )
         _pool_all = df[
@@ -3595,9 +3653,12 @@ with tab_query:
         'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
         'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
         'PER': '#e879f9', 'VEN': '#2dd4bf',
+        'ING': '#e11d48', 'ITA': '#4ade80', 'ALE': '#f59e0b',
+        'ESP': '#fb923c', 'FRA': '#60a5fa',
+        'LIB':  '#10b981', 'SUD':  '#a78bfa',
+        'UCL':  '#3b82f6', 'UEL':  '#fb923c', 'UECL': '#22d3ee',
     }
-    _bq_liga_codes = [k for k in ['PAR', 'ARG', 'BRA', 'URU', 'COL', 'ECU', 'CHI', 'PER', 'VEN']
-                      if _LIGA_DFS.get(k) is not None]
+    _bq_liga_codes = [k for k in _AVAILABLE_LIGAS if _LIGA_DFS.get(k) is not None]
 
     _bq_ck_rules = '\n'.join(
         f'div[data-testid="stCheckbox"]:has(input[aria-label="{_LIGA_LABELS[c]}"]) label p'
@@ -3794,6 +3855,10 @@ with tab_query:
             'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
             'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
             'PER': '#e879f9', 'VEN': '#2dd4bf',
+            'ING': '#ef4444', 'ITA': '#84cc16', 'ALE': '#facc15',
+            'ESP': '#f97316', 'FRA': '#60a5fa',
+            'LIB': '#10b981', 'SUD': '#a78bfa',
+            'UCL': '#3b82f6', 'UEL': '#fb923c', 'UECL': '#22d3ee',
         }
 
         # Cabeceras métricas con rango del slider

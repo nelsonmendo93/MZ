@@ -19,6 +19,18 @@ LEAGUE_COLORS = {
     'COL': '#eab308',
     'ECU': '#7c3aed',
     'CHI': '#f97316',
+    'PER': '#e879f9',
+    'VEN': '#2dd4bf',
+    'ING': '#ef4444',
+    'ITA': '#84cc16',
+    'ALE': '#facc15',
+    'ESP': '#f97316',
+    'FRA': '#60a5fa',
+    'LIB':  '#10b981',
+    'SUD':  '#a78bfa',
+    'UCL':  '#3b82f6',
+    'UEL':  '#fb923c',
+    'UECL': '#22d3ee',
 }
 
 SCOUT_PILL_COLORS = {
