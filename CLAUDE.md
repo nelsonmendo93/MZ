@@ -1,6 +1,6 @@
 # CLAUDE.md — Marca Zonal: Portal de Análisis de Fútbol Paraguayo
 
-**Última actualización:** Junio 03, 2026  
+**Última actualización:** Junio 07, 2026  
 **Propósito:** Documentación completa del proyecto para Claude en futuras sesiones  
 **Estado:** En producción (Streamlit Cloud) + Desarrollo activo
 
@@ -114,9 +114,14 @@ futbol-app/
 | 7 | 🐝 Swarm | Distribución métrica vs grupo posicional |
 | 8 | ⚽ Mejor Once | Constructor de equipo ideal |
 
+**Selector de liga — 3 grupos:**
+- `Sudamérica` → PAR, ARG, BRA, URU, COL, ECU, CHI, PER, VEN + ALL_SA
+- `Europa` → ING, ITA, ALE, ESP, FRA + ALL_EU
+- `Torneos Internacionales` → LIB, SUD, UCL, UEL, UECL + ALL_INTL
+
 **Datos cargados:**
 - `database.xlsx` (PAR) — siempre cargado
-- `ARG.xlsx`, `BRA.xlsx`, `URU.xlsx`, `COL.xlsx`, `ECU.xlsx`, `CHI.xlsx` — lazy load
+- Todas las demás ligas — lazy load via `load_external_league()`
 
 **Filtros disponibles:**
 - Grupo de posición (6 grupos)
@@ -149,7 +154,11 @@ futbol-app/
 - `build_scout_html()` → Genera HTML completo de ficha de jugador
 - Incluye: foto posición en cancha, pentágono de atributos, TOP 5 métricas, TOP 5 similares, MARCA ZONAL SCORE
 - Exportar a PNG via `dom-to-image-more.min.js`
-- Colores por liga: PAR=rojo, ARG=teal, BRA=verde, URU=azul, COL=amarillo, ECU=violeta, CHI=naranja
+- Colores por liga (`LEAGUE_COLORS`):
+  - PAR=rojo, ARG=teal, BRA=verde, URU=azul, COL=amarillo, ECU=violeta, CHI=naranja
+  - PER=fucsia, VEN=turquesa
+  - ING=rojo vivo, ITA=lima, ALE=amarillo, ESP=naranja, FRA=azul claro
+  - LIB=esmeralda, SUD=violeta claro, UCL=azul, UEL=naranja, UECL=cyan
 
 ### `utils/bar_chart.py` — Bar Chart (501 LOC)
 - Percentiles horizontales por 4 categorías de métricas
@@ -185,9 +194,9 @@ futbol-app/
 ### Tab 5: 🔍 Similares — PCA Multi-liga
 
 - Algoritmo: StandardScaler → PCA (≥85% varianza, mín 3 / máx 25 componentes) → distancia euclídea
-- Pool configurable: PAR + cualquier combinación de ARG, BRA, URU, COL, ECU, CHI
+- Pool configurable: PAR + cualquier combinación de las 18 ligas disponibles
 - Filtros: grupo de posición, edad mínima/máxima, minutos mínimos
-- Resultado: 5 jugadores más similares con badge de liga
+- Resultado: 5 jugadores más similares con badge de liga (colores por código)
 
 ### Tab 7: 🐝 Swarm
 
@@ -210,24 +219,41 @@ futbol-app/
 
 ## 📊 DATOS Y ESTRUCTURA
 
-### Ligas disponibles (12 en total)
+### Ligas disponibles (19 en total)
 
-| Archivo | Liga | Estado |
-|---------|------|--------|
-| `database.xlsx` | Paraguay (PAR) | Siempre cargado |
-| `ARG.xlsx` | Argentina | Activo en Similares |
-| `BRA.xlsx` | Brasil | Activo en Similares |
-| `URU.xlsx` | Uruguay | Activo en Similares |
-| `COL.xlsx` | Colombia | Activo en Similares |
-| `ECU.xlsx` | Ecuador | Activo en Similares |
-| `CHI.xlsx` | Chile | Activo en Similares |
-| `PER.xlsx` | Perú | Activo en Similares |
-| `VEN.xlsx` | Venezuela | Activo en Similares |
-| `ALE.xlsx` | Alemania (Bundesliga) | Activo en Similares |
-| `ESP.xlsx` | España (La Liga) | Activo en Similares |
-| `FRA.xlsx` | Francia (Ligue 1) | Activo en Similares |
-| `ING.xlsx` | Inglaterra (Premier League) | Activo en Similares |
-| `ITA.xlsx` | Italia (Serie A) | Activo en Similares |
+**Sudamérica**
+
+| Archivo | Código | Liga | Torneo |
+|---------|--------|------|--------|
+| `database.xlsx` | PAR | Paraguay | Torneo Local 2026 — siempre cargado |
+| `ARG.xlsx` | ARG | Argentina | LPF 2026 |
+| `BRA.xlsx` | BRA | Brasil | Serie A 2026 |
+| `URU.xlsx` | URU | Uruguay | 1ra Div Uruguay 2026 |
+| `COL.xlsx` | COL | Colombia | Liga BetPlay 2026 |
+| `ECU.xlsx` | ECU | Ecuador | Liga Pro 2026 |
+| `CHI.xlsx` | CHI | Chile | 1ra Div Chile 2026 |
+| `PER.xlsx` | PER | Perú | 1ra Div Perú 2026 |
+| `VEN.xlsx` | VEN | Venezuela | 1ra Div Venezuela 2026 |
+
+**Europa (TOP 5)**
+
+| Archivo | Código | Liga | Torneo |
+|---------|--------|------|--------|
+| `ING.xlsx` | ING | Inglaterra | Premier League 2025/26 |
+| `ITA.xlsx` | ITA | Italia | Serie A Calcio 2025/26 |
+| `ALE.xlsx` | ALE | Alemania | Bundesliga 2025/26 |
+| `ESP.xlsx` | ESP | España | La Liga 2025/26 |
+| `FRA.xlsx` | FRA | Francia | Ligue 1 2025/26 |
+
+**Torneos Internacionales**
+
+| Archivo | Código | Competencia | Temporada |
+|---------|--------|-------------|-----------|
+| `LIB.xlsx` | LIB | Copa Libertadores | 2026 |
+| `SUD.xlsx` | SUD | Copa Sudamericana | 2026 |
+| `UCL.xlsx` | UCL | UEFA Champions League | 2025/26 |
+| `UEL.xlsx` | UEL | UEFA Europa League | 2025/26 |
+| `UECL.xlsx` | UECL | UEFA Conference League | 2025/26 |
 
 ### Team Stats (12 archivos para Tiempo Efectivo)
 ```
@@ -414,12 +440,12 @@ API en Railway/Render + publicación App Store/Google Play
 | **Jugadores.py** | ✅ 8 tabs completos | Scout, Swarm, Mejor Once, PCA multi-liga |
 | **Predictor.py** | ✅ Funcional | Poisson sin scipy |
 | **Tiempo Efectivo** | ✅ Funcional | 12 equipos, formato HH:MM:SS |
-| **Ligas comparación** | ✅ 12 ligas | PAR, ARG, BRA, URU, COL, ECU, CHI, PER, VEN, ALE, ESP, FRA, ING, ITA |
+| **Ligas comparación** | ✅ 19 ligas | PAR+8 SA + TOP5 EU + LIB, SUD, UCL, UEL, UECL |
 | **Vista Scout + PNG** | ✅ Operativo | scout_html.py + dom-to-image |
 | **MARCA ZONAL SCORE** | ✅ Por posición | Pesos diferenciados por grupo |
 | **App Móvil** | 🚧 Planificación | Fase 1: API Backend pendiente |
 
 ---
 
-**Última actualización:** 2026-06-03  
+**Última actualización:** 2026-06-07  
 **Próxima revisión:** Al iniciar Fase 1 (API Backend)
