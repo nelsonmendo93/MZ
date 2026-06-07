@@ -2315,13 +2315,79 @@ with tab_overall:
                     ov_pent_avg    = _compute_avg_pentagon_scores(ov_comparison_df, ov_pent_cols)
                     ov_custom_labels = None
 
+                # ── Comparador ────────────────────────────────────────────
+                st.markdown("---")
+                ov_compare = st.checkbox("⚖️ Comparar con otro jugador", key="overall_compare")
+
+                ov_scores2      = None
+                ov_player2_name = ''
+                ov_team2        = ''
+                ov_mz_score2    = None
+
+                if ov_compare:
+                    st.markdown(
+                        "<div style='font-size:0.7rem;letter-spacing:2px;color:#f97316;"
+                        "text-transform:uppercase;font-weight:700;margin-bottom:8px;'>"
+                        "🟠 Jugador 2</div>", unsafe_allow_html=True
+                    )
+                    # P2 puede ser de cualquier liga disponible
+                    _ov2_pool = df_all if not df_all.empty else df
+                    _ov2_team_col = 'Team within selected timeframe' if 'Team within selected timeframe' in _ov2_pool.columns else 'Team'
+
+                    if 'Liga' in _ov2_pool.columns:
+                        _ov2_pool = _ov2_pool.copy()
+                        _ov2_pool['_club_display2'] = _ov2_pool[_ov2_team_col].astype(str) + ' [' + _ov2_pool['Liga'].astype(str) + ']'
+                        _ov2_club_col = '_club_display2'
+                    else:
+                        _ov2_club_col = _ov2_team_col
+
+                    # Filtrar por misma posición
+                    _ov2_pos_pool = _ov2_pool[_ov2_pool['Position Group'] == ov_selected_pos].copy()
+
+                    ov2_c1, ov2_c2, ov2_c3 = st.columns(3)
+                    ov2_clubs = sorted(_ov2_pos_pool[_ov2_club_col].dropna().unique())
+                    with ov2_c1:
+                        ov2_club = st.selectbox("Club (J2)", ov2_clubs, key="overall_club2")
+                    _ov2_club_df = _ov2_pos_pool[_ov2_pos_pool[_ov2_club_col] == ov2_club]
+                    ov2_players = sorted(_ov2_club_df['Player'].dropna().unique())
+                    with ov2_c2:
+                        ov2_player = st.selectbox("Jugador (J2)", ov2_players, key="overall_player2") if ov2_players else None
+
+                    if ov2_player:
+                        ov2_rows = _ov2_club_df[_ov2_club_df['Player'] == ov2_player]
+                        if not ov2_rows.empty:
+                            ov2_data = ov2_rows.iloc[0]
+                            # Pool de comparación para P2: misma posición en df_all
+                            ov2_comp_df = _ov2_pool[
+                                (_ov2_pool['Position Group'] == ov_selected_pos) &
+                                (pd.to_numeric(_ov2_pool.get('Minutes played', pd.Series(dtype=float)), errors='coerce') >= ov_min_minutes)
+                            ].copy()
+                            if ov_is_gk:
+                                ov_scores2 = _compute_pentagon_scores_gk(ov2_data, ov2_comp_df, ov_pent_cols)
+                            else:
+                                ov_scores2 = _compute_pentagon_scores(
+                                    ov2_data, ov2_comp_df, ov_pent_cols,
+                                    position_group=ov_selected_pos,
+                                )
+                            ov_player2_name = ov2_player
+                            ov_team2 = str(ov2_data.get(_ov2_team_col, ''))
+
+                            if not ov_is_gk:
+                                ov_axis_w2 = _AXIS_WEIGHTS_BY_POS.get(ov_selected_pos, _DEFAULT_AXIS_WEIGHTS)
+                                ov_total_w2 = sum(ov_axis_w2.values())
+                                ov_mz_score2 = round(
+                                    sum(ov_scores2.get(k, 0) * v for k, v in ov_axis_w2.items()) / ov_total_w2, 1
+                                )
+
+                # ── Render pentágono ───────────────────────────────────────
                 ov_fig = _create_pentagon_chart(
                     ov_pent_scores, ov_selected_player, ov_team_display,
                     ov_subtitle, avg_scores=ov_pent_avg, pos_label=ov_selected_pos,
                     custom_labels=ov_custom_labels,
+                    scores2=ov_scores2, player2_name=ov_player2_name, team2=ov_team2,
                 )
 
-                # MARCA ZONAL SCORE
+                # ── MARCA ZONAL SCORE badge(s) ─────────────────────────────
                 if not ov_is_gk:
                     ov_axis_w = _AXIS_WEIGHTS_BY_POS.get(ov_selected_pos, _DEFAULT_AXIS_WEIGHTS)
                     ov_total_w = sum(ov_axis_w.values())
@@ -2329,20 +2395,55 @@ with tab_overall:
                         sum(ov_pent_scores.get(k, 0) * v for k, v in ov_axis_w.items()) / ov_total_w, 1
                     )
                     _ov_sc_col = '#22c55e' if ov_mz_score >= 70 else '#f59e0b' if ov_mz_score >= 50 else '#ef4444'
-                    st.markdown(f"""
-                    <div style="display:flex;align-items:center;gap:20px;
-                                background:rgba(30,41,59,0.6);border:1px solid rgba(245,158,11,0.25);
-                                border-radius:12px;padding:14px 20px;margin-bottom:16px;">
-                      <div>
-                        <div style="font-size:0.6rem;letter-spacing:2.5px;color:#f59e0b;
-                                    text-transform:uppercase;font-weight:700;">MARCA ZONAL SCORE</div>
-                        <div style="font-family:'Poppins',sans-serif;font-size:0.85rem;
-                                    color:#94a3b8;margin-top:2px;">{ov_selected_player} · {ov_selected_pos}</div>
-                      </div>
-                      <div style="font-family:'Poppins',sans-serif;font-size:3rem;
-                                  font-weight:800;color:{_ov_sc_col};line-height:1;">{ov_mz_score:.0f}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+
+                    if ov_mz_score2 is not None:
+                        _ov_sc_col2 = '#22c55e' if ov_mz_score2 >= 70 else '#f59e0b' if ov_mz_score2 >= 50 else '#ef4444'
+                        _badge_cols = st.columns(2)
+                        with _badge_cols[0]:
+                            st.markdown(f"""
+                            <div style="display:flex;align-items:center;gap:16px;
+                                        background:rgba(30,41,59,0.6);border:1px solid rgba(34,197,94,0.25);
+                                        border-radius:12px;padding:12px 18px;margin-bottom:16px;">
+                              <div>
+                                <div style="font-size:0.55rem;letter-spacing:2px;color:#22c55e;
+                                            text-transform:uppercase;font-weight:700;">🟢 MZ SCORE · J1</div>
+                                <div style="font-size:0.8rem;color:#94a3b8;margin-top:2px;">
+                                  {ov_selected_player} · {ov_selected_pos}</div>
+                              </div>
+                              <div style="font-family:'Poppins',sans-serif;font-size:2.6rem;
+                                          font-weight:800;color:{_ov_sc_col};line-height:1;">{ov_mz_score:.0f}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with _badge_cols[1]:
+                            st.markdown(f"""
+                            <div style="display:flex;align-items:center;gap:16px;
+                                        background:rgba(30,41,59,0.6);border:1px solid rgba(249,115,22,0.25);
+                                        border-radius:12px;padding:12px 18px;margin-bottom:16px;">
+                              <div>
+                                <div style="font-size:0.55rem;letter-spacing:2px;color:#f97316;
+                                            text-transform:uppercase;font-weight:700;">🟠 MZ SCORE · J2</div>
+                                <div style="font-size:0.8rem;color:#94a3b8;margin-top:2px;">
+                                  {ov_player2_name} · {ov_selected_pos}</div>
+                              </div>
+                              <div style="font-family:'Poppins',sans-serif;font-size:2.6rem;
+                                          font-weight:800;color:{_ov_sc_col2};line-height:1;">{ov_mz_score2:.0f}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style="display:flex;align-items:center;gap:20px;
+                                    background:rgba(30,41,59,0.6);border:1px solid rgba(245,158,11,0.25);
+                                    border-radius:12px;padding:14px 20px;margin-bottom:16px;">
+                          <div>
+                            <div style="font-size:0.6rem;letter-spacing:2.5px;color:#f59e0b;
+                                        text-transform:uppercase;font-weight:700;">MARCA ZONAL SCORE</div>
+                            <div style="font-family:'Poppins',sans-serif;font-size:0.85rem;
+                                        color:#94a3b8;margin-top:2px;">{ov_selected_player} · {ov_selected_pos}</div>
+                          </div>
+                          <div style="font-family:'Poppins',sans-serif;font-size:3rem;
+                                      font-weight:800;color:{_ov_sc_col};line-height:1;">{ov_mz_score:.0f}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
                 _ov_c1, _ov_c2, _ov_c3 = st.columns([1, 2, 1])
                 with _ov_c2:
