@@ -985,8 +985,8 @@ def _player_header_html(player_name, position_code, pos_group,
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_home, tab_perfil, tab_xy, tab_similar, tab_ranking, tab_best11, tab_query = st.tabs(
-    ["🏠 Inicio", "👤 Perfil", "📈 Gráfico XY", "🔍 Similares", "🏅 Rankings", "⚽ Mejor Once", "🔎 Buscador"]
+tab_home, tab_perfil, tab_overall, tab_xy, tab_similar, tab_ranking, tab_best11, tab_query = st.tabs(
+    ["🏠 Inicio", "👤 Perfil", "🏆 Overall", "📈 Gráfico XY", "🔍 Similares", "🏅 Rankings", "⚽ Mejor Once", "🔎 Buscador"]
 )
 
 # ---- Tab 1: Data Table ---------------------------------------------------
@@ -2219,6 +2219,137 @@ with tab_perfil:
                 st.info("No hay métricas disponibles para mostrar.")
     elif players_list:
         st.info("Selecciona un jugador para ver sus datos.")
+
+# ---- Tab Overall: Pentágono MARCA ZONAL SCORE ----------------------------
+with tab_overall:
+    ov_team_col = 'Team within selected timeframe' if 'Team within selected timeframe' in df.columns else 'Team'
+
+    ov_col_club, ov_col_pos, ov_col_player = st.columns(3)
+
+    if liga_activa == 'ALL' and 'Liga' in df.columns:
+        _ov_df = df.copy()
+        _ov_df['_club_display'] = _ov_df[ov_team_col].astype(str) + ' [' + _ov_df['Liga'].astype(str) + ']'
+        _ov_club_col = '_club_display'
+    else:
+        _ov_df = df
+        _ov_club_col = ov_team_col
+
+    ov_all_clubs = sorted(_ov_df[_ov_club_col].dropna().unique())
+    with ov_col_club:
+        ov_selected_club = st.selectbox("Club", ov_all_clubs, key="overall_club")
+
+    _ov_club_df = _ov_df[_ov_df[_ov_club_col] == ov_selected_club].copy()
+    ov_age_min, ov_age_max = _get_age_bounds(_ov_club_df)
+    ov_age_range = st.slider(
+        "Rango de edad", ov_age_min, ov_age_max,
+        value=(ov_age_min, ov_age_max), key=f"overall_age_{ov_selected_club}"
+    )
+    _ov_club_df = _apply_age_filter(_ov_club_df, ov_age_range)
+
+    ov_positions = sorted(_ov_club_df['Position Group'].dropna().unique())
+    if not ov_positions:
+        st.warning("No hay jugadores que cumplan los filtros.")
+    else:
+        with ov_col_pos:
+            ov_selected_pos = st.selectbox("Posición", ov_positions, key="overall_pos")
+
+        ov_pos_df = df[df['Position Group'] == ov_selected_pos].copy()
+        ov_pos_df = _apply_age_filter(ov_pos_df, ov_age_range)
+
+        ov_club_pos_df = _ov_club_df[_ov_club_df['Position Group'] == ov_selected_pos].copy()
+        ov_players = sorted(ov_club_pos_df['Player'].dropna().unique())
+        with ov_col_player:
+            ov_selected_player = st.selectbox("Jugador", ov_players, key="overall_player")
+
+        _ov_mp = ov_pos_df['Minutes played'] if 'Minutes played' in ov_pos_df.columns else None
+        ov_min_v = int(_ov_mp.min()) if _ov_mp is not None and len(ov_pos_df) > 0 else 0
+        ov_max_v = int(_ov_mp.max()) if _ov_mp is not None and len(ov_pos_df) > 0 else 100
+        if ov_min_v >= ov_max_v:
+            ov_max_v = ov_min_v + 1
+        ov_min_minutes = st.slider(
+            "Minutos mínimos (para percentiles)", ov_min_v, ov_max_v,
+            value=min(200, ov_max_v), key=f"overall_min_min_{ov_selected_pos}"
+        )
+
+        ov_player_rows = ov_club_pos_df[ov_club_pos_df['Player'] == ov_selected_player] if ov_selected_player else pd.DataFrame()
+        if not ov_player_rows.empty:
+            ov_player_data = ov_player_rows.iloc[0]
+            _ov_mins_val = float(ov_player_data.get('Minutes played', 0) or 0)
+
+            if _ov_mins_val < ov_min_minutes:
+                st.warning(
+                    f"⚠️ **{ov_selected_player}** tiene **{int(_ov_mins_val)} min**, "
+                    f"por debajo del mínimo de **{ov_min_minutes} min**. Bajá el slider."
+                )
+            else:
+                ov_comparison_df = df[
+                    (df['Position Group'] == ov_selected_pos) &
+                    (df['Minutes played'] >= ov_min_minutes)
+                ].copy()
+                ov_comparison_df = _apply_age_filter(ov_comparison_df, ov_age_range)
+                ov_n_comp = len(ov_comparison_df)
+
+                st.caption(
+                    f"Percentiles vs. **{ov_n_comp} {ov_selected_pos.lower()}s** "
+                    f"con ≥ {ov_min_minutes} min · {_LIGA_TORNEO.get(liga_activa, '2026')}"
+                )
+
+                ov_is_gk = (ov_selected_pos == 'Portero')
+                ov_team_display = str(ov_player_data.get(ov_team_col, ''))
+                ov_subtitle = (
+                    f"vs. {ov_n_comp} {ov_selected_pos.lower()}s · +{ov_min_minutes} min "
+                    f"· {_LIGA_TORNEO.get(liga_activa, '2026')}"
+                )
+
+                if ov_is_gk:
+                    ov_pent_cols   = _get_display_cols_gk(df)
+                    ov_pent_scores = _compute_pentagon_scores_gk(ov_player_data, ov_comparison_df, ov_pent_cols)
+                    ov_pent_avg    = _compute_avg_pentagon_scores_gk(ov_comparison_df, ov_pent_cols)
+                    ov_custom_labels = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
+                else:
+                    ov_pent_cols   = _get_display_cols(df)
+                    ov_pent_scores = _compute_pentagon_scores(
+                        ov_player_data, ov_comparison_df, ov_pent_cols,
+                        position_group=ov_selected_pos,
+                    )
+                    ov_pent_avg    = _compute_avg_pentagon_scores(ov_comparison_df, ov_pent_cols)
+                    ov_custom_labels = None
+
+                ov_fig = _create_pentagon_chart(
+                    ov_pent_scores, ov_selected_player, ov_team_display,
+                    ov_subtitle, avg_scores=ov_pent_avg, pos_label=ov_selected_pos,
+                    custom_labels=ov_custom_labels,
+                )
+
+                # MARCA ZONAL SCORE
+                if not ov_is_gk:
+                    ov_axis_w = _AXIS_WEIGHTS_BY_POS.get(ov_selected_pos, _DEFAULT_AXIS_WEIGHTS)
+                    ov_total_w = sum(ov_axis_w.values())
+                    ov_mz_score = round(
+                        sum(ov_pent_scores.get(k, 0) * v for k, v in ov_axis_w.items()) / ov_total_w, 1
+                    )
+                    _ov_sc_col = '#22c55e' if ov_mz_score >= 70 else '#f59e0b' if ov_mz_score >= 50 else '#ef4444'
+                    st.markdown(f"""
+                    <div style="display:flex;align-items:center;gap:20px;
+                                background:rgba(30,41,59,0.6);border:1px solid rgba(245,158,11,0.25);
+                                border-radius:12px;padding:14px 20px;margin-bottom:16px;">
+                      <div>
+                        <div style="font-size:0.6rem;letter-spacing:2.5px;color:#f59e0b;
+                                    text-transform:uppercase;font-weight:700;">MARCA ZONAL SCORE</div>
+                        <div style="font-family:'Poppins',sans-serif;font-size:0.85rem;
+                                    color:#94a3b8;margin-top:2px;">{ov_selected_player} · {ov_selected_pos}</div>
+                      </div>
+                      <div style="font-family:'Poppins',sans-serif;font-size:3rem;
+                                  font-weight:800;color:{_ov_sc_col};line-height:1;">{ov_mz_score:.0f}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                _ov_c1, _ov_c2, _ov_c3 = st.columns([1, 2, 1])
+                with _ov_c2:
+                    st.pyplot(ov_fig)
+                plt.close(ov_fig)
+        elif ov_players:
+            st.info("Selecciona un jugador para ver el gráfico.")
 
 # ---- Tab 2: XY Chart -----------------------------------------------------
 with tab_xy:
