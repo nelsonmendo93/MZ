@@ -437,9 +437,7 @@ _AVAILABLE_SA = [k for k in _SA_CODES if _LIGA_DFS.get(k) is not None] + (
 _AVAILABLE_EU = [k for k in _EU_CODES if _LIGA_DFS.get(k) is not None] + (
     ['ALL_EU'] if not df_all_eu.empty else []
 )
-_AVAILABLE_INTL = [k for k in _INTL_CODES if _LIGA_DFS.get(k) is not None] + (
-    ['ALL_INTL'] if not df_all_intl.empty else []
-)
+_AVAILABLE_INTL = [k for k in _INTL_CODES if _LIGA_DFS.get(k) is not None]
 _AVAILABLE_LIGAS = _AVAILABLE_SA + _AVAILABLE_EU + _AVAILABLE_INTL
 
 # Selector de liga — dos pasos: Grupo → Liga
