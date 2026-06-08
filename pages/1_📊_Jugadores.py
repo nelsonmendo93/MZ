@@ -983,6 +983,127 @@ def _player_header_html(player_name, position_code, pos_group,
 
 
 # ---------------------------------------------------------------------------
+# Helper: render Perfil scout view (shared by search mode + normal mode)
+# ---------------------------------------------------------------------------
+def _render_perfil_scout(player_data, player_rows, comparison_df, selected_pos,
+                          selected_player_tab1, team_col_tab1, tab1_min_minutes,
+                          tab1_age_range, n_comp, liga_code, base_df):
+    """Render the full Perfil scout + bar view given resolved player + comparison data."""
+    is_gk = (selected_pos == 'Portero')
+    if is_gk:
+        show_cols  = _get_display_cols_gk(base_df)
+        cat_fn     = categorize_metric_gk
+        cat_order  = GK_CATEGORY_ORDER
+        cat_colors = GK_CATEGORY_COLORS
+    else:
+        show_cols  = _get_display_cols(base_df)
+        cat_fn     = categorize_metric
+        cat_order  = CATEGORY_ORDER
+        cat_colors = CATEGORY_COLORS
+
+    categorized = defaultdict(list)
+    for c in show_cols:
+        val = player_data.get(c, None)
+        if pd.isnull(val):
+            continue
+        player_val = float(val)
+        pct = _compute_percentile(player_val, comparison_df[c]) if c in comparison_df.columns else 0
+        if c in _GK_LOWER_IS_BETTER:
+            pct = max(0, 99 - pct)
+        categorized[cat_fn(c)].append({
+            'metric': translate(c),
+            'value':  f"{player_val:.2f}",
+            'pct':    pct,
+        })
+
+    if not categorized:
+        st.info("No hay métricas disponibles para mostrar.")
+        return
+
+    age_str = (f"| {tab1_age_range[0]}-{tab1_age_range[1]} años " if tab1_age_range else "")
+    scout_tab_v, table_view_tab_v = st.tabs(["Vista scout", "Vista tabla"])
+
+    with scout_tab_v:
+        scout_categories = _build_scout_categories(player_data, comparison_df)
+        if not scout_categories:
+            st.info("No hay suficientes métricas del radial para construir la vista scout.")
+        else:
+            team_display = str(player_data.get(team_col_tab1, ''))
+            scout_subtitle = (
+                f"Entre {n_comp} {selected_pos.lower()}s +{tab1_min_minutes} min "
+                f"{age_str}| {_LIGA_TORNEO.get(liga_code, '2026')}"
+            )
+            scout_summary_items = _build_scout_summary_items(player_data, team_col_tab1, selected_pos)
+            scout_top5_metrics  = _get_scout_top5_metrics(player_data, comparison_df, selected_pos)
+            scout_similars = _build_scout_similars(
+                selected_player_tab1, selected_pos, tab1_min_minutes,
+                tab1_age_range if tab1_age_range else (0, 100),
+                player_rows, top_n=5, ref_league=liga_code,
+            )
+            scout_overall_score, scout_category_scores = _get_scout_score_data(
+                player_data, comparison_df, selected_pos, base_df=base_df
+            )
+            scout_top5_metrics_html = [
+                {**item, 'metric': translate(str(item.get('metric', '')))}
+                for item in scout_top5_metrics
+            ]
+            _pent_subtitle = (
+                f"vs. {n_comp} {selected_pos.lower()}s · +{tab1_min_minutes} min "
+                f"· {_LIGA_TORNEO.get(liga_code, '2026')}"
+            )
+            if is_gk:
+                _pent_cols   = _get_display_cols_gk(base_df)
+                _pent_scores = _compute_pentagon_scores_gk(player_data, comparison_df, _pent_cols)
+                _pent_avg    = _compute_avg_pentagon_scores_gk(comparison_df, _pent_cols)
+                _pent_labels = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
+            else:
+                _pent_cols   = _get_display_cols(base_df)
+                _pent_scores = _compute_pentagon_scores(
+                    player_data, comparison_df, _pent_cols, position_group=selected_pos,
+                )
+                _pent_avg    = _compute_avg_pentagon_scores(comparison_df, _pent_cols)
+                _pent_labels = None
+            _fig_pent = _create_pentagon_chart(
+                _pent_scores, selected_player_tab1, team_display,
+                _pent_subtitle, avg_scores=_pent_avg, pos_label=selected_pos,
+                custom_labels=_pent_labels if is_gk else None,
+            )
+            _buf_pent = io.BytesIO()
+            _fig_pent.savefig(_buf_pent, format='png', dpi=150,
+                              bbox_inches='tight', facecolor=_fig_pent.get_facecolor())
+            plt.close(_fig_pent)
+            _buf_pent.seek(0)
+            _pentagon_b64 = base64.b64encode(_buf_pent.read()).decode('utf-8')
+
+            scout_html_out = build_scout_html(
+                player_name=selected_player_tab1,
+                player_team=team_display,
+                subtitle=scout_subtitle,
+                summary_items=scout_summary_items,
+                top_metrics=scout_top5_metrics_html,
+                similars_data=scout_similars,
+                overall_score=scout_overall_score,
+                category_scores=scout_category_scores,
+                player_position=str(player_data.get('Position', '')),
+                pentagon_img_b64=_pentagon_b64,
+            )
+            components.html(scout_html_out, height=1400, scrolling=True)
+            st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
+
+    with table_view_tab_v:
+        _render_all_bars(categorized, cat_order, cat_colors)
+
+
+# ---------------------------------------------------------------------------
+# Constantes para buscador de Perfil (UI vive dentro del tab)
+# ---------------------------------------------------------------------------
+_LOCAL_SEARCH_CODES = [k for k in (_SA_CODES + _EU_CODES)
+                        if _LIGA_DFS.get(k) is not None and not _LIGA_DFS[k].empty]
+
+if 'perfil_search' not in st.session_state:
+    st.session_state.perfil_search = None
+
+# ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
 tab_home, tab_perfil, tab_overall, tab_xy, tab_similar, tab_ranking, tab_best11, tab_query = st.tabs(
@@ -1849,7 +1970,7 @@ with tab_home:
                 """, unsafe_allow_html=True)
 
 
-def _get_scout_score_data(player_data, comparison_df, selected_pos):
+def _get_scout_score_data(player_data, comparison_df, selected_pos, base_df=None):
     def _resolve_scout_weights(position_group):
         return _AXIS_WEIGHTS_BY_POS.get(position_group, _DEFAULT_AXIS_WEIGHTS)
 
@@ -1866,7 +1987,8 @@ def _get_scout_score_data(player_data, comparison_df, selected_pos):
         overall_score = float(np.mean(overall_pcts)) if overall_pcts else 0.0
         return overall_score, category_scores
 
-    all_cols = _get_display_cols(df)
+    _ref_df = base_df if base_df is not None else df
+    all_cols = _get_display_cols(_ref_df)
     scores = _compute_pentagon_scores(player_data, comparison_df, all_cols, position_group=selected_pos)
     ordered_axes = ['ATQ', 'POS', 'PAS', 'DEF', 'CRE']
     category_scores = [
@@ -1946,9 +2068,10 @@ def _compute_scout_similarity_scores(pool_df, player_name, player_df=None, selec
     return results
 
 
-def _build_scout_similarity_pool(selected_pos, min_minutes, age_range):
+def _build_scout_similarity_pool(selected_pos, min_minutes, age_range, ref_league=None):
     # Solo compara dentro del mismo grupo continental
-    _same_group = _SA_CODES if liga_activa in _SA_CODES + ['ALL_SA'] else _EU_CODES
+    _ref = ref_league if ref_league is not None else liga_activa
+    _same_group = _SA_CODES if _ref in _SA_CODES + ['ALL_SA'] else _EU_CODES
     league_sources = [
         (code, (df if code == liga_activa else _LIGA_DFS[code]))
         for code in _same_group
@@ -1972,8 +2095,8 @@ def _build_scout_similarity_pool(selected_pos, min_minutes, age_range):
     return pd.concat(pool_parts, ignore_index=True) if pool_parts else pd.DataFrame()
 
 
-def _build_scout_similars(selected_player, selected_pos, min_minutes, age_range, player_df, top_n=5):
-    sim_pool = _build_scout_similarity_pool(selected_pos, min_minutes, age_range)
+def _build_scout_similars(selected_player, selected_pos, min_minutes, age_range, player_df, top_n=5, ref_league=None):
+    sim_pool = _build_scout_similarity_pool(selected_pos, min_minutes, age_range, ref_league=ref_league)
     if sim_pool.empty:
         return []
 
@@ -2007,218 +2130,333 @@ def _build_scout_similars(selected_player, selected_pos, min_minutes, age_range,
 
 
 with tab_perfil:
+    # ── Buscador por nombre (exclusivo de esta pestaña) ───────────────────
+    _sb_col, _clear_col = st.columns([5, 1])
+    with _sb_col:
+        _search_name = st.text_input(
+            "search_perfil",
+            key="name_search_perfil",
+            placeholder="🔍 Buscar jugador por nombre...",
+            label_visibility="collapsed",
+        )
+    with _clear_col:
+        if st.button("✕ Limpiar", key="clear_name_search", use_container_width=True):
+            st.session_state.perfil_search = None
+            st.rerun()
+
+    if _search_name and len(_search_name) >= 2:
+        _search_results = []
+        for _scode in _LOCAL_SEARCH_CODES:
+            _sldf = _LIGA_DFS[_scode]
+            _steam_col = ('Team within selected timeframe'
+                          if 'Team within selected timeframe' in _sldf.columns else 'Team')
+            _smask = _sldf['Player'].str.contains(_search_name, case=False, na=False)
+            for _, _srow in _sldf[_smask].iterrows():
+                _search_results.append({
+                    'player_name': str(_srow['Player']),
+                    'team':        str(_srow.get(_steam_col, '')),
+                    'league':      _scode,
+                    'pos_group':   str(_srow.get('Position Group', '')),
+                    'data':        _srow.to_dict(),
+                    'label':       (f"{_srow['Player']} — {_srow.get(_steam_col, '')} "
+                                    f"[{_LIGA_LABELS.get(_scode, _scode)}]"),
+                })
+
+        if _search_results:
+            _sr_col, _go_col = st.columns([5, 1])
+            with _sr_col:
+                _sel_idx = st.selectbox(
+                    "Resultados",
+                    range(len(_search_results)),
+                    format_func=lambda i: _search_results[i]['label'],
+                    key="search_result_idx",
+                    label_visibility="collapsed",
+                )
+            with _go_col:
+                if st.button("Ver →", key="search_go_btn", use_container_width=True):
+                    st.session_state.perfil_search = _search_results[_sel_idx]
+                    st.rerun()
+        else:
+            st.caption("Sin resultados en ligas locales.")
+
+    if st.session_state.perfil_search:
+        _ps_info = st.session_state.perfil_search
+        st.markdown(
+            f"<div style='background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);"
+            f"border-radius:10px;padding:8px 14px;font-size:0.82rem;color:#22c55e;margin-bottom:4px;'>"
+            f"👤 Perfil activo: <strong>{_ps_info['player_name']}</strong> · "
+            f"{_ps_info['team']} · {_LIGA_LABELS.get(_ps_info['league'], _ps_info['league'])}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
     # Determine team column
     team_col_tab1 = 'Team within selected timeframe'
     if team_col_tab1 not in df.columns:
         team_col_tab1 = 'Team'
 
-    # 3 cascading dropdowns: Club → Posición → Jugador
-    col_club, col_pos, col_player = st.columns(3)
+    _ps = st.session_state.get('perfil_search')
 
-    # Step 1: Club (todas las ligas / liga activa)
-    if liga_activa == 'ALL' and 'Liga' in df.columns:
-        _df_sel = df.copy()
-        _df_sel['_club_display'] = _df_sel[team_col_tab1].astype(str) + ' [' + _df_sel['Liga'].astype(str) + ']'
-        _club_col = '_club_display'
-    else:
-        _df_sel = df
-        _club_col = team_col_tab1
+    if _ps is not None:
+        # ─── SEARCH MODE ─────────────────────────────────────────────────────
+        _ps_league    = _ps['league']
+        _ps_base_df   = _LIGA_DFS.get(_ps_league, df)
+        _ps_name      = _ps['player_name']
+        _ps_pos_group = _ps['pos_group']
+        _ps_team_col  = ('Team within selected timeframe'
+                         if 'Team within selected timeframe' in _ps_base_df.columns else 'Team')
 
-    all_clubs_perfil = sorted(_df_sel[_club_col].dropna().unique())
-    with col_club:
-        selected_club_perfil = st.selectbox("Club", all_clubs_perfil, key="tab1_club")
+        # Check intl leagues for dual view
+        _intl_versions = []
+        for _ic in _INTL_CODES:
+            _idf = _LIGA_DFS.get(_ic)
+            if _idf is None or _idf.empty:
+                continue
+            _imatch = _idf[_idf['Player'].str.lower() == _ps_name.lower()]
+            if not _imatch.empty:
+                _intl_versions.append({'code': _ic, 'df': _idf, 'data': _imatch.iloc[0]})
 
-    _club_df = _df_sel[_df_sel[_club_col] == selected_club_perfil].copy()
+        # View toggle (only if intl data found)
+        _view_opts = [f"🏠 {_LIGA_LABELS.get(_ps_league, _ps_league)}"]
+        for _iv in _intl_versions:
+            _view_opts.append(f"🏆 {_LIGA_LABELS.get(_iv['code'], _iv['code'])}")
 
-    # Age slider (sobre el club seleccionado)
-    t1_age_min, t1_age_max = _get_age_bounds(_club_df)
-    tab1_age_range = st.slider(
-        "Rango de edad", t1_age_min, t1_age_max,
-        value=(t1_age_min, t1_age_max), key=f"tab1_age_range_{selected_club_perfil}"
-    )
-    _club_df = _apply_age_filter(_club_df, tab1_age_range)
+        if len(_view_opts) > 1:
+            _active_view = st.radio(
+                "Vista", _view_opts, horizontal=True, key="perfil_view_radio"
+            )
+        else:
+            _active_view = _view_opts[0]
 
-    # Step 2: Posición (posiciones disponibles en ese club)
-    positions_in_club = sorted(_club_df['Position Group'].dropna().unique())
-    if not positions_in_club:
-        st.warning("No hay jugadores que cumplan los filtros.")
-        players_list = []
-        club_pos_df = pd.DataFrame()
-        pos_df = pd.DataFrame()
-        selected_pos = ''
-        selected_player_tab1 = None
-    else:
-        with col_pos:
-            selected_pos = st.selectbox("Posición", positions_in_club, key="tab1_pos")
+        # Resolve active data
+        if _active_view == _view_opts[0]:
+            _active_base_df    = _ps_base_df
+            _active_player_row = pd.Series(_ps['data'])
+            _active_league     = _ps_league
+            _active_team_col   = _ps_team_col
+        else:
+            _intl_idx          = _view_opts.index(_active_view) - 1
+            _active_iv         = _intl_versions[_intl_idx]
+            _active_base_df    = _active_iv['df']
+            _active_player_row = _active_iv['data']
+            _active_league     = _active_iv['code']
+            _active_team_col   = ('Team within selected timeframe'
+                                  if 'Team within selected timeframe' in _active_base_df.columns else 'Team')
 
-        # pos_df = todos los jugadores de esa posición (para percentiles de comparación)
-        pos_df = df[df['Position Group'] == selected_pos].copy()
-        pos_df = _apply_age_filter(pos_df, tab1_age_range)
+        # Min-minutes + Age sliders (side by side)
+        _pos_df_ps = _active_base_df[_active_base_df['Position Group'] == _ps_pos_group].copy()
+        _mp_ps     = _pos_df_ps['Minutes played'] if 'Minutes played' in _pos_df_ps.columns else None
+        _min_v_ps  = int(_mp_ps.min()) if _mp_ps is not None and len(_pos_df_ps) > 0 else 0
+        _max_v_ps  = int(_mp_ps.max()) if _mp_ps is not None and len(_pos_df_ps) > 0 else 100
+        if _min_v_ps >= _max_v_ps:
+            _max_v_ps = _min_v_ps + 1
 
-        # club_pos_df = jugadores del club en esa posición
-        club_pos_df = _club_df[_club_df['Position Group'] == selected_pos].copy()
+        _sl_col1, _sl_col2 = st.columns(2)
+        with _sl_col1:
+            _ps_min_minutes = st.slider(
+                "Minutos mínimos (para percentiles)", _min_v_ps, _max_v_ps,
+                value=min(200, _max_v_ps), key=f"ps_min_{_ps_name}_{_active_league}"
+            )
+        with _sl_col2:
+            _ps_age_min, _ps_age_max = _get_age_bounds(_pos_df_ps)
+            _ps_age_range = st.slider(
+                "Rango de edad del pool", _ps_age_min, _ps_age_max,
+                value=(_ps_age_min, _ps_age_max), key=f"ps_age_{_ps_name}_{_active_league}"
+            )
 
-        # Step 3: Jugador
-        players_list = sorted(club_pos_df['Player'].dropna().unique())
-        with col_player:
-            selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
+        # Comparison pool
+        _comp_df_ps = _active_base_df[
+            (_active_base_df['Position Group'] == _ps_pos_group) &
+            (pd.to_numeric(_active_base_df.get('Minutes played',
+                            pd.Series(dtype=float)), errors='coerce') >= _ps_min_minutes)
+        ].copy()
+        _comp_df_ps = _apply_age_filter(_comp_df_ps, _ps_age_range)
+        _n_comp_ps = len(_comp_df_ps)
 
-    # Min-minutes slider — rango calculado sobre la posición seleccionada
-    _mp = pos_df['Minutes played'] if 'Minutes played' in pos_df.columns else None
-    t1_min_v = int(_mp.min()) if _mp is not None and len(pos_df) > 0 else 0
-    t1_max_v = int(_mp.max()) if _mp is not None and len(pos_df) > 0 else 100
-    if t1_min_v >= t1_max_v:
-        t1_max_v = t1_min_v + 1
-    tab1_min_minutes = st.slider(
-        "Minutos mínimos (para percentiles)", t1_min_v, t1_max_v,
-        value=min(200, t1_max_v), key=f"tab1_min_minutes_{selected_pos}"
-    )
+        st.caption(
+            f"Percentiles vs. **{_n_comp_ps} {_ps_pos_group.lower()}s** con ≥ {_ps_min_minutes} min · "
+            f"{_ps_age_range[0]}–{_ps_age_range[1]} años · "
+            f"{_LIGA_TORNEO.get(_active_league, '2026')}"
+        )
+        st.markdown("---")
 
-    # Display selected player data
-    player_rows = club_pos_df[club_pos_df['Player'] == selected_player_tab1] if selected_player_tab1 else pd.DataFrame()
-    if not player_rows.empty:
-        player_data = player_rows.iloc[0]
-
-        # Bloqueo por minutos — el jugador seleccionado también debe cumplir el mínimo
-        _player_mins = player_data.get('Minutes played', None)
-        _player_mins_val = float(_player_mins) if _player_mins is not None and pd.notnull(_player_mins) else 0
-        _below_threshold = _player_mins_val < tab1_min_minutes
-        if _below_threshold:
+        if _n_comp_ps == 0:
             st.warning(
-                f"⚠️ **{selected_player_tab1}** tiene **{int(_player_mins_val)} minutos** jugados, "
-                f"por debajo del mínimo de **{tab1_min_minutes} min** del filtro. "
-                f"Bajá el slider para ver sus percentiles."
+                "⚠️ El pool de comparación está vacío con los filtros aplicados. "
+                "Bajá el mínimo de minutos o ampliá el rango de edad."
             )
-
-        if not _below_threshold:
-            # Comparison pool info
-            comparison_df = df[
-                (df['Position Group'] == selected_pos) &
-                (df['Minutes played'] >= tab1_min_minutes)
-            ].copy()
-            comparison_df = _apply_age_filter(comparison_df, tab1_age_range)
-            n_comp = len(comparison_df)
-            st.caption(
-                f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
-                f"con \u2265 {tab1_min_minutes} min · {_LIGA_TORNEO.get(liga_activa, '2026')}"
-            )
-            st.markdown("---")
-
-            # Métricas curadas — rama portero vs. outfield
-            is_gk = (selected_pos == 'Portero')
-            if is_gk:
-                show_cols   = _get_display_cols_gk(df)
-                cat_fn      = categorize_metric_gk
-                cat_order   = GK_CATEGORY_ORDER
-                cat_colors  = GK_CATEGORY_COLORS
+        else:
+            _mins_val_ps = float(_active_player_row.get('Minutes played', 0) or 0)
+            if _mins_val_ps < _ps_min_minutes:
+                st.warning(
+                    f"⚠️ **{_ps_name}** tiene **{int(_mins_val_ps)} min**, "
+                    f"por debajo del mínimo de **{_ps_min_minutes} min**. Bajá el slider."
+                )
             else:
-                show_cols   = _get_display_cols(df)
-                cat_fn      = categorize_metric
-                cat_order   = CATEGORY_ORDER
-                cat_colors  = CATEGORY_COLORS
+                _player_rows_ps = pd.DataFrame([_active_player_row])
+                _render_perfil_scout(
+                    player_data=_active_player_row,
+                    player_rows=_player_rows_ps,
+                    comparison_df=_comp_df_ps,
+                    selected_pos=_ps_pos_group,
+                    selected_player_tab1=_ps_name,
+                    team_col_tab1=_active_team_col,
+                    tab1_min_minutes=_ps_min_minutes,
+                    tab1_age_range=_ps_age_range,
+                    n_comp=_n_comp_ps,
+                    liga_code=_active_league,
+                    base_df=_active_base_df,
+                )
 
-            # Group and compute percentiles
-            categorized = defaultdict(list)
-            for c in show_cols:
-                val = player_data.get(c, None)
-                if pd.isnull(val):
-                    continue
-                player_val = float(val)
-                pct = _compute_percentile(player_val, comparison_df[c]) if c in comparison_df.columns else 0
-                if c in _GK_LOWER_IS_BETTER:
-                    pct = max(0, 99 - pct)
-                formatted = f"{player_val:.2f}"
-                cat = cat_fn(c)
-                categorized[cat].append({
-                    'metric': translate(c),
-                    'value':  formatted,
-                    'pct':    pct,
-                })
+                # ── Comparación local vs internacional ────────────────────────
+                if _intl_versions:
+                    with st.expander("🔄 Comparar rendimiento: liga local vs. internacional", expanded=False):
+                        _is_gk_cmp = (_ps_pos_group == 'Portero')
+                        _all_cols_local = _get_display_cols(_active_base_df)
 
-            # Render bars — all categories in one component call
-            if categorized:
-                scout_tab, table_view_tab = st.tabs(["Vista scout", "Vista tabla"])
-
-                with scout_tab:
-                    scout_categories = _build_scout_categories(player_data, comparison_df)
-                    if scout_categories:
-                        team_display = str(player_data.get(team_col_tab1, ''))
-                        scout_subtitle = (
-                            f"Entre {n_comp} {selected_pos.lower()}s +{tab1_min_minutes} min "
-                            f"| {tab1_age_range[0]}-{tab1_age_range[1]} años | {_LIGA_TORNEO.get(liga_activa, '2026')}"
-                        )
-                        scout_summary_items = _build_scout_summary_items(player_data, team_col_tab1, selected_pos)
-                        scout_top5_metrics = _get_scout_top5_metrics(player_data, comparison_df, selected_pos)
-                        scout_similars = _build_scout_similars(
-                            selected_player_tab1,
-                            selected_pos,
-                            tab1_min_minutes,
-                            tab1_age_range,
-                            player_rows,
-                            top_n=5,
-                        )
-                        scout_overall_score, scout_category_scores = _get_scout_score_data(
-                            player_data, comparison_df, selected_pos
-                        )
-                        scout_top5_metrics_html = [
-                            {**item, 'metric': translate(str(item.get('metric', '')))}
-                            for item in scout_top5_metrics
-                        ]
-
-                        # Pentagon chart → base64 para embed en Vista Scout
-                        _is_gk_scout = (selected_pos == 'Portero')
-                        if _is_gk_scout:
-                            _pent_cols = _get_display_cols_gk(df)
-                            _pent_scores = _compute_pentagon_scores_gk(player_data, comparison_df, _pent_cols)
-                            _pent_avg = _compute_avg_pentagon_scores_gk(comparison_df, _pent_cols)
-                            _pent_labels = ['REF', 'EFE', 'DIS', 'DISP', 'ALCP']
+                        # Compute local axis scores
+                        if _is_gk_cmp:
+                            _local_scores = _compute_pentagon_scores_gk(_active_player_row, _comp_df_ps, _all_cols_local)
                         else:
-                            _pent_cols = _get_display_cols(df)
-                            _pent_scores = _compute_pentagon_scores(
-                                player_data, comparison_df, _pent_cols,
-                                position_group=selected_pos,
-                            )
-                            _pent_avg = _compute_avg_pentagon_scores(comparison_df, _pent_cols)
-                            _pent_labels = None
-                        _pent_subtitle = (
-                            f"vs. {n_comp} {selected_pos.lower()}s · +{tab1_min_minutes} min "
-                            f"· {_LIGA_TORNEO.get(liga_activa, '2026')}"
-                        )
-                        _fig_pent = _create_pentagon_chart(
-                            _pent_scores, selected_player_tab1, team_display,
-                            _pent_subtitle, avg_scores=_pent_avg, pos_label=selected_pos,
-                            custom_labels=_pent_labels if _is_gk_scout else None,
-                        )
-                        _buf_pent = io.BytesIO()
-                        _fig_pent.savefig(_buf_pent, format='png', dpi=150,
-                                          bbox_inches='tight', facecolor=_fig_pent.get_facecolor())
-                        plt.close(_fig_pent)
-                        _buf_pent.seek(0)
-                        _pentagon_b64 = base64.b64encode(_buf_pent.read()).decode('utf-8')
+                            _local_scores = _compute_pentagon_scores(_active_player_row, _comp_df_ps, _all_cols_local, _ps_pos_group)
 
-                        scout_html = build_scout_html(
-                            player_name=selected_player_tab1,
-                            player_team=team_display,
-                            subtitle=scout_subtitle,
-                            summary_items=scout_summary_items,
-                            top_metrics=scout_top5_metrics_html,
-                            similars_data=scout_similars,
-                            overall_score=scout_overall_score,
-                            category_scores=scout_category_scores,
-                            player_position=str(player_data.get('Position', '')),
-                            pentagon_img_b64=_pentagon_b64,
-                        )
-                        components.html(scout_html, height=1400, scrolling=True)
-                        st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
-                    else:
-                        st.info("No hay suficientes métricas del radial para construir la vista scout.")
+                        _axis_w_cmp = _AXIS_WEIGHTS_BY_POS.get(_ps_pos_group, _DEFAULT_AXIS_WEIGHTS)
+                        _total_w_cmp = sum(_axis_w_cmp.values()) or 1
+                        _local_mz = round(sum(_local_scores.get(k, 0) * v for k, v in _axis_w_cmp.items()) / _total_w_cmp, 1)
 
-                with table_view_tab:
-                    _render_all_bars(categorized, cat_order, cat_colors)
+                        # Build comparison rows
+                        _axes_cmp = list(_local_scores.keys())
+                        _cmp_rows = []
+                        for _ax in _axes_cmp:
+                            _row_d = {'Eje': _ax, f"🏠 {_LIGA_LABELS.get(_ps_league, _ps_league)}": _local_scores[_ax]}
+                            for _iv2 in _intl_versions:
+                                _idf2 = _iv2['df']
+                                _idata2 = _iv2['data']
+                                _icols2 = _get_display_cols(_idf2)
+                                _ipool2 = _idf2[_idf2['Position Group'] == _ps_pos_group].copy()
+                                if _is_gk_cmp:
+                                    _iscores2 = _compute_pentagon_scores_gk(_idata2, _ipool2, _icols2)
+                                else:
+                                    _iscores2 = _compute_pentagon_scores(_idata2, _ipool2, _icols2, _ps_pos_group)
+                                _row_d[f"🏆 {_LIGA_LABELS.get(_iv2['code'], _iv2['code'])}"] = _iscores2.get(_ax, 0)
+                            _cmp_rows.append(_row_d)
+
+                        # MZ total row
+                        _mz_row = {'Eje': '⭐ MZ Total', f"🏠 {_LIGA_LABELS.get(_ps_league, _ps_league)}": _local_mz}
+                        for _iv2 in _intl_versions:
+                            _idf2 = _iv2['df']
+                            _idata2 = _iv2['data']
+                            _icols2 = _get_display_cols(_idf2)
+                            _ipool2 = _idf2[_idf2['Position Group'] == _ps_pos_group].copy()
+                            if _is_gk_cmp:
+                                _iscores2 = _compute_pentagon_scores_gk(_idata2, _ipool2, _icols2)
+                            else:
+                                _iscores2 = _compute_pentagon_scores(_idata2, _ipool2, _icols2, _ps_pos_group)
+                            _imz2 = round(sum(_iscores2.get(k, 0) * v for k, v in _axis_w_cmp.items()) / _total_w_cmp, 1)
+                            _mz_row[f"🏆 {_LIGA_LABELS.get(_iv2['code'], _iv2['code'])}"] = _imz2
+                        _cmp_rows.append(_mz_row)
+
+                        _cmp_df_show = pd.DataFrame(_cmp_rows).set_index('Eje')
+                        st.dataframe(
+                            _cmp_df_show.style.background_gradient(cmap='RdYlGn', axis=1, vmin=0, vmax=99),
+                            use_container_width=True,
+                        )
+
+    else:
+        # ─── NORMAL MODE ─────────────────────────────────────────────────────
+        # 3 cascading dropdowns: Club → Posición → Jugador
+        col_club, col_pos, col_player = st.columns(3)
+
+        if liga_activa == 'ALL' and 'Liga' in df.columns:
+            _df_sel = df.copy()
+            _df_sel['_club_display'] = _df_sel[team_col_tab1].astype(str) + ' [' + _df_sel['Liga'].astype(str) + ']'
+            _club_col = '_club_display'
+        else:
+            _df_sel = df
+            _club_col = team_col_tab1
+
+        all_clubs_perfil = sorted(_df_sel[_club_col].dropna().unique())
+        with col_club:
+            selected_club_perfil = st.selectbox("Club", all_clubs_perfil, key="tab1_club")
+
+        _club_df = _df_sel[_df_sel[_club_col] == selected_club_perfil].copy()
+
+        t1_age_min, t1_age_max = _get_age_bounds(_club_df)
+        tab1_age_range = st.slider(
+            "Rango de edad", t1_age_min, t1_age_max,
+            value=(t1_age_min, t1_age_max), key=f"tab1_age_range_{selected_club_perfil}"
+        )
+        _club_df = _apply_age_filter(_club_df, tab1_age_range)
+
+        positions_in_club = sorted(_club_df['Position Group'].dropna().unique())
+        if not positions_in_club:
+            st.warning("No hay jugadores que cumplan los filtros.")
+            players_list = []
+            club_pos_df = pd.DataFrame()
+            pos_df = pd.DataFrame()
+            selected_pos = ''
+            selected_player_tab1 = None
+        else:
+            with col_pos:
+                selected_pos = st.selectbox("Posición", positions_in_club, key="tab1_pos")
+
+            pos_df = df[df['Position Group'] == selected_pos].copy()
+            pos_df = _apply_age_filter(pos_df, tab1_age_range)
+            club_pos_df = _club_df[_club_df['Position Group'] == selected_pos].copy()
+
+            players_list = sorted(club_pos_df['Player'].dropna().unique())
+            with col_player:
+                selected_player_tab1 = st.selectbox("Jugador", players_list, key="tab1_player")
+
+        _mp = pos_df['Minutes played'] if 'Minutes played' in pos_df.columns else None
+        t1_min_v = int(_mp.min()) if _mp is not None and len(pos_df) > 0 else 0
+        t1_max_v = int(_mp.max()) if _mp is not None and len(pos_df) > 0 else 100
+        if t1_min_v >= t1_max_v:
+            t1_max_v = t1_min_v + 1
+        tab1_min_minutes = st.slider(
+            "Minutos mínimos (para percentiles)", t1_min_v, t1_max_v,
+            value=min(200, t1_max_v), key=f"tab1_min_minutes_{selected_pos}"
+        )
+
+        player_rows = club_pos_df[club_pos_df['Player'] == selected_player_tab1] if selected_player_tab1 else pd.DataFrame()
+        if not player_rows.empty:
+            player_data = player_rows.iloc[0]
+            _player_mins_val = float(player_data.get('Minutes played', 0) or 0)
+            if _player_mins_val < tab1_min_minutes:
+                st.warning(
+                    f"⚠️ **{selected_player_tab1}** tiene **{int(_player_mins_val)} minutos** jugados, "
+                    f"por debajo del mínimo de **{tab1_min_minutes} min** del filtro. "
+                    f"Bajá el slider para ver sus percentiles."
+                )
             else:
-                st.info("No hay métricas disponibles para mostrar.")
-    elif players_list:
-        st.info("Selecciona un jugador para ver sus datos.")
+                comparison_df = df[
+                    (df['Position Group'] == selected_pos) &
+                    (df['Minutes played'] >= tab1_min_minutes)
+                ].copy()
+                comparison_df = _apply_age_filter(comparison_df, tab1_age_range)
+                n_comp = len(comparison_df)
+                st.caption(
+                    f"Percentiles vs. **{n_comp} {selected_pos.lower()}s** "
+                    f"con \u2265 {tab1_min_minutes} min · {_LIGA_TORNEO.get(liga_activa, '2026')}"
+                )
+                st.markdown("---")
+                _render_perfil_scout(
+                    player_data=player_data,
+                    player_rows=player_rows,
+                    comparison_df=comparison_df,
+                    selected_pos=selected_pos,
+                    selected_player_tab1=selected_player_tab1,
+                    team_col_tab1=team_col_tab1,
+                    tab1_min_minutes=tab1_min_minutes,
+                    tab1_age_range=tab1_age_range,
+                    n_comp=n_comp,
+                    liga_code=liga_activa,
+                    base_df=df,
+                )
+        elif players_list:
+            st.info("Selecciona un jugador para ver sus datos.")
 
 # ---- Tab Overall: Pentágono MARCA ZONAL SCORE ----------------------------
 with tab_overall:
@@ -3361,13 +3599,20 @@ with tab_ranking:
         rk_min_minutes = 0
 
     # ── Selector de métrica ─────────────────────────────────────────────────
+    _MZ_SCORE_SENTINEL = "⭐ MARCA ZONAL SCORE"
     if _is_rk_gk:
         rk_metric_cols = _GK_RANKING_COLS_PER90 if rk_tipo == "Por 90" else _GK_RANKING_COLS_TOTAL
     else:
-        rk_metric_cols = _PER90_COLS if rk_tipo == "Por 90" else _TOTAL_COLS
+        rk_metric_cols = [_MZ_SCORE_SENTINEL] + (
+            _PER90_COLS if rk_tipo == "Por 90" else _TOTAL_COLS
+        )
+
+    def _rk_metric_label(m):
+        return m if m == _MZ_SCORE_SENTINEL else translate(m)
+
     rk_metric = st.selectbox(
         "Métrica", rk_metric_cols,
-        format_func=translate,
+        format_func=_rk_metric_label,
         key="rk_metric"
     )
 
@@ -3379,10 +3624,58 @@ with tab_ranking:
     if rk_min_minutes > 0 and 'Minutes played' in rk_pool.columns:
         rk_pool = rk_pool[rk_pool['Minutes played'] >= rk_min_minutes]
 
-    if rk_metric not in rk_pool.columns:
-        st.warning("La métrica seleccionada no está disponible en los datos.")
-    elif rk_pool.empty:
+    if rk_pool.empty:
         st.warning("No hay jugadores que cumplan los filtros seleccionados.")
+    elif rk_metric == _MZ_SCORE_SENTINEL:
+        # ── MARCA ZONAL SCORE ranking ────────────────────────────────────────
+        _rk_mz_df = _compute_liga_home_ranking(rk_pool, min_minutes=0)
+        if _rk_mz_df.empty:
+            st.warning("Sin datos suficientes para calcular MARCA ZONAL SCORE.")
+        else:
+            n_ranked = len(_rk_mz_df)
+            pos_label = rk_pos if rk_pos != "Todas las posiciones" else "todos los jugadores"
+            mins_label = f" · +{rk_min_minutes} min" if rk_min_minutes > 0 else ""
+            age_label = f" · {rk_age_range[0]}-{rk_age_range[1]} años"
+            st.caption(
+                f"**MARCA ZONAL SCORE** · {n_ranked} jugadores · {pos_label}{mins_label}{age_label} · "
+                f"{_LIGA_TORNEO.get(liga_activa, '2026')}"
+            )
+            st.markdown("---")
+            # Render as standard ranking using Score column
+            _rk_mz_render = _rk_mz_df.rename(columns={'Team': rank_team_col, 'Score': _MZ_SCORE_SENTINEL})
+            if rank_team_col not in _rk_mz_render.columns:
+                _rk_mz_render[rank_team_col] = _rk_mz_render.get('Team', '')
+            _render_ranking_table(_rk_mz_render, _MZ_SCORE_SENTINEL, rank_team_col, is_total=False)
+
+            # Download card
+            _rk_mz_card_df = _rk_mz_df.copy()
+            _rk_mz_card_df[_MZ_SCORE_SENTINEL] = _rk_mz_card_df['Score']
+            fig_rk_card = _create_ranking_card(
+                ranking_df=_rk_mz_card_df,
+                metric_col=_MZ_SCORE_SENTINEL,
+                team_col='Team',
+                metric_label="MARCA ZONAL SCORE",
+                tipo_label="Por 90",
+                pos_label=pos_label,
+                min_minutes=rk_min_minutes,
+                top_n=15,
+                logo_path=LOGO_BLANCO,
+                is_total=False,
+            )
+            buf_rk = io.BytesIO()
+            fig_rk_card.savefig(buf_rk, format='png', dpi=180, bbox_inches='tight',
+                                facecolor=fig_rk_card.get_facecolor())
+            plt.close(fig_rk_card)
+            st.download_button(
+                "⬇️ Descargar ranking (top 15)",
+                buf_rk.getvalue(),
+                file_name="ranking_marca_zonal_score.png",
+                mime="image/png",
+                key="dl_rk_mz_card",
+            )
+            st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
+    elif rk_metric not in rk_pool.columns:
+        st.warning("La métrica seleccionada no está disponible en los datos.")
     else:
         rk_data = rk_pool[['Player', rank_team_col, 'Position Group', rk_metric]].copy()
         rk_data = rk_data.dropna(subset=[rk_metric])

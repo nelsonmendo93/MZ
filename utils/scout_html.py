@@ -208,20 +208,29 @@ def build_scout_html(
 
     score = max(0, min(100, float(overall_score)))
 
-    # Left-column score block: pentagon image OR classic ring+pills
+    # Score color
+    _sc_color = '#22c55e' if score >= 70 else '#f59e0b' if score >= 50 else '#ef4444'
+
+    # Left-column score block: pentagon image + score badge + pills
     if pentagon_img_b64:
         _left_score_html = (
             '<div class="mz-card mz-score-card" style="padding:10px 12px;">'
-            '<div class="mz-score-title" style="text-align:center;margin-bottom:6px;">MARCA ZONAL SCORE</div>'
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+            '<div class="mz-score-title" style="margin:0;">MARCA ZONAL SCORE</div>'
+            f'<div style="font-family:\'Poppins\',sans-serif;font-size:1.4rem;font-weight:800;'
+            f'color:{_sc_color};line-height:1;">{score:.0f}</div>'
+            '</div>'
             '<img src="data:image/png;base64,' + pentagon_img_b64 + '" '
-            'style="width:100%;border-radius:6px;display:block;" /></div>'
+            'style="width:100%;border-radius:6px;display:block;margin-bottom:8px;" />'
+            + ''.join(pill_cards)
+            + '</div>'
         )
     else:
         _left_score_html = (
             '<div class="mz-card mz-score-card">'
             '<div class="mz-score-title" style="text-align:center;">MARCA ZONAL SCORE</div>'
             '<div class="mz-score-wrap"><div class="mz-score-ring">'
-            f'<div class="mz-score-hole">{score:.0f}</div>'
+            f'<div class="mz-score-hole" style="color:{_sc_color};">{score:.0f}</div>'
             '</div></div></div>'
             + ''.join(pill_cards)
         )
