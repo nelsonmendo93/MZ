@@ -449,17 +449,17 @@ def process_database(df):
 
 @st.cache_data
 def load_and_process_data():
-    """Load database.xlsx and process it. Cached by Streamlit."""
+    """Load PAR.xlsx and process it. Cached by Streamlit."""
     # Try multiple paths for flexibility (local dev vs deployed)
     possible_paths = [
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'database.xlsx'),
-        os.path.join('data', 'database.xlsx'),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'PAR.xlsx'),
+        os.path.join('data', 'PAR.xlsx'),
     ]
     for path in possible_paths:
         if os.path.exists(path):
             df = pd.read_excel(path)
             return process_database(df)
-    raise FileNotFoundError("database.xlsx not found in data/ directory")
+    raise FileNotFoundError("PAR.xlsx not found in data/ directory")
 
 
 @st.cache_data
