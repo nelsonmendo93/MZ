@@ -38,6 +38,8 @@ EXCLUDED_COLUMNS = [
 TEAM_NAME_OVERRIDES = {
     ('Universidad Católica', 'ECU'): 'Universidad Católica (ECU)',
     ('Universidad Católica', 'CHI'): 'Universidad Católica (CHI)',
+    # MEX — agregar duplicados cuando se carguen los datos
+    # MLS — agregar duplicados cuando se carguen los datos
 }
 
 # Overrides manuales de posición: se aplican sobre cualquier database descargada
@@ -264,6 +266,10 @@ PLAYER_NAME_OVERRIDES = {
     ('L. Peña', 'Deportivo La Guaira'): 'Luis A. Peña',  # RB | 24 años | 693 min
     ('M. González', 'Rayo Zuliano'): 'Mayken González',  # RW | 19 años | 121 min
     ('M. González', 'Trujillanos'): 'Mayker González',  # LB | 37 años | 669 min
+    # ─────────────── MEX ───────────────
+    # (agregar duplicados al cargar datos)
+    # ─────────────── MLS ───────────────
+    # (agregar duplicados al cargar datos)
 }
 
 # Action-percentage pairs for calculating successful actions

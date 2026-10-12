@@ -21,6 +21,8 @@ LEAGUE_COLORS = {
     'CHI': '#f97316',
     'PER': '#e879f9',
     'VEN': '#2dd4bf',
+    'MEX': '#a3e635',
+    'MLS': '#f43f5e',
     'ING': '#ef4444',
     'ITA': '#84cc16',
     'ALE': '#facc15',
