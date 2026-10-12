@@ -8,3 +8,4 @@ numpy
 openpyxl
 adjustText
 scikit-learn
+pyarrow

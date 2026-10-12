@@ -6,4 +6,5 @@ __pycache__/
 .ipynb_checkpoints/
 utils/.ipynb_checkpoints/
 data/visit_counter.json
-.claude/ 
+.claude/
+data/*.parquet

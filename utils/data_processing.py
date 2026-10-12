@@ -453,36 +453,53 @@ def process_database(df):
     return df
 
 
+def _parquet_path(xlsx_path: str) -> str:
+    return xlsx_path.replace('.xlsx', '.parquet')
+
+
+def _load_with_parquet_cache(xlsx_path: str, league_name: str | None = None):
+    """Read xlsx or its parquet cache (whichever is newer). Save parquet after processing."""
+    pq_path = _parquet_path(xlsx_path)
+    xlsx_mtime = os.path.getmtime(xlsx_path)
+    use_cache = os.path.exists(pq_path) and os.path.getmtime(pq_path) >= xlsx_mtime
+    if use_cache:
+        return pd.read_parquet(pq_path)
+    # Excel is newer — reprocess and update cache
+    df = pd.read_excel(xlsx_path)
+    if league_name and 'Team' in df.columns:
+        for (team, league), new_name in TEAM_NAME_OVERRIDES.items():
+            if league == league_name:
+                df.loc[df['Team'] == team, 'Team'] = new_name
+    processed = process_database(df)
+    try:
+        processed.to_parquet(pq_path, index=False)
+    except Exception:
+        pass  # parquet save failure is non-fatal
+    return processed
+
+
 @st.cache_data
 def load_and_process_data():
-    """Load PAR.xlsx and process it. Cached by Streamlit."""
-    # Try multiple paths for flexibility (local dev vs deployed)
+    """Load PAR.xlsx (or parquet cache) and process it. Cached by Streamlit."""
     possible_paths = [
         os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'PAR.xlsx'),
         os.path.join('data', 'PAR.xlsx'),
     ]
     for path in possible_paths:
         if os.path.exists(path):
-            df = pd.read_excel(path)
-            return process_database(df)
+            return _load_with_parquet_cache(path)
     raise FileNotFoundError("PAR.xlsx not found in data/ directory")
 
 
 @st.cache_data
 def load_external_league(league_name: str):
     """Load and process an external league file (e.g. ARG.xlsx or BRA.xlsx).
-    Returns a processed DataFrame, or None if the file is not found."""
+    Uses parquet cache when available and up-to-date. Returns None if file not found."""
     possible_paths = [
         os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', f'{league_name}.xlsx'),
         os.path.join('data', f'{league_name}.xlsx'),
     ]
     for path in possible_paths:
         if os.path.exists(path):
-            df = pd.read_excel(path)
-            # Aplicar overrides de equipo ANTES de procesar (deben preceder a PLAYER_NAME_OVERRIDES)
-            if 'Team' in df.columns:
-                for (team, league), new_name in TEAM_NAME_OVERRIDES.items():
-                    if league == league_name:
-                        df.loc[df['Team'] == team, 'Team'] = new_name
-            return process_database(df)
+            return _load_with_parquet_cache(path, league_name)
     return None
