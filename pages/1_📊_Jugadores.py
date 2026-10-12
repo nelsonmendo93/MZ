@@ -306,19 +306,11 @@ df_ven = load_external_league('VEN')
 df_mex = load_external_league('MEX')
 df_mls = load_external_league('MLS')
 
-# TOP 5 Europa
-df_ing = load_external_league('ING')
-df_ita = load_external_league('ITA')
-df_ale = load_external_league('ALE')
-df_esp = load_external_league('ESP')
-df_fra = load_external_league('FRA')
+# TOP 5 Europa — deshabilitado temporalmente (EN CONSTRUCCIÓN)
+df_ing = df_ita = df_ale = df_esp = df_fra = None
 
-# Torneos Internacionales
-df_lib  = load_external_league('LIB')
-df_sud  = load_external_league('SUD')
-df_ucl  = load_external_league('UCL')
-df_uel  = load_external_league('UEL')
-df_uecl = load_external_league('UECL')
+# Torneos Internacionales — deshabilitado temporalmente (EN CONSTRUCCIÓN)
+df_lib = df_sud = df_ucl = df_uel = df_uecl = None
 
 # Grupos de ligas — fuente de verdad para agrupación y comparación
 _AM_CODES   = ['PAR', 'ARG', 'BRA', 'URU', 'COL', 'ECU', 'CHI', 'PER', 'VEN', 'MEX', 'MLS']
@@ -456,16 +448,29 @@ with _sel_c1:
         options=['América', 'Europa', 'Torneos Internacionales'],
         key="grupo_selector",
     )
+
+if _grupo != 'América':
+    st.markdown("""
+    <div style="
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; padding: 80px 20px; text-align: center;
+    ">
+        <div style="font-size: 4rem; margin-bottom: 16px;">🚧</div>
+        <h2 style="color: #f59e0b; font-family: 'Poppins', sans-serif;
+                   font-size: 2rem; margin: 0 0 12px 0; letter-spacing: 0.05em;">
+            EN CONSTRUCCIÓN
+        </h2>
+        <p style="color: #64748b; font-size: 1rem; max-width: 400px; margin: 0;">
+            Esta sección estará disponible próximamente.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
 with _sel_c2:
-    if _grupo == 'América':
-        _ligas_options = _AVAILABLE_AM
-    elif _grupo == 'Europa':
-        _ligas_options = _AVAILABLE_EU
-    else:
-        _ligas_options = _AVAILABLE_INTL
     liga_activa = st.selectbox(
         "🌎 Liga",
-        options=_ligas_options,
+        options=_AVAILABLE_AM,
         format_func=lambda k: _LIGA_LABELS[k],
         index=0,
         key="liga_activa_selector",
