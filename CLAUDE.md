@@ -1,8 +1,9 @@
 # CLAUDE.md — Marca Zonal: Portal de Análisis de Fútbol Paraguayo
 
-**Última actualización:** Junio 07, 2026  
+**Última actualización:** Octubre 19, 2026  
 **Propósito:** Documentación completa del proyecto para Claude en futuras sesiones  
 **Estado:** En producción (Streamlit Cloud) + Desarrollo activo
+
 
 ---
 
@@ -26,7 +27,7 @@
 - **App Streamlit:** https://marcazonal.streamlit.app
 - **Estado:** Funcional con 3 páginas
 - **Actualizaciones:** Semanales de datos Excel (manual)
-- **Datos actuales:** Apertura 2026 (actualizado 2026-04-20)
+- **Datos actuales:** Apertura 2026 (actualizado 2026-10-19)
 
 ### 📱 En Desarrollo
 - **Objetivo final:** App móvil (iOS/Android)
@@ -72,7 +73,7 @@ futbol-app/
 │   ├── counter.py            ← Contador de visitas (39 LOC)
 │   └── dom-to-image-more.min.js  ← Librería JS para exportar PNG
 ├── data/
-│   ├── database.xlsx         ← Jugadores Paraguay Apertura 2026 (primario)
+│   ├── PAR.xlsx              ← Jugadores Paraguay Apertura 2026 (primario)
 │   ├── ARG.xlsx              ← Liga argentina
 │   ├── BRA.xlsx              ← Liga brasileña
 │   ├── CHI.xlsx              ← Liga chilena
@@ -115,12 +116,12 @@ futbol-app/
 | 8 | ⚽ Mejor Once | Constructor de equipo ideal |
 
 **Selector de liga — 3 grupos:**
-- `Sudamérica` → PAR, ARG, BRA, URU, COL, ECU, CHI, PER, VEN + ALL_SA
+- `América` → PAR, ARG, BRA, URU, COL, ECU, CHI, PER, VEN, MEX, MLS + ALL_AM
 - `Europa` → ING, ITA, ALE, ESP, FRA + ALL_EU
 - `Torneos Internacionales` → LIB, SUD, UCL, UEL, UECL + ALL_INTL
 
 **Datos cargados:**
-- `database.xlsx` (PAR) — siempre cargado
+- `PAR.xlsx` — siempre cargado
 - Todas las demás ligas — lazy load via `load_external_league()`
 
 **Filtros disponibles:**
@@ -219,13 +220,13 @@ futbol-app/
 
 ## 📊 DATOS Y ESTRUCTURA
 
-### Ligas disponibles (19 en total)
+### Ligas disponibles (21 en total)
 
-**Sudamérica**
+**América**
 
 | Archivo | Código | Liga | Torneo |
 |---------|--------|------|--------|
-| `database.xlsx` | PAR | Paraguay | Torneo Local 2026 — siempre cargado |
+| `PAR.xlsx` | PAR | Paraguay | Torneo Local 2026 — siempre cargado |
 | `ARG.xlsx` | ARG | Argentina | LPF 2026 |
 | `BRA.xlsx` | BRA | Brasil | Serie A 2026 |
 | `URU.xlsx` | URU | Uruguay | 1ra Div Uruguay 2026 |
@@ -234,6 +235,8 @@ futbol-app/
 | `CHI.xlsx` | CHI | Chile | 1ra Div Chile 2026 |
 | `PER.xlsx` | PER | Perú | 1ra Div Perú 2026 |
 | `VEN.xlsx` | VEN | Venezuela | 1ra Div Venezuela 2026 |
+| `MEX.xlsx` | MEX | México | Liga MX 2026 |
+| `MLS.xlsx` | MLS | MLS (USA) | MLS 2026 |
 
 **Europa (TOP 5)**
 
@@ -271,7 +274,7 @@ Team Stats Sportivo San Lorenzo.xlsx
 Team Stats Sportivo Trinidense.xlsx
 ```
 
-### Columnas `database.xlsx`
+### Columnas `PAR.xlsx`
 
 **Identidad:** Player, Team, Position, Position Group, Minutes played, Matches played, Pie (foot), Age, Height, Weight
 
@@ -440,7 +443,7 @@ API en Railway/Render + publicación App Store/Google Play
 | **Jugadores.py** | ✅ 8 tabs completos | Scout, Swarm, Mejor Once, PCA multi-liga |
 | **Predictor.py** | ✅ Funcional | Poisson sin scipy |
 | **Tiempo Efectivo** | ✅ Funcional | 12 equipos, formato HH:MM:SS |
-| **Ligas comparación** | ✅ 19 ligas | PAR+8 SA + TOP5 EU + LIB, SUD, UCL, UEL, UECL |
+| **Ligas comparación** | ✅ 21 ligas | PAR+10 AM + TOP5 EU + LIB, SUD, UCL, UEL, UECL |
 | **Vista Scout + PNG** | ✅ Operativo | scout_html.py + dom-to-image |
 | **MARCA ZONAL SCORE** | ✅ Por posición | Pesos diferenciados por grupo |
 | **App Móvil** | 🚧 Planificación | Fase 1: API Backend pendiente |
