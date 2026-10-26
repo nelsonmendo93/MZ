@@ -45,14 +45,32 @@ header { visibility: hidden; }
     max-width: 820px !important;
 }
 
+/* ── Hero card ──────────────────────────────────────────────────────── */
 .bienvenida-wrap {
     text-align: center;
-    padding: 3rem 2rem 2rem;
+    padding: 3rem 2rem 1.8rem;
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     border-radius: 20px;
     border: 1px solid rgba(34,197,94,0.2);
     margin-bottom: 2.5rem;
+    position: relative;
+    overflow: hidden;
 }
+
+/* Subtle pitch line pattern */
+.bienvenida-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    background-image:
+        radial-gradient(circle at 50% 50%, transparent 58px, rgba(255,255,255,0.022) 58px, rgba(255,255,255,0.022) 60px, transparent 60px),
+        linear-gradient(to bottom, transparent calc(50% - 1px), rgba(255,255,255,0.018) calc(50% - 1px), rgba(255,255,255,0.018) calc(50% + 1px), transparent calc(50% + 1px));
+    pointer-events: none;
+    z-index: 0;
+}
+
+.bienvenida-wrap > * { position: relative; z-index: 1; }
 
 .bienvenida-title {
     font-family: 'Poppins', sans-serif !important;
@@ -61,7 +79,7 @@ header { visibility: hidden; }
     color: #e2e8f0;
     letter-spacing: 1px;
     line-height: 1.3;
-    margin: 1.2rem 0 0.6rem;
+    margin: 1.2rem 0 0.5rem;
 }
 
 .bienvenida-sub {
@@ -71,6 +89,61 @@ header { visibility: hidden; }
     margin-bottom: 0.2rem;
 }
 
+/* ── Animated stats row ─────────────────────────────────────────────── */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.stats-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    margin: 1.4rem auto 0;
+    max-width: 460px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 0.9rem 0;
+    animation: fadeInUp 0.7s ease both;
+    animation-delay: 0.25s;
+    opacity: 0;
+    animation-fill-mode: forwards;
+}
+
+.stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.18rem;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 32px;
+    background: rgba(255,255,255,0.07);
+    flex-shrink: 0;
+}
+
+.stat-num {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #f59e0b;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.52rem;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #475569;
+    font-weight: 700;
+}
+
+/* ── Nav buttons ────────────────────────────────────────────────────── */
 .stButton > button {
     width: 100%;
     padding: 1.6rem 1rem !important;
@@ -93,6 +166,7 @@ header { visibility: hidden; }
     transform: translateY(-2px);
 }
 
+/* ── Visit counter ──────────────────────────────────────────────────── */
 .counter-wrap {
     text-align: center;
     padding: 1rem;
@@ -138,6 +212,22 @@ st.markdown(f"""
     {logo_html}
     <div class="bienvenida-title">BIENVENIDOS AL PORTAL DE DATOS<br>DE MARCA ZONAL</div>
     <div class="bienvenida-sub">Analisis de rendimiento del futbol sudamericano · 2026</div>
+    <div class="stats-row">
+        <div class="stat-item">
+            <span class="stat-num">21</span>
+            <span class="stat-label">Ligas</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-num">5,200+</span>
+            <span class="stat-label">Jugadores</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+            <span class="stat-num">60+</span>
+            <span class="stat-label">Métricas</span>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 

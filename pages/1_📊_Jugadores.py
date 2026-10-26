@@ -213,18 +213,40 @@ h1, h2, h3 {
     opacity: 0.7;
 }
 
-/* Tabs */
+/* Tabs — pill style */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 2px;
-    background-color: rgba(255, 255, 255, 0.03);
-    border-radius: 10px;
-    padding: 4px;
+    gap: 3px;
+    background-color: rgba(15, 23, 42, 0.9);
+    border-radius: 12px;
+    padding: 5px;
+    border: 1px solid rgba(255,255,255,0.06);
 }
 
 .stTabs [data-baseweb="tab"] {
     border-radius: 8px;
-    padding: 10px 20px;
-    font-weight: 500;
+    padding: 8px 13px !important;
+    font-weight: 600 !important;
+    font-size: 0.76rem !important;
+    letter-spacing: 0.3px;
+    color: #64748b !important;
+    transition: all 0.18s ease !important;
+    border: none !important;
+    white-space: nowrap;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08)) !important;
+    color: #22c55e !important;
+    box-shadow: 0 0 0 1px rgba(34,197,94,0.28), 0 2px 8px rgba(34,197,94,0.14) !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+    background: rgba(255,255,255,0.05) !important;
+    color: #94a3b8 !important;
+}
+
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none !important;
 }
 
 /* Labels */
@@ -476,6 +498,36 @@ with _sel_c2:
         key="liga_activa_selector",
     )
 
+# Liga badge — colored indicator below selectors
+_LIGA_BADGE_COLORS = {
+    'PAR': '#dc2626', 'ARG': '#14b8a6', 'BRA': '#16a34a', 'URU': '#2563eb',
+    'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316', 'PER': '#e879f9',
+    'VEN': '#2dd4bf', 'MEX': '#a3e635', 'MLS': '#f43f5e',
+    'ALL_AM': '#22c55e',
+}
+_LIGA_FLAGS = {
+    'PAR': '🇵🇾', 'ARG': '🇦🇷', 'BRA': '🇧🇷', 'URU': '🇺🇾', 'COL': '🇨🇴',
+    'ECU': '🇪🇨', 'CHI': '🇨🇱', 'PER': '🇵🇪', 'VEN': '🇻🇪', 'MEX': '🇲🇽',
+    'MLS': '🇺🇸', 'ALL_AM': '🌎',
+}
+_badge_color = _LIGA_BADGE_COLORS.get(liga_activa, '#64748b')
+_badge_flag  = _LIGA_FLAGS.get(liga_activa, '⚽')
+_badge_label = _LIGA_LABELS.get(liga_activa, liga_activa)
+_badge_torneo = _LIGA_TORNEO.get(liga_activa, '')
+st.markdown(f"""
+<div style="display:flex;align-items:center;gap:10px;
+            background:rgba(0,0,0,0.18);border:1px solid {_badge_color}33;
+            border-left:3px solid {_badge_color};
+            border-radius:10px;padding:8px 14px;margin-top:4px;margin-bottom:8px;">
+  <span style="font-size:1.4rem;line-height:1;">{_badge_flag}</span>
+  <div>
+    <div style="font-family:'Poppins',sans-serif;font-size:0.85rem;font-weight:700;
+                color:{_badge_color};line-height:1.2;">{_badge_label}</div>
+    <div style="font-size:0.68rem;color:#475569;letter-spacing:0.5px;">{_badge_torneo}</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 # df activo según liga seleccionada
 df = _LIGA_DFS[liga_activa].dropna(subset=['Position Group'])
 
@@ -603,6 +655,9 @@ _ALWAYS_COLS = {
     'Successful defensive actions per 90',
     'Received passes per 90',
     'Received long passes per 90',
+    'Touches in box per 90',
+    'Progressive runs per 90',
+    'Dribbles per 90',
 }
 
 # Pesos de métricas individuales por grupo de posición.
@@ -784,7 +839,7 @@ _GK_ONLY_METRICS = {
 # Logo centrado
 _hdr_l, _hdr_c, _hdr_r = st.columns([1, 2, 1])
 with _hdr_c:
-    st.image(LOGO_BLANCO, use_container_width=True)
+    st.image(LOGO_BLANCO, use_column_width=True)
 
 st.markdown(f"""
 <div style="text-align:center; padding: 4px 0 16px 0;">
@@ -1162,80 +1217,128 @@ def _compute_percentile(player_val, series):
 
 
 def _render_all_bars(categorized, category_order, category_colors):
-    """Render all metric categories as BallerzBantz-style bars via components.html."""
+    """Render all metric categories as styled percentile bars via components.html."""
     total_rows = sum(len(categorized[cat]) for cat in category_order if cat in categorized)
     n_cats     = sum(1 for cat in category_order if cat in categorized)
-    height     = total_rows * 38 + n_cats * 52 + 60
+    height     = total_rows * 44 + n_cats * 58 + 70
+
+    def _pct_badge_color(pct):
+        if pct >= 67: return '#22c55e'
+        if pct >= 34: return '#f59e0b'
+        return '#ef4444'
 
     css = """
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&family=Poppins:wght@700;800&display=swap');
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: 'Cousine', monospace;
-        background: #0e1117;
+        background: #0a0f1a;
         color: #b0b8c8;
-        padding: 4px 2px;
+        padding: 8px 4px 16px;
       }
-      .legend {
+      .header-row {
         display: flex; align-items: center; gap: 10px;
-        margin-bottom: 8px; padding-bottom: 5px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 14px; padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
       }
-      .legend-name { width:195px; font-size:11px; color:#555; text-align:right; flex-shrink:0; }
-      .legend-bar  { flex:1; font-size:11px; color:#555; padding-left:8px; }
-      .legend-pct  { width:36px; font-size:11px; color:#555; text-align:center; flex-shrink:0; }
-      .cat-block   { margin-bottom: 20px; }
-      .cat-header  {
+      .h-name { flex: 0 0 190px; font-size: 10px; color: #3f4f65;
+                text-transform: uppercase; letter-spacing: 1.5px; text-align: right; }
+      .h-bar  { flex: 1; font-size: 10px; color: #3f4f65;
+                text-transform: uppercase; letter-spacing: 1.5px; padding-left: 10px; }
+      .h-pct  { flex: 0 0 52px; font-size: 10px; color: #3f4f65;
+                text-transform: uppercase; letter-spacing: 1.5px; text-align: center; }
+
+      .cat-block  { margin-bottom: 18px; }
+      .cat-header {
         font-family: 'Poppins', 'Cousine', monospace;
-        font-weight: 700; font-size: 12px;
-        text-transform: uppercase; letter-spacing: 1.2px;
-        margin-bottom: 8px; padding-bottom: 5px;
+        font-weight: 800; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 1.8px;
+        margin-bottom: 10px; padding: 6px 10px;
+        border-radius: 8px;
+        display: flex; align-items: center; gap: 8px;
       }
-      .metric-row  { display:flex; align-items:center; gap:10px; margin:4px 0; }
+      .cat-count {
+        font-size: 10px; font-weight: 700;
+        background: rgba(255,255,255,0.08);
+        border-radius: 999px; padding: 1px 7px;
+        color: #64748b;
+      }
+
+      .metric-row {
+        display: flex; align-items: center; gap: 10px;
+        margin: 5px 0; padding: 3px 0;
+      }
+      .metric-row:hover .bar-container { filter: brightness(1.15); }
+
       .metric-name {
-        width: 195px; font-size: 12.5px; color: #b0b8c8;
-        text-align: right; flex-shrink: 0; line-height: 1.3;
+        flex: 0 0 190px; font-size: 12px; color: #94a3b8;
+        text-align: right; flex-shrink: 0; line-height: 1.35;
+        padding-right: 4px;
       }
       .bar-container {
-        flex: 1; background: rgba(255,255,255,0.07);
-        border-radius: 5px; height: 28px;
+        flex: 1; background: rgba(255,255,255,0.055);
+        border-radius: 6px; height: 30px;
         position: relative; overflow: hidden;
+        transition: filter 0.15s;
       }
-      .bar-fill {
-        height: 100%; border-radius: 5px;
-        display: flex; align-items: center; padding-left: 8px;
+      .bar-track {
+        position: absolute; left: 0; top: 0; height: 100%;
+        border-radius: 6px;
+        display: flex; align-items: center;
       }
-      .bar-value  { color:#fff; font-size:12px; font-weight:700; white-space:nowrap; }
-      .pct-num    { width:36px; font-size:15px; font-weight:800; text-align:center; flex-shrink:0; }
+      .bar-value {
+        position: relative; z-index: 1;
+        padding-left: 10px;
+        color: #fff; font-size: 12.5px; font-weight: 700;
+        white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      }
+
+      /* Percentile badge */
+      .pct-badge {
+        flex: 0 0 52px;
+        height: 30px; border-radius: 7px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; font-weight: 900;
+        font-family: 'Poppins', sans-serif;
+      }
     </style>
     """
 
     body = """
-    <div class="legend">
-      <div class="legend-name">Métrica</div>
-      <div class="legend-bar">Valor &nbsp;&nbsp;(barra = percentil)</div>
-      <div class="legend-pct">%il</div>
+    <div class="header-row">
+      <div class="h-name">Métrica</div>
+      <div class="h-bar">Valor &nbsp;·&nbsp; barra = percentil</div>
+      <div class="h-pct">%il</div>
     </div>
     """
 
     for cat in category_order:
         if cat not in categorized:
             continue
-        color = category_colors.get(cat, '#94a3b8')
-        body += f'<div class="cat-block">'
-        body += (f'<div class="cat-header" '
-                 f'style="color:{color}; border-bottom:2px solid {color}40;">'
-                 f'{cat}</div>')
-        for m in categorized[cat]:
-            bw = max(int(m["pct"]), 3)
+        metrics = categorized[cat]
+        color   = category_colors.get(cat, '#94a3b8')
+        count   = len(metrics)
+        body += (
+            f'<div class="cat-block">'
+            f'<div class="cat-header" style="color:{color};background:{color}14;">'
+            f'{cat}<span class="cat-count">{count}</span>'
+            f'</div>'
+        )
+        for m in metrics:
+            bw       = max(int(m["pct"]), 2)
+            badge_c  = _pct_badge_color(m["pct"])
+            badge_bg = badge_c + '1a'
             body += (
                 f'<div class="metric-row">'
                 f'<div class="metric-name">{m["metric"]}</div>'
                 f'<div class="bar-container">'
-                f'<div class="bar-fill" style="width:{bw}%; background:{color}cc;">'
+                f'<div class="bar-track" style="width:{bw}%;'
+                f'background:linear-gradient(90deg,{color}55,{color}bb);">'
                 f'<span class="bar-value">{m["value"]}</span>'
                 f'</div></div>'
-                f'<div class="pct-num" style="color:{color};">{m["pct"]}</div>'
+                f'<div class="pct-badge" style="color:{badge_c};background:{badge_bg};">'
+                f'{m["pct"]}</div>'
                 f'</div>'
             )
         body += '</div>'
@@ -3372,54 +3475,155 @@ _GK_RANKING_COLS_TOTAL = sorted(set(
 
 
 def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
-    """Renderiza el ranking como tabla HTML con barras proporcionales al máximo."""
+    """Renderiza el ranking con podio visual para top 3 + tabla para el resto."""
     max_val = ranking_df[metric_col].max()
     if max_val == 0:
         max_val = 1
 
-    rows_html = ''
-    for i, (_, row) in enumerate(ranking_df.iterrows(), start=1):
+    def _fmt(val):
+        if is_total:
+            v = pd.to_numeric(val, errors='coerce')
+            return str(math.ceil(float(v))) if pd.notna(v) else str(val)
+        return f"{val:.2f}" if isinstance(val, float) else str(val)
+
+    rows = list(ranking_df.iterrows())
+
+    # ── Podium cards for top 3 ───────────────────────────────────────────────
+    podium_html = ''
+    medals = ['🥇', '🥈', '🥉']
+    podium_colors = ['#fbbf24', '#94a3b8', '#cd7c2f']
+    podium_bg     = ['rgba(251,191,36,0.08)', 'rgba(148,163,184,0.07)', 'rgba(205,124,47,0.08)']
+    podium_border = ['rgba(251,191,36,0.3)', 'rgba(148,163,184,0.22)', 'rgba(205,124,47,0.28)']
+    podium_heights = ['88px', '76px', '68px']  # visual height for podium effect
+
+    podium_cards = ''
+    for i in range(min(3, len(rows))):
+        _, row = rows[i]
         pname = row['Player']
         team  = str(row.get(team_col, '—'))
         pos   = str(row.get('Position Group', '—'))
         val   = row[metric_col]
-        if is_total:
-            val_num = pd.to_numeric(val, errors='coerce')
-            if pd.notna(val_num):
-                val_fmt = str(math.ceil(float(val_num)))
-            else:
-                val_fmt = str(val)
-        else:
-            val_fmt = f"{val:.2f}" if isinstance(val, float) else str(val)
+        col   = podium_colors[i]
+        bg    = podium_bg[i]
+        bdr   = podium_border[i]
+        ph    = podium_heights[i]
+        medal = medals[i]
+        podium_cards += f"""
+        <div class="pod-card" style="border-color:{bdr};background:{bg};padding-top:{ph};">
+          <div class="pod-medal">{medal}</div>
+          <div class="pod-name">{pname}</div>
+          <div class="pod-team">{team}</div>
+          <div class="pod-pos">{pos}</div>
+          <div class="pod-val" style="color:{col};">{_fmt(val)}</div>
+        </div>"""
+
+    # Reorder: 2nd | 1st | 3rd (classic podium layout)
+    if len(rows) >= 3:
+        pod_ordered = [podium_cards.split('</div>\n        <div class="pod-card"')[i]
+                       for i in range(len(podium_cards.split('</div>\n        <div class="pod-card"')))]
+    # Simpler: rebuild podium in correct order
+    podium_items = []
+    for i in range(min(3, len(rows))):
+        _, row = rows[i]
+        pname = row['Player']
+        team  = str(row.get(team_col, '—'))
+        pos   = str(row.get('Position Group', '—'))
+        val   = row[metric_col]
+        col   = podium_colors[i]
+        bg    = podium_bg[i]
+        bdr   = podium_border[i]
+        ph    = podium_heights[i]
+        medal = medals[i]
+        podium_items.append({
+            'html': f"""<div class="pod-card" style="border-color:{bdr};background:{bg};padding-top:{ph};">
+          <div class="pod-medal">{medal}</div>
+          <div class="pod-name">{pname}</div>
+          <div class="pod-team">{team}</div>
+          <div class="pod-pos">{pos}</div>
+          <div class="pod-val" style="color:{col};">{_fmt(val)}</div>
+        </div>"""
+        })
+
+    # Podium order: silver(2nd), gold(1st), bronze(3rd)
+    if len(podium_items) == 3:
+        podium_html = podium_items[1]['html'] + podium_items[0]['html'] + podium_items[2]['html']
+    elif len(podium_items) == 2:
+        podium_html = podium_items[1]['html'] + podium_items[0]['html']
+    elif len(podium_items) == 1:
+        podium_html = podium_items[0]['html']
+
+    # ── Rest of table (rank 4+) ──────────────────────────────────────────────
+    rows_html = ''
+    for i, (_, row) in enumerate(rows[3:], start=4):
+        pname = row['Player']
+        team  = str(row.get(team_col, '—'))
+        pos   = str(row.get('Position Group', '—'))
+        val   = row[metric_col]
         bar_w = max(int((val / max_val) * 100), 1)
-
-        # Color del top 3
-        if i == 1:   rank_color, bar_color = '#fbbf24', '#fbbf24'
-        elif i == 2: rank_color, bar_color = '#94a3b8', '#94a3b8'
-        elif i == 3: rank_color, bar_color = '#b45309', '#b45309'
-        else:        rank_color, bar_color = '#4b5563', '#16a34a'
-
         rows_html += f"""
         <tr>
-          <td class="rank" style="color:{rank_color};">{i}</td>
+          <td class="rank">{i}</td>
           <td class="pname">{pname}</td>
           <td class="team">{team}</td>
           <td class="pos">{pos}</td>
           <td class="bar-cell">
             <div class="bar-bg">
-              <div class="bar-fill" style="width:{bar_w}%; background:{bar_color};"></div>
-              <span class="bar-label">{val_fmt}</span>
+              <div class="bar-fill" style="width:{bar_w}%;"></div>
+              <span class="bar-label">{_fmt(val)}</span>
             </div>
           </td>
         </tr>"""
 
-    n_rows = len(ranking_df)
-    height = n_rows * 42 + 80
+    n_rest = max(0, len(rows) - 3)
+    podium_section_h = 200
+    table_h = n_rest * 40 + (60 if n_rest > 0 else 0)
+    height = podium_section_h + table_h + 20
+
+    table_section = ''
+    if rows_html:
+        table_section = f"""
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Jugador</th><th>Equipo</th><th>Posición</th><th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>{rows_html}</tbody>
+        </table>"""
 
     html = f"""<!DOCTYPE html><html><head><style>
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{ font-family: 'Cousine', monospace; background: #0e1117; color: #b0b8c8; padding: 6px 2px; }}
-    table {{ width: 100%; border-collapse: collapse; }}
+
+    /* ── Podium ── */
+    .podium {{
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 10px;
+        padding: 8px 4px 16px;
+    }}
+    .pod-card {{
+        flex: 1;
+        max-width: 220px;
+        border: 1px solid;
+        border-radius: 12px;
+        padding: 14px 12px 14px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        transition: transform 0.15s;
+    }}
+    .pod-medal {{ font-size: 22px; line-height: 1; margin-bottom: 2px; }}
+    .pod-name  {{ font-size: 13px; font-weight: 800; color: #f1f5f9; line-height: 1.25; }}
+    .pod-team  {{ font-size: 11px; color: #9ca3af; margin-top: 1px; }}
+    .pod-pos   {{ font-size: 10px; color: #6b7280; }}
+    .pod-val   {{ font-size: 18px; font-weight: 900; margin-top: 5px; font-family: 'Poppins', sans-serif; }}
+
+    /* ── Table ── */
+    table {{ width: 100%; border-collapse: collapse; margin-top: 4px; }}
     th {{
         font-size: 10px; font-weight: 700; color: #6b7280;
         text-transform: uppercase; letter-spacing: 1px;
@@ -3427,7 +3631,7 @@ def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
     }}
     td {{ padding: 6px 10px; border-bottom: 1px solid #1a1f2e; font-size: 13px; vertical-align: middle; }}
     tr:hover td {{ background: #1a1f2e; }}
-    .rank  {{ width: 36px; font-weight: 800; font-size: 15px; text-align: center; }}
+    .rank  {{ width: 36px; font-weight: 700; font-size: 13px; text-align: center; color: #4b5563; }}
     .pname {{ font-weight: 700; color: #f1f5f9; min-width: 160px; }}
     .team  {{ color: #9ca3af; min-width: 130px; }}
     .pos   {{ color: #6b7280; font-size: 11px; min-width: 90px; }}
@@ -3437,17 +3641,12 @@ def _render_ranking_table(ranking_df, metric_col, team_col, is_total=False):
         border-radius: 4px; height: 26px; overflow: hidden;
         display: flex; align-items: center;
     }}
-    .bar-fill {{ position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; opacity: 0.80; }}
+    .bar-fill {{ position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px;
+                background: linear-gradient(90deg, #16a34a, #22c55e); opacity: 0.80; }}
     .bar-label {{ position: relative; z-index: 1; padding-left: 10px; font-size: 13px; font-weight: 800; color: #fff; }}
     </style></head><body>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th><th>Jugador</th><th>Equipo</th><th>Posición</th><th>Valor</th>
-        </tr>
-      </thead>
-      <tbody>{rows_html}</tbody>
-    </table>
+    <div class="podium">{podium_html}</div>
+    {table_section}
     </body></html>"""
 
     components.html(html, height=height, scrolling=True)
@@ -4139,7 +4338,7 @@ with tab_best11:
                     bbox_inches='tight', facecolor=fig_b11.get_facecolor())
     plt.close(fig_b11)
 
-    st.image(buf_b11.getvalue(), use_container_width=True)
+    st.image(buf_b11.getvalue(), use_column_width=True)
 
     st.download_button(
         "⬇️ Descargar imagen (alta resolución)",

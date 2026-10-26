@@ -13,6 +13,19 @@ CATEGORY_COLORS = {
     'Distribucion': '#84cc16',
 }
 
+# Percentile-based bar colors: red → amber → green
+def _pct_bar_color(pct):
+    """Color based on percentile rank: red <34, amber 34-66, green >66."""
+    if pct is None:
+        return '#4b5563'
+    p = float(pct)
+    if p >= 67:
+        return '#22c55e'
+    elif p >= 34:
+        return '#f59e0b'
+    else:
+        return '#ef4444'
+
 LEAGUE_COLORS = {
     'PAR': '#dc2626',
     'ARG': '#14b8a6',
@@ -44,11 +57,10 @@ def create_bar_chart(player_name, player_team, subtitle, categories_data):
     spacing = 0.6
 
     for cat_name, metrics in reversed(categories_data):
-        color = CATEGORY_COLORS.get(cat_name, '#888888')
         for metric_label, pct in reversed(metrics):
             labels.append(metric_label)
             values.append(pct)
-            colors.append(color)
+            colors.append(_pct_bar_color(pct))
         labels.append(None)
         values.append(None)
         colors.append(None)
@@ -111,8 +123,9 @@ def create_bar_chart(player_name, player_team, subtitle, categories_data):
              size=11, ha="center", color="#F2F2F2")
 
     legend_patches = [
-        mpatches.Patch(color=CATEGORY_COLORS[cat], label=cat)
-        for cat in CATEGORY_COLORS
+        mpatches.Patch(color='#ef4444', label='Bajo (0–33)'),
+        mpatches.Patch(color='#f59e0b', label='Medio (34–66)'),
+        mpatches.Patch(color='#22c55e', label='Alto (67–100)'),
     ]
     leg = ax.legend(handles=legend_patches, loc='lower right', fontsize=9,
                     framealpha=0.3, edgecolor='white', facecolor='#333333',

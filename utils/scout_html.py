@@ -242,21 +242,36 @@ def build_scout_html(
       /* ── Base (desktop / export) ─────────────────────────────────── */
       .mz-root {{
         background:#050b14;
+        background-image:
+          radial-gradient(circle at 15% 85%, rgba(34,197,94,0.04) 0%, transparent 50%),
+          radial-gradient(circle at 85% 10%, rgba(56,189,248,0.04) 0%, transparent 50%);
         color:#f8fafc;
         font-family:'Cousine','DejaVu Sans Mono',monospace;
         padding:13px 13px 9px 13px;
       }}
+      /* VISTA SCOUT pill badge */
       .mz-label-top {{
+        display:inline-block;
+        background:rgba(20,184,166,0.12);
+        border:1px solid rgba(20,184,166,0.35);
+        border-radius:999px;
+        padding:3px 12px;
         color:#14b8a6;
         font-weight:800;
-        font-size:13px;
-        margin-bottom:7px;
+        font-size:11px;
+        letter-spacing:1.5px;
+        margin-bottom:8px;
       }}
+      /* Player name — stronger hierarchy */
       .mz-player {{
         font-size:36px;
         font-weight:900;
         line-height:1;
         margin-bottom:6px;
+        background:linear-gradient(90deg, #f8fafc 60%, #94a3b8 100%);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+        background-clip:text;
       }}
       .mz-subtitle {{
         color:#94a3b8;
@@ -298,7 +313,18 @@ def build_scout_html(
         background:{SCOUT_PANEL_BG};
         border:1px solid {SCOUT_BORDER};
         border-radius:14px;
-        box-shadow:0 6px 16px rgba(0,0,0,.18);
+        box-shadow:0 6px 16px rgba(0,0,0,.22);
+        position:relative;
+        overflow:hidden;
+      }}
+      .mz-card::before {{
+        content:'';
+        position:absolute;
+        top:0; left:0; right:0;
+        height:2px;
+        background:linear-gradient(90deg, #14b8a6, #22c55e, #38bdf8);
+        border-radius:14px 14px 0 0;
+        opacity:0.5;
       }}
       .mz-score-card {{
         padding:16px 18px 14px;
@@ -324,6 +350,7 @@ def build_scout_html(
         display:flex;
         align-items:center;
         justify-content:center;
+        box-shadow:0 0 24px rgba(34,197,94,0.25), 0 0 48px rgba(34,197,94,0.1);
       }}
       .mz-score-hole {{
         width:114px;
