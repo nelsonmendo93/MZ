@@ -4630,14 +4630,14 @@ with tab_query:
     )
     _bq_todas_col, *_bq_ck_cols = st.columns([1] + [1] * len(_bq_liga_codes))
     with _bq_todas_col:
-        bq_todas = st.checkbox("🌐 TODAS", value=True, key="bq_todas")
+        bq_todas = st.checkbox("🌐 TODAS", value=False, key="bq_todas")
 
     bq_liga_sel = {}
     for _i, _code in enumerate(_bq_liga_codes):
         with _bq_ck_cols[_i]:
             bq_liga_sel[_code] = st.checkbox(
                 _LIGA_LABELS[_code],
-                value=True,
+                value=(_code == 'PAR'),
                 disabled=bq_todas,
                 key=f"bq_liga_{_code}",
             )
@@ -4867,155 +4867,206 @@ with tab_query:
                     key="dl_bq_chart2",
                 )
         else:
-            # Ternary scatter (3 o más métricas → usa primeras 3)
-            _tf = bq_active_filters[:3]
-            _tc1, _tt1_min, _ = _tf[0]
-            _tc2, _tt2_min, _ = _tf[1]
-            _tc3, _tt3_min, _ = _tf[2]
+            # ── Venn diagram 3 círculos (Sofascore style) ─────────────────────
+            _vf = bq_active_filters[:3]
+            _vc1, _vt1_min, _vt1_max = _vf[0]
+            _vc2, _vt2_min, _vt2_max = _vf[1]
+            _vc3, _vt3_min, _vt3_max = _vf[2]
 
-            if not bq_pool.empty and all(c in bq_pool.columns for c in [_tc1, _tc2, _tc3]):
-                # Normalize 0-1 within pool
-                def _tn(col):
-                    _s = pd.to_numeric(bq_pool[col], errors='coerce').fillna(0)
-                    _mn, _mx = _s.min(), _s.max()
-                    _rng = _mx - _mn
-                    return (_s - _mn) / (_rng if _rng > 1e-9 else 1.0)
+            if not bq_pool.empty and all(c in bq_pool.columns for c in [_vc1, _vc2, _vc3]):
+                _vpool = pd.DataFrame({'Player': bq_pool['Player'].values})
+                _vpool[_vc1] = pd.to_numeric(bq_pool[_vc1].values, errors='coerce')
+                _vpool[_vc2] = pd.to_numeric(bq_pool[_vc2].values, errors='coerce')
+                _vpool[_vc3] = pd.to_numeric(bq_pool[_vc3].values, errors='coerce')
+                _vpool = _vpool.dropna(subset=[_vc1, _vc2, _vc3]).reset_index(drop=True)
 
-                _tv1 = _tn(_tc1)
-                _tv2 = _tn(_tc2)
-                _tv3 = _tn(_tc3)
+                _vm1 = ((_vpool[_vc1] >= _vt1_min) & (_vpool[_vc1] <= _vt1_max))
+                _vm2 = ((_vpool[_vc2] >= _vt2_min) & (_vpool[_vc2] <= _vt2_max))
+                _vm3 = ((_vpool[_vc3] >= _vt3_min) & (_vpool[_vc3] <= _vt3_max))
+                _vpool['_z'] = _vm1.astype(str).str[0] + _vm2.astype(str).str[0] + _vm3.astype(str).str[0]
+                # Remap True/False chars → 1/0
+                _vpool['_z'] = _vpool['_z'].str.replace('T', '1').str.replace('F', '0')
 
-                _teps  = 0.05
-                _ttot  = _tv1 + _tv2 + _tv3 + 3 * _teps
-                _ta    = (_tv1 + _teps) / _ttot
-                _tb    = (_tv2 + _teps) / _ttot
-                _tc_   = (_tv3 + _teps) / _ttot
+                # Keep only players meeting at least 1 criterion
+                _vpool_show = _vpool[_vpool['_z'] != '000'].copy()
 
-                _rt3h  = (3 ** 0.5) / 2
-                _tx    = _rt3h * (_tc_ - _tb)
-                _ty    = 1.5 * _ta - 0.5
+                import matplotlib.patches as _v_mp
+                import matplotlib.patheffects as _v_pe
 
-                _rng_gen = np.random.default_rng(42)
-                _tx = _tx + _rng_gen.normal(0, 0.018, len(_tx))
-                _ty = _ty + _rng_gen.normal(0, 0.018, len(_ty))
+                _BG = '#07071a'
+                _v_fig, _v_ax = plt.subplots(figsize=(10, 10.5))
+                _v_fig.set_facecolor(_BG)
+                _v_ax.set_facecolor(_BG)
 
-                _ta1 = pd.to_numeric(bq_pool[_tc1], errors='coerce').fillna(0)
-                _ta2 = pd.to_numeric(bq_pool[_tc2], errors='coerce').fillna(0)
-                _ta3 = pd.to_numeric(bq_pool[_tc3], errors='coerce').fillna(0)
-                _tm1 = (_ta1 >= _tt1_min).astype(int)
-                _tm2 = (_ta2 >= _tt2_min).astype(int)
-                _tm3 = (_ta3 >= _tt3_min).astype(int)
-                _tmt = _tm1 + _tm2 + _tm3
+                # Circle geometry
+                _vR   = 0.60
+                _vCx  = [(0.0, 0.34), (-0.44, -0.22), (0.44, -0.22)]
+                _vCol = ['#ff4d4d', '#3ddc84', '#4d9fff']   # crimson, emerald, sky
 
-                _t_tcol = ('Team within selected timeframe'
-                           if 'Team within selected timeframe' in bq_pool.columns else 'Team')
-                _tplot = pd.DataFrame({
-                    'Player':  bq_pool['Player'].values,
-                    'Team':    bq_pool[_t_tcol].values if _t_tcol in bq_pool.columns else '',
-                    'x':       _tx.values,
-                    'y':       _ty.values,
-                    'meets':   _tmt.values,
-                })
+                # Subtle colored fill per circle
+                for (_vcx, _vcy), _vco in zip(_vCx, _vCol):
+                    _v_ax.add_patch(_v_mp.Circle(
+                        (_vcx, _vcy), _vR, facecolor=_vco, alpha=0.055,
+                        linewidth=0, zorder=1))
 
-                _tcmap  = {3: '#22c55e', 2: '#f59e0b', 1: '#f97316', 0: '#ef4444'}
-                _tamap  = {3: 0.95,      2: 0.75,      1: 0.60,      0: 0.40}
-                _tsmap  = {3: 85,        2: 65,         1: 50,        0: 35}
+                # Multi-layer glow → crisp border
+                for (_vcx, _vcy), _vco in zip(_vCx, _vCol):
+                    for _vlw, _va in [(52, 0.007), (34, 0.016), (20, 0.034),
+                                      (10, 0.065), (4,  0.11)]:
+                        _v_ax.add_patch(_v_mp.Circle(
+                            (_vcx, _vcy), _vR, fill=False,
+                            edgecolor=_vco, linewidth=_vlw, alpha=_va, zorder=2))
+                    _v_ax.add_patch(_v_mp.Circle(
+                        (_vcx, _vcy), _vR, fill=False,
+                        edgecolor=_vco, linewidth=1.5, alpha=0.92, zorder=3))
 
-                import matplotlib.patches as _t_mp
-                _t_fig, _t_ax = plt.subplots(figsize=(11, 11))
-                _t_fig.set_facecolor('#0f1117')
-                _t_ax.set_facecolor('#0f1117')
+                # Zone definitions: anchor (x,y) · text color · font size scale
+                _vZones = {
+                    '100': (( 0.00,  0.70), _vCol[0],  1.0),
+                    '010': ((-0.75, -0.42), _vCol[1],  1.0),
+                    '001': (( 0.75, -0.42), _vCol[2],  1.0),
+                    '110': ((-0.27,  0.15), '#c8f06a', 0.9),
+                    '101': (( 0.27,  0.15), '#ffcc55', 0.9),
+                    '011': (( 0.00, -0.50), '#55d4f5', 0.9),
+                    '111': (( 0.00, -0.03), '#22c55e', 1.1),
+                }
+                _vfs_base  = 8.2
+                _VMAXSHOW  = 5
 
-                # Triangle outline
-                _tri = np.array([[0, 1], [-_rt3h, -0.5], [_rt3h, -0.5], [0, 1]])
-                _t_ax.plot(_tri[:, 0], _tri[:, 1], color='#334155', lw=2, zorder=2)
+                # 2D layout offsets per count — spread names within zone area
+                def _vlayout(n, sx, sy):
+                    """Return list of (dx, dy) offsets for n names."""
+                    if n == 1:
+                        return [(0, 0)]
+                    elif n == 2:
+                        return [(0,  sy * 0.5), (0, -sy * 0.5)]
+                    elif n == 3:
+                        return [(0,  sy), (-sx, 0), (sx, 0)]
+                    elif n == 4:
+                        return [(-sx,  sy * 0.5), (sx,  sy * 0.5),
+                                (-sx, -sy * 0.5), (sx, -sy * 0.5)]
+                    else:  # 5
+                        return [(0,       sy * 1.0),
+                                (-sx,     sy * 0.25), (sx,     sy * 0.25),
+                                (-sx * 0.6, -sy * 0.65), (sx * 0.6, -sy * 0.65)]
 
-                # Inner guide triangles
-                for _tr in [0.33, 0.66]:
-                    _tin = np.array([[0, _tr], [-_rt3h * _tr, -0.5 * _tr],
-                                     [_rt3h * _tr, -0.5 * _tr], [0, _tr]])
-                    _t_ax.plot(_tin[:, 0], _tin[:, 1], color='#1e293b',
-                               lw=1, linestyle='--', zorder=2, alpha=0.75)
+                # Spread per zone type: (spread_x, spread_y)
+                _vzone_spread = {
+                    '100': (0.12, 0.088), '010': (0.11, 0.085), '001': (0.11, 0.085),
+                    '110': (0.09, 0.075), '101': (0.09, 0.075), '011': (0.09, 0.075),
+                    '111': (0.07, 0.065),
+                }
 
-                # Center label
-                _t_ax.text(0, -0.04, 'LAS 3', ha='center', va='center',
-                           color='#22c55e', fontsize=7.5, alpha=0.65, fontweight='bold', zorder=3)
+                # Sort column(s) per zone — rank by most relevant metric
+                _vzone_scols = {
+                    '100': [_vc1],        '010': [_vc2],        '001': [_vc3],
+                    '110': [_vc1, _vc2],  '101': [_vc1, _vc3],
+                    '011': [_vc2, _vc3],  '111': [_vc1, _vc2, _vc3],
+                }
 
-                # Corner metric labels + thresholds
-                _toff = 0.11
-                _tlbl1 = translate(_tc1)[:22]
-                _tlbl2 = translate(_tc2)[:22]
-                _tlbl3 = translate(_tc3)[:22]
-                _t_ax.text(0,          1 + _toff,       _tlbl1, ha='center', va='bottom',
-                           color='#f59e0b', fontsize=10, fontweight='bold', zorder=3)
-                _t_ax.text(-_rt3h - _toff, -0.5,         _tlbl2, ha='right',  va='center',
-                           color='#f59e0b', fontsize=10, fontweight='bold', zorder=3)
-                _t_ax.text(_rt3h + _toff,  -0.5,         _tlbl3, ha='left',   va='center',
-                           color='#f59e0b', fontsize=10, fontweight='bold', zorder=3)
-                _t_ax.text(0,          1 + _toff - 0.07, f'≥ {_tt1_min:.2f}',
-                           ha='center', va='bottom', color='#64748b', fontsize=7.5, zorder=3)
-                _t_ax.text(-_rt3h - _toff, -0.5 - 0.09, f'≥ {_tt2_min:.2f}',
-                           ha='right',  va='top',    color='#64748b', fontsize=7.5, zorder=3)
-                _t_ax.text(_rt3h + _toff,  -0.5 - 0.09, f'≥ {_tt3_min:.2f}',
-                           ha='left',   va='top',    color='#64748b', fontsize=7.5, zorder=3)
-
-                # Scatter points by meets count
-                for _tm_n in [0, 1, 2, 3]:
-                    _tg = _tplot[_tplot['meets'] == _tm_n]
-                    if _tg.empty:
+                for _vzk, ((_vzx, _vzy), _vzc, _vzsc) in _vZones.items():
+                    _vzdf = _vpool_show[_vpool_show['_z'] == _vzk].copy()
+                    if _vzdf.empty:
                         continue
-                    _t_ax.scatter(
-                        _tg['x'], _tg['y'],
-                        c=_tcmap[_tm_n], s=_tsmap[_tm_n], alpha=_tamap[_tm_n],
-                        edgecolors='white' if _tm_n == 3 else 'none',
-                        linewidths=0.8 if _tm_n == 3 else 0,
-                        zorder=5 + _tm_n,
-                    )
 
-                # Annotate players meeting all 3
-                for _, _tr_ in _tplot[_tplot['meets'] == 3].iterrows():
-                    _t_ax.annotate(
-                        _tr_['Player'],
-                        (_tr_['x'], _tr_['y']),
-                        textcoords='offset points', xytext=(0, 9),
-                        ha='center', fontsize=8, color='white', fontweight='bold', zorder=16,
-                        bbox=dict(boxstyle='round,pad=0.2', fc='#0f1117', alpha=0.65, ec='none'),
-                    )
+                    _vsortc = _vzone_scols.get(_vzk, [_vc1])
+                    _vzdf['_sort'] = _vzdf[_vsortc].mean(axis=1)
+                    _vzdf = _vzdf.sort_values('_sort', ascending=False).reset_index(drop=True)
 
-                # Legend with counts
-                _t_leg_h = [
-                    _t_mp.Patch(color='#22c55e', label=f'Cumple las 3  ({(_tplot["meets"]==3).sum()})'),
-                    _t_mp.Patch(color='#f59e0b', label=f'Cumple 2      ({(_tplot["meets"]==2).sum()})'),
-                    _t_mp.Patch(color='#f97316', label=f'Cumple 1      ({(_tplot["meets"]==1).sum()})'),
-                    _t_mp.Patch(color='#ef4444', label=f'Ninguna       ({(_tplot["meets"]==0).sum()})'),
+                    _vnms    = _vzdf['Player'].tolist()[:_VMAXSHOW]
+                    _vdots_n = len(_vzdf) - len(_vnms)
+                    _is3     = (_vzk == '111')
+                    _vzfs    = max(5.5, _vfs_base * _vzsc)
+                    _vsx, _vsy = _vzone_spread.get(_vzk, (0.09, 0.075))
+                    _voffs   = _vlayout(len(_vnms), _vsx, _vsy)
+
+                    for _vi, _vnm in enumerate(_vnms):
+                        _vdx_off, _vdy_off = _voffs[_vi]
+                        _vpe = ([_v_pe.withStroke(linewidth=3, foreground=_vzc)]
+                                if _is3 else
+                                [_v_pe.withStroke(linewidth=2, foreground='#07071a')])
+                        _v_ax.text(
+                            _vzx + _vdx_off, _vzy + _vdy_off, _vnm,
+                            ha='center', va='center',
+                            fontsize=_vzfs + (1.5 if _is3 else 0),
+                            color='white', fontweight='bold', zorder=10,
+                            path_effects=_vpe,
+                        )
+
+                    # Remaining players → dots clustered at bottom of zone
+                    if _vdots_n > 0:
+                        _vy_dots = _vzy - _vsy * 1.3
+                        _vdrng   = np.random.default_rng(hash(_vzk) % (2 ** 31))
+                        _vdx     = _vzx + _vdrng.uniform(-_vsx * 0.9, _vsx * 0.9, _vdots_n)
+                        _vdy     = _vy_dots + _vdrng.uniform(-0.022, 0.022, _vdots_n)
+                        _v_ax.scatter(_vdx, _vdy, s=11, c=_vzc, alpha=0.60,
+                                      zorder=9, linewidths=0.4, edgecolors='white')
+
+                # Threshold badge + metric label
+                def _vfmt(v):
+                    return f'≥{int(v)}' if float(v) == int(float(v)) else f'≥{v:.2g}'
+
+                _vBadges = [
+                    ( 0.13,  0.99,  0.42,  0.925, _vCol[0], _vc1, _vt1_min),
+                    (-0.87, -0.71, -0.60, -0.835, _vCol[1], _vc2, _vt2_min),
+                    ( 0.87, -0.71,  0.60, -0.835, _vCol[2], _vc3, _vt3_min),
                 ]
-                _t_legobj = _t_ax.legend(handles=_t_leg_h, loc='upper right', framealpha=0.3,
-                                         facecolor='#0f1117', edgecolor='#334155', fontsize=9,
-                                         handlelength=1.2)
-                for _tlt in _t_legobj.get_texts():
-                    _tlt.set_color('white')
+                for _vbx, _vby, _vlx, _vly, _vlc, _vln, _vlt in _vBadges:
+                    # Badge outer ring
+                    _v_ax.add_patch(_v_mp.Circle((_vbx, _vby), 0.125,
+                                                  facecolor='none', edgecolor=_vlc,
+                                                  linewidth=2.5, alpha=0.5, zorder=11))
+                    # Badge fill
+                    _v_ax.add_patch(_v_mp.Circle((_vbx, _vby), 0.108,
+                                                  color=_vlc, zorder=12))
+                    _v_ax.text(_vbx, _vby, _vfmt(_vlt),
+                               ha='center', va='center', fontsize=9,
+                               color='white', fontweight='bold', zorder=13)
+                    # Metric name — two-line wrap at 14 chars
+                    _vlbl = translate(_vln)
+                    _v_ax.text(_vlx, _vly, _vlbl[:20],
+                               ha='center', va='top', fontsize=8,
+                               color='#b0b8cc', fontstyle='italic',
+                               fontweight='normal', zorder=12)
 
-                _t_ax.set_xlim(-1.18, 1.18)
-                _t_ax.set_ylim(-0.82, 1.38)
-                _t_ax.set_aspect('equal')
-                _t_ax.axis('off')
-                _t_ax.set_title(
-                    f'Scout Multi-Criterio  ·  {bq_mode}',
-                    color='white', fontsize=12, fontweight='bold', pad=14,
-                )
-                _t_fig.text(0.5, 0.01, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
-                            size=9, color='#aaaaaa', ha='center', va='bottom', fontstyle='italic')
-                _t_fig.tight_layout()
-                st.pyplot(_t_fig)
+                _n3 = int((_vpool_show['_z'] == '111').sum())
+                _v_ax.set_xlim(-1.30, 1.30)
+                _v_ax.set_ylim(-1.10, 1.26)
+                _v_ax.set_aspect('equal')
+                _v_ax.axis('off')
 
-                _t_buf = io.BytesIO()
-                _t_fig.savefig(_t_buf, format='png', dpi=150, bbox_inches='tight',
-                               facecolor='#0f1117')
+                # Title block
+                _v_fig.text(0.5, 0.965, 'M U L T I - C R I T E R I O',
+                            ha='center', va='top', fontsize=12,
+                            color='white', fontweight='bold',
+                            fontfamily='monospace')
+                _v_fig.text(0.5, 0.945, f'{bq_mode}',
+                            ha='center', va='top', fontsize=9,
+                            color='#64748b', fontweight='normal')
+
+                # Center counter badge
+                _n3_txt = str(_n3) if _n3 > 0 else '0'
+                _v_fig.text(0.5, 0.925,
+                            f'{_n3_txt} jugador{"es" if _n3 != 1 else ""} cumplen los 3 criterios',
+                            ha='center', va='top', fontsize=8.5,
+                            color='#22c55e' if _n3 > 0 else '#64748b',
+                            fontweight='bold')
+                _v_fig.text(0.5, 0.018, 'X: @marca_zonal  |  instagram: @marca.zonal',
+                            size=8, color='#334155', ha='center', va='bottom',
+                            fontstyle='italic')
+                _v_fig.tight_layout(rect=[0, 0.025, 1, 0.915])
+                st.pyplot(_v_fig)
+
+                _v_buf = io.BytesIO()
+                _v_fig.savefig(_v_buf, format='png', dpi=160, bbox_inches='tight',
+                               facecolor=_BG)
                 st.download_button(
-                    "⬇️ Descargar gráfica", _t_buf.getvalue(),
-                    file_name="scout_multicriterio_marcazonal.png", mime="image/png",
-                    key="dl_bq_ternary",
+                    "⬇️ Descargar gráfica", _v_buf.getvalue(),
+                    file_name="scout_venn_marcazonal.png", mime="image/png",
+                    key="dl_bq_venn",
                 )
+            else:
+                st.warning("No se encontraron las columnas seleccionadas en el pool.")
 
     else:
         # ── Vista Lista ────────────────────────────────────────────────────
