@@ -2808,94 +2808,307 @@ with tab_overall:
 
 # ---- Tab 2: XY Chart -----------------------------------------------------
 with tab_xy:
-    st.subheader("Gráfico XY comparativo")
-
-    # Posición + edad
-    xy_position_groups = sorted(df['Position Group'].dropna().unique())
-    xy_sel1, _ = st.columns([1, 3])
-    with xy_sel1:
-        xy_pos_group = st.selectbox("Grupo de posición", xy_position_groups, key="xy_pos_group")
-    xy_group_df = df[df['Position Group'] == xy_pos_group].copy()
-    xy_age_min, xy_age_max = _get_age_bounds(xy_group_df)
-    xy_age_range = st.slider(
-        "Rango de edad", xy_age_min, xy_age_max,
-        value=(xy_age_min, xy_age_max), key="xy_age_range"
+    _xy_view = st.radio(
+        "Vista",
+        ["📈 XY Comparativo", "🧬 Edad vs MZ Score"],
+        horizontal=True, key="xy_view", label_visibility="collapsed",
     )
-    xy_group_df = _apply_age_filter(xy_group_df, xy_age_range)
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
-    # Only per-90 metrics — GK exclusivas solo si se selecciona Portero
-    xy_is_gk = (xy_pos_group == 'Portero')
-    per90_columns = sorted([
-        c for c in metric_columns
-        if c.endswith(' per 90')
-        and (xy_is_gk or c not in _GK_ONLY_METRICS)
-    ])
+    if _xy_view == "📈 XY Comparativo":
+        st.subheader("Gráfico XY comparativo")
 
-    if xy_group_df.empty:
-        st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
-    elif not per90_columns:
-        st.warning("No se encontraron métricas 'por 90' en los datos.")
-    else:
-        # Minutos mínimos
-        min_min = int(xy_group_df['Minutes played'].min()) if 'Minutes played' in xy_group_df.columns else 0
-        max_min = int(xy_group_df['Minutes played'].max()) if 'Minutes played' in xy_group_df.columns else 100
-        min_minutes = st.slider(
-            "Minutos mínimos jugados", min_min, max_min,
-            value=min(200, max_min), key="xy_min_minutes"
+        # Posición + edad
+        xy_position_groups = sorted(df['Position Group'].dropna().unique())
+        xy_sel1, _ = st.columns([1, 3])
+        with xy_sel1:
+            xy_pos_group = st.selectbox("Grupo de posición", xy_position_groups, key="xy_pos_group")
+        xy_group_df = df[df['Position Group'] == xy_pos_group].copy()
+        xy_age_min, xy_age_max = _get_age_bounds(xy_group_df)
+        xy_age_range = st.slider(
+            "Rango de edad", xy_age_min, xy_age_max,
+            value=(xy_age_min, xy_age_max), key="xy_age_range"
         )
+        xy_group_df = _apply_age_filter(xy_group_df, xy_age_range)
 
-        # Métricas X e Y
-        col1, col2 = st.columns(2)
-        with col1:
-            x_metric = st.selectbox("Métrica eje X", per90_columns, key="xy_x",
-                                     format_func=translate)
-        with col2:
-            y_metric = st.selectbox("Métrica eje Y", per90_columns,
-                                     index=min(1, len(per90_columns) - 1),
-                                     key="xy_y", format_func=translate)
+        # Only per-90 metrics — GK exclusivas solo si se selecciona Portero
+        xy_is_gk = (xy_pos_group == 'Portero')
+        per90_columns = sorted([
+            c for c in metric_columns
+            if c.endswith(' per 90')
+            and (xy_is_gk or c not in _GK_ONLY_METRICS)
+        ])
 
-        # Filtrar datos
-        _xy_extra_cols = [c for c in ['Liga'] if c in xy_group_df.columns]
-        xy_df = xy_group_df[xy_group_df['Minutes played'] >= min_minutes].copy()
-        xy_df = xy_df[['Player', x_metric, y_metric] + _xy_extra_cols].dropna(
-            subset=['Player', x_metric, y_metric]
-        )
-
-        if len(xy_df) < 2:
-            st.warning("No hay suficientes datos para generar el gráfico. Probá reducir los minutos mínimos.")
+        if xy_group_df.empty:
+            st.warning("No hay jugadores que cumplan el rango de edad seleccionado.")
+        elif not per90_columns:
+            st.warning("No se encontraron métricas 'por 90' en los datos.")
         else:
-            # Selectores de jugadores a etiquetar (hasta 5)
-            xy_all_players = ['—'] + sorted(xy_df['Player'].dropna().unique())
+            # Minutos mínimos
+            min_min = int(xy_group_df['Minutes played'].min()) if 'Minutes played' in xy_group_df.columns else 0
+            max_min = int(xy_group_df['Minutes played'].max()) if 'Minutes played' in xy_group_df.columns else 100
+            min_minutes = st.slider(
+                "Minutos mínimos jugados", min_min, max_min,
+                value=min(200, max_min), key="xy_min_minutes"
+            )
+
+            # Métricas X e Y
+            col1, col2 = st.columns(2)
+            with col1:
+                x_metric = st.selectbox("Métrica eje X", per90_columns, key="xy_x",
+                                         format_func=translate)
+            with col2:
+                y_metric = st.selectbox("Métrica eje Y", per90_columns,
+                                         index=min(1, len(per90_columns) - 1),
+                                         key="xy_y", format_func=translate)
+
+            # Filtrar datos
+            _xy_extra_cols = [c for c in ['Liga'] if c in xy_group_df.columns]
+            xy_df = xy_group_df[xy_group_df['Minutes played'] >= min_minutes].copy()
+            xy_df = xy_df[['Player', x_metric, y_metric] + _xy_extra_cols].dropna(
+                subset=['Player', x_metric, y_metric]
+            )
+
+            if len(xy_df) < 2:
+                st.warning("No hay suficientes datos para generar el gráfico. Probá reducir los minutos mínimos.")
+            else:
+                # Selectores de jugadores a etiquetar (hasta 5)
+                xy_all_players = ['—'] + sorted(xy_df['Player'].dropna().unique())
+                st.markdown(
+                    "<p style='margin:14px 0 6px 0; font-size:0.85rem; color:#9ca3af; font-weight:600;'>"
+                    "JUGADORES A ETIQUETAR (opcional)</p>",
+                    unsafe_allow_html=True,
+                )
+                xy_label_cols = st.columns(5)
+                xy_labeled = []
+                for _i in range(5):
+                    with xy_label_cols[_i]:
+                        _sel = st.selectbox(
+                            f"Jugador {_i + 1}", xy_all_players,
+                            index=0, key=f"xy_label_{_i}"
+                        )
+                        if _sel != '—':
+                            xy_labeled.append(_sel)
+
+                fig_xy = create_xy_chart(
+                    xy_df, x_metric, y_metric,
+                    labeled_players=xy_labeled,
+                    x_label=translate(x_metric),
+                    y_label=translate(y_metric),
+                    logo_path=LOGO_BLANCO,
+                )
+                st.pyplot(fig_xy)
+
+                buf = io.BytesIO()
+                fig_xy.savefig(buf, format='png', dpi=150, bbox_inches='tight',
+                               facecolor=fig_xy.get_facecolor())
+                st.download_button("⬇️ Descargar grafica", buf.getvalue(),
+                                   file_name="grafico_xy_marcazonal.png", mime="image/png")
+                st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
+
+    else:  # 🧬 Edad vs MZ Score
+        st.subheader("Edad vs MARCA ZONAL SCORE")
+
+        # ── Liga selector ──────────────────────────────────────────────────
+        _mz_liga_colors = {
+            'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
+            'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+            'PER': '#e879f9', 'VEN': '#2dd4bf',
+            'ING': '#e11d48', 'ITA': '#4ade80', 'ALE': '#f59e0b',
+            'ESP': '#fb923c', 'FRA': '#60a5fa',
+            'LIB': '#10b981', 'SUD': '#a78bfa',
+            'UCL': '#3b82f6', 'UEL': '#fb923c', 'UECL': '#22d3ee',
+            'MEX': '#10b981', 'MLS': '#06b6d4',
+        }
+        _mz_liga_codes = [
+            k for k in _AVAILABLE_LIGAS
+            if _LIGA_DFS.get(k) is not None
+            and k not in ('ALL_AM', 'ALL_EU', 'ALL_INTL')
+        ]
+        _mz_ck_rules = '\n'.join(
+            f'div[data-testid="stCheckbox"]:has(input[aria-label="{_LIGA_LABELS[c]}"]) label p'
+            f' {{ color: {_mz_liga_colors.get(c, "#e2e8f0")} !important; }}'
+            for c in _mz_liga_codes if c in _mz_liga_colors and c in _LIGA_LABELS
+        )
+        st.markdown(f"""
+        <style>
+        div[data-testid="stCheckbox"]:has(input[aria-label="🌐 TODAS"]) label p
+            {{ color: #22c55e !important; font-weight: 800 !important; }}
+        div[data-testid="stCheckbox"] label p
+            {{ font-weight: 800 !important; font-size: 0.9rem !important; }}
+        {_mz_ck_rules}
+        </style>
+        """, unsafe_allow_html=True)
+        st.markdown(
+            "<p style='margin:10px 0 5px 0; font-size:0.78rem; color:#9ca3af; font-weight:600;"
+            " text-transform:uppercase; letter-spacing:0.06em;'>Ligas</p>",
+            unsafe_allow_html=True,
+        )
+        _mz_todas_col, *_mz_ck_cols = st.columns([1] + [1] * len(_mz_liga_codes))
+        with _mz_todas_col:
+            mz_todas = st.checkbox("🌐 TODAS", value=True, key="mz_todas")
+        mz_liga_sel = {}
+        for _mz_i, _mz_code in enumerate(_mz_liga_codes):
+            with _mz_ck_cols[_mz_i]:
+                mz_liga_sel[_mz_code] = st.checkbox(
+                    _LIGA_LABELS[_mz_code],
+                    value=True,
+                    disabled=mz_todas,
+                    key=f"mz_liga_{_mz_code}",
+                )
+        selected_ligas_mz = _mz_liga_codes if mz_todas else [c for c, v in mz_liga_sel.items() if v]
+
+        # ── Posición + Minutos ─────────────────────────────────────────────
+        _mz_pos_opts = ['Delantero', 'Extremo', 'Volante Central', 'Volante Ofensivo', 'Lateral', 'Central']
+        _mzc1, _mzc2 = st.columns(2)
+        with _mzc1:
+            mz_pos_filter = st.multiselect(
+                "Grupo de posición", _mz_pos_opts, key="mz_pos",
+                placeholder="Todas las posiciones",
+            )
+        with _mzc2:
+            mz_min_minutes = st.slider("Minutos mínimos", 0, 2500, 300, step=50, key="mz_min_min")
+
+        # ── Construir pool con MZ Scores por liga ──────────────────────────
+        _mz_records = []
+        for _mz_lcode in selected_ligas_mz:
+            _mz_ldf = _LIGA_DFS.get(_mz_lcode)
+            if _mz_ldf is None or _mz_ldf.empty:
+                continue
+            _mz_ranking = _compute_liga_home_ranking(_mz_ldf, min_minutes=mz_min_minutes)
+            if _mz_ranking.empty:
+                continue
+            _mz_tcol = ('Team within selected timeframe'
+                        if 'Team within selected timeframe' in _mz_ldf.columns else 'Team')
+            _mz_mini = _mz_ldf[['Player', 'Age', 'Minutes played']].copy()
+            _mz_mini['Age'] = pd.to_numeric(_mz_mini['Age'], errors='coerce')
+            _mz_mini['Minutes played'] = pd.to_numeric(_mz_mini['Minutes played'], errors='coerce')
+            _mz_merged = _mz_ranking.merge(
+                _mz_mini.drop_duplicates('Player'), on='Player', how='left'
+            )
+            _mz_merged['Liga'] = _mz_lcode
+            _mz_records.append(_mz_merged)
+
+        mz_df = pd.concat(_mz_records, ignore_index=True) if _mz_records else pd.DataFrame()
+        if not mz_df.empty:
+            if mz_pos_filter:
+                mz_df = mz_df[mz_df['Position Group'].isin(mz_pos_filter)]
+            mz_df = mz_df.dropna(subset=['Age', 'Score']).reset_index(drop=True)
+
+        if mz_df.empty:
+            st.warning("Sin datos con los filtros actuales. Reducí los minutos mínimos o añadí ligas.")
+        else:
+            # ── Selector de jugadores a etiquetar ─────────────────────────
+            _mz_all_players = ['—'] + sorted(mz_df['Player'].dropna().unique())
             st.markdown(
                 "<p style='margin:14px 0 6px 0; font-size:0.85rem; color:#9ca3af; font-weight:600;'>"
                 "JUGADORES A ETIQUETAR (opcional)</p>",
                 unsafe_allow_html=True,
             )
-            xy_label_cols = st.columns(5)
-            xy_labeled = []
-            for _i in range(5):
-                with xy_label_cols[_i]:
-                    _sel = st.selectbox(
-                        f"Jugador {_i + 1}", xy_all_players,
-                        index=0, key=f"xy_label_{_i}"
+            _mz_label_cols = st.columns(5)
+            mz_labeled = []
+            for _mz_li in range(5):
+                with _mz_label_cols[_mz_li]:
+                    _mzsel = st.selectbox(
+                        f"Jugador {_mz_li + 1}", _mz_all_players,
+                        index=0, key=f"mz_label_{_mz_li}",
                     )
-                    if _sel != '—':
-                        xy_labeled.append(_sel)
+                    if _mzsel != '—':
+                        mz_labeled.append(_mzsel)
+            mz_forced_set = set(mz_labeled)
 
-            fig_xy = create_xy_chart(
-                xy_df, x_metric, y_metric,
-                labeled_players=xy_labeled,
-                x_label=translate(x_metric),
-                y_label=translate(y_metric),
-                logo_path=LOGO_BLANCO,
+            # ── Scatter Edad vs MZ Score ───────────────────────────────────
+            import matplotlib.patches as _mz_mp
+            fig_mz, ax_mz = plt.subplots(figsize=(13, 9))
+            fig_mz.set_facecolor('#0f1117')
+            ax_mz.set_facecolor('#0f1117')
+
+            _age_mean  = float(mz_df['Age'].mean())
+            _score_mean = float(mz_df['Score'].mean())
+            ax_mz.axvline(_age_mean,   color='white', linestyle='--', lw=1.0, alpha=0.28, zorder=3)
+            ax_mz.axhline(_score_mean, color='white', linestyle='--', lw=1.0, alpha=0.28, zorder=3)
+
+            _sc_max = float(mz_df['Score'].max())
+            _sc_min = float(mz_df['Score'].min())
+            _lbl_kw = dict(fontsize=8, alpha=0.32, fontstyle='italic', color='white')
+            ax_mz.text(_age_mean + 0.3, _sc_max, 'Jóvenes · Alto Score',  ha='left',  va='top',    **_lbl_kw)
+            ax_mz.text(_age_mean - 0.3, _sc_max, 'Veteranos · Alto Score', ha='right', va='top',    **_lbl_kw)
+            ax_mz.text(_age_mean + 0.3, _sc_min, 'Jóvenes · Bajo Score',  ha='left',  va='bottom', **_lbl_kw)
+            ax_mz.text(_age_mean - 0.3, _sc_min, 'Veteranos · Bajo Score', ha='right', va='bottom', **_lbl_kw)
+
+            ligas_en_mz = sorted(mz_df['Liga'].dropna().unique())
+            _texts_mz = []
+            for _mz_lg in ligas_en_mz:
+                _mz_grp   = mz_df[mz_df['Liga'] == _mz_lg]
+                _mz_fgrp  = _mz_grp[_mz_grp['Player'].isin(mz_forced_set)]
+                _mz_pgrp  = _mz_grp[~_mz_grp['Player'].isin(mz_forced_set)]
+                _mz_clr   = _mz_liga_colors.get(_mz_lg, '#22c55e')
+                if not _mz_pgrp.empty:
+                    ax_mz.scatter(
+                        _mz_pgrp['Age'], _mz_pgrp['Score'],
+                        c=_mz_clr, s=55, alpha=0.60, zorder=5, edgecolors='none', label=_mz_lg,
+                    )
+                if not _mz_fgrp.empty:
+                    ax_mz.scatter(
+                        _mz_fgrp['Age'], _mz_fgrp['Score'],
+                        c=_mz_clr, s=200, alpha=0.95, zorder=12,
+                        edgecolors='white', linewidths=1.5,
+                    )
+                    for _, _mz_fr in _mz_fgrp.iterrows():
+                        _t = ax_mz.text(
+                            float(_mz_fr['Age']), float(_mz_fr['Score']),
+                            _mz_fr['Player'],
+                            fontsize=11, color='white', fontweight='bold',
+                            ha='center', va='bottom', zorder=16,
+                        )
+                        _texts_mz.append(_t)
+
+            if _texts_mz:
+                try:
+                    from adjustText import adjust_text as _adj_mz
+                    _adj_mz(_texts_mz, ax=ax_mz,
+                            arrowprops=dict(color='gray', alpha=0.45, lw=0.6))
+                except Exception:
+                    pass
+
+            _mz_leg_handles = [
+                _mz_mp.Patch(color=_mz_liga_colors.get(_lg, '#22c55e'), label=_lg)
+                for _lg in ligas_en_mz
+            ]
+            if _mz_leg_handles:
+                _mz_leg = ax_mz.legend(
+                    handles=_mz_leg_handles, loc='lower right', fontsize=9,
+                    framealpha=0.25, facecolor='#0f1117', edgecolor='#2d3748',
+                    ncol=min(5, len(_mz_leg_handles)),
+                )
+                for _mz_lt in _mz_leg.get_texts():
+                    _mz_lt.set_color('white')
+
+            _pos_lbl = ' · '.join(mz_pos_filter) if mz_pos_filter else 'Todas las posiciones'
+            ax_mz.set_xlabel('Edad', color='white', fontsize=12, fontweight='bold')
+            ax_mz.set_ylabel('MARCA ZONAL SCORE', color='white', fontsize=12, fontweight='bold')
+            ax_mz.set_title(
+                f'Edad vs MZ Score  ·  {_pos_lbl}  ·  ≥{mz_min_minutes} min',
+                color='white', fontsize=13, fontweight='bold', pad=12,
             )
-            st.pyplot(fig_xy)
+            ax_mz.grid(True, linestyle=':', alpha=0.2, color='white')
+            ax_mz.tick_params(colors='white', labelsize=9)
+            for _mz_sp in ax_mz.spines.values():
+                _mz_sp.set_color('#2d3748')
+                _mz_sp.set_linewidth(0.8)
+            fig_mz.text(0.5, 0.003, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+                        size=9, color='#aaaaaa', ha='center', va='bottom', fontstyle='italic')
+            fig_mz.tight_layout()
+            st.pyplot(fig_mz)
 
-            buf = io.BytesIO()
-            fig_xy.savefig(buf, format='png', dpi=150, bbox_inches='tight',
-                           facecolor=fig_xy.get_facecolor())
-            st.download_button("⬇️ Descargar grafica", buf.getvalue(),
-                               file_name="grafico_xy_marcazonal.png", mime="image/png")
+            _buf_mz = io.BytesIO()
+            fig_mz.savefig(_buf_mz, format='png', dpi=150, bbox_inches='tight',
+                           facecolor='#0f1117')
+            st.download_button(
+                "⬇️ Descargar gráfica", _buf_mz.getvalue(),
+                file_name="edad_mz_score_marcazonal.png", mime="image/png",
+                key="dl_mz_score",
+            )
             st.caption("X: @marca_zonal  ·  Instagram: @marca.zonal")
 
 # ---- Tab 5: Jugadores Similares -------------------------------------------
@@ -4538,7 +4751,16 @@ with tab_query:
                 st.session_state['bq_n'] -= 1
                 st.rerun()
 
-    # ── Aplicar filtros de métricas ─────────────────────────────────────────
+    # ── Vista: Lista o Gráfico ──────────────────────────────────────────────
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    _bq_view_mode = st.radio(
+        "Vista",
+        ["📋 Lista", "🎯 Gráfico Multi-Criterio"],
+        horizontal=True, key="bq_view_mode", label_visibility="collapsed",
+    )
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    # ── Aplicar filtros de métricas (siempre, para contador y lista) ────────
     bq_result = bq_pool.copy()
     for _col, _mn, _mx in bq_active_filters:
         if _col in bq_result.columns:
@@ -4546,31 +4768,6 @@ with tab_query:
             bq_result = bq_result[(_n >= _mn) & (_n <= _mx)]
     bq_result = bq_result.reset_index(drop=True)
     n_bq = len(bq_result)
-
-    # ── Controles de orden ──────────────────────────────────────────────────
-    _bq_sort_opts = ['Jugador', 'Edad', 'Minutos'] + [translate(f[0]) for f in bq_active_filters]
-    _bq_sort_map  = {'Jugador': 'Player', 'Edad': 'Age', 'Minutos': 'Minutes played'}
-    for _col, _, _ in bq_active_filters:
-        _bq_sort_map[translate(_col)] = _col
-
-    _bs1, _bs2 = st.columns([2, 1])
-    with _bs1:
-        bq_sort_lbl = st.selectbox("Ordenar por", _bq_sort_opts, key="bq_sort")
-    with _bs2:
-        bq_sort_dir = st.radio("Orden", ["↓ Mayor a menor", "↑ Menor a mayor"],
-                               key="bq_ord", horizontal=True, label_visibility="collapsed")
-
-    bq_sort_col = _bq_sort_map.get(bq_sort_lbl, 'Player')
-    bq_asc      = (bq_sort_dir == "↑ Menor a mayor")
-
-    if not bq_result.empty and bq_sort_col in bq_result.columns:
-        try:
-            bq_result = bq_result.sort_values(
-                bq_sort_col, ascending=bq_asc,
-                key=lambda s: pd.to_numeric(s, errors='coerce') if bq_sort_col != 'Player' else s
-            ).reset_index(drop=True)
-        except Exception:
-            pass
 
     # ── Contador de resultados ─────────────────────────────────────────────
     st.markdown(
@@ -4581,78 +4778,344 @@ with tab_query:
         unsafe_allow_html=True,
     )
 
-    # ── HTML Table ──────────────────────────────────────────────────────────
-    if not bq_result.empty and n_bq > 0 and bq_active_filters:
-        _bq_tc_r = ('Team within selected timeframe'
-                    if 'Team within selected timeframe' in bq_result.columns else 'Team')
-        _show_liga = ('Liga' in bq_result.columns and len(selected_ligas_bq) > 1)
-        _bq_badge = {
-            'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
-            'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
-            'PER': '#e879f9', 'VEN': '#2dd4bf',
-            'ING': '#ef4444', 'ITA': '#84cc16', 'ALE': '#facc15',
-            'ESP': '#f97316', 'FRA': '#60a5fa',
-            'LIB': '#10b981', 'SUD': '#a78bfa',
-            'UCL': '#3b82f6', 'UEL': '#fb923c', 'UECL': '#22d3ee',
-        }
+    if _bq_view_mode == "🎯 Gráfico Multi-Criterio":
+        # ── Vista Gráfico ──────────────────────────────────────────────────
+        _n_filters = len(bq_active_filters)
+        if _n_filters == 0:
+            st.info("Seleccioná al menos 2 métricas para ver el gráfico.")
+        elif _n_filters == 1:
+            st.info("Para el gráfico se necesitan 2 o 3 métricas activas.")
+        elif _n_filters == 2:
+            # XY scatter con líneas de umbral
+            _gc1, _gc2 = bq_active_filters[0][0], bq_active_filters[1][0]
+            _gt1, _gt2 = bq_active_filters[0][1], bq_active_filters[1][1]
+            if not bq_pool.empty and _gc1 in bq_pool.columns and _gc2 in bq_pool.columns:
+                _gdf = bq_pool[['Player', _gc1, _gc2]].copy()
+                if 'Liga' in bq_pool.columns:
+                    _gdf['Liga'] = bq_pool['Liga'].values
+                _gdf[_gc1] = pd.to_numeric(_gdf[_gc1], errors='coerce')
+                _gdf[_gc2] = pd.to_numeric(_gdf[_gc2], errors='coerce')
+                _gdf = _gdf.dropna(subset=[_gc1, _gc2]).reset_index(drop=True)
+                _g_meets = (
+                    (_gdf[_gc1] >= _gt1).astype(int) + (_gdf[_gc2] >= _gt2).astype(int)
+                )
+                _g_cmap = {2: '#22c55e', 1: '#f59e0b', 0: '#ef4444'}
 
-        # Cabeceras métricas con rango del slider
-        def _fmt_threshold(mn, mx, col):
-            _all = pd.to_numeric(bq_pool[col], errors='coerce') if col in bq_pool.columns else pd.Series(dtype=float)
-            _pool_min = float(_all.min()) if len(_all) > 0 else mn
-            _pool_max = float(_all.max()) if len(_all) > 0 else mx
-            at_min = abs(mn - _pool_min) < 0.011
-            at_max = abs(mx - _pool_max) < 0.011
-            if at_min and at_max:
-                return ''
-            if at_min:
-                return f'≤ {mx:.2f}'
-            if at_max:
-                return f'≥ {mn:.2f}'
-            return f'{mn:.2f} – {mx:.2f}'
+                _g_fig, _g_ax = plt.subplots(figsize=(12, 9))
+                _g_fig.set_facecolor('#0f1117')
+                _g_ax.set_facecolor('#0f1117')
 
-        # Header row
-        _th_metric = ''.join(
-            f'<th class="mth">{translate(col)}'
-            f'{"<br><span class=thr>" + _fmt_threshold(mn, mx, col) + "</span>" if _fmt_threshold(mn, mx, col) else ""}'
-            f'</th>'
-            for col, mn, mx in bq_active_filters
-        )
-        _liga_th = '<th>Liga</th>' if _show_liga else ''
+                for _gm in [0, 1, 2]:
+                    _gg = _gdf[_g_meets == _gm]
+                    if _gg.empty:
+                        continue
+                    _g_ax.scatter(
+                        _gg[_gc1], _gg[_gc2],
+                        c=_g_cmap[_gm], s=70 if _gm == 2 else 50,
+                        alpha=0.9 if _gm == 2 else 0.55,
+                        edgecolors='white' if _gm == 2 else 'none',
+                        linewidths=0.7 if _gm == 2 else 0,
+                        zorder=5 + _gm,
+                    )
+                    if _gm == 2:
+                        for _, _gr in _gg.iterrows():
+                            _g_ax.annotate(
+                                _gr['Player'],
+                                (_gr[_gc1], _gr[_gc2]),
+                                textcoords='offset points', xytext=(0, 7),
+                                ha='center', fontsize=7.5, color='white', fontweight='bold',
+                                bbox=dict(boxstyle='round,pad=0.15', fc='#0f1117',
+                                          alpha=0.6, ec='none'),
+                            )
 
-        # Data rows
-        _rows = ''
-        for _, row in bq_result.iterrows():
-            _player = str(row.get('Player', ''))
-            _age    = str(int(row['Age'])) if pd.notna(row.get('Age')) and str(row.get('Age')) != 'nan' else '—'
-            _nat    = str(row.get('Birth country', '—')).strip() or '—'
-            _club   = str(row.get(_bq_tc_r, '—'))
+                _g_ax.axvline(_gt1, color='#f59e0b', linestyle='--', lw=1.2, alpha=0.7, zorder=4)
+                _g_ax.axhline(_gt2, color='#f59e0b', linestyle='--', lw=1.2, alpha=0.7, zorder=4)
 
-            _rows += '<tr>'
-            _rows += f'<td class="pname">{_player}</td>'
-            _rows += f'<td class="ctr">{_age}</td>'
-            _rows += f'<td class="nat">{_nat}</td>'
-            _rows += f'<td>{_club}</td>'
+                import matplotlib.patches as _g_mp
+                _g_leg = [
+                    _g_mp.Patch(color='#22c55e', label=f'Cumple las 2 ({(_g_meets==2).sum()})'),
+                    _g_mp.Patch(color='#f59e0b', label=f'Cumple 1    ({(_g_meets==1).sum()})'),
+                    _g_mp.Patch(color='#ef4444', label=f'Ninguna     ({(_g_meets==0).sum()})'),
+                ]
+                _g_legobj = _g_ax.legend(handles=_g_leg, loc='upper left', framealpha=0.3,
+                                         facecolor='#0f1117', edgecolor='#334155', fontsize=9)
+                for _glt in _g_legobj.get_texts():
+                    _glt.set_color('white')
 
-            if _show_liga:
-                _lc = str(row.get('Liga', ''))
-                _bc = _bq_badge.get(_lc, '#64748b')
-                _rows += (f'<td><span style="background:{_bc};color:#fff;padding:2px 7px;'
-                          f'border-radius:4px;font-size:10px;font-weight:700;">{_lc}</span></td>')
+                _g_ax.set_xlabel(translate(_gc1), color='white', fontsize=11, fontweight='bold')
+                _g_ax.set_ylabel(translate(_gc2), color='white', fontsize=11, fontweight='bold')
+                _g_ax.set_title(
+                    f'Scout Multi-Criterio  ·  {bq_mode}',
+                    color='white', fontsize=12, fontweight='bold', pad=12,
+                )
+                _g_ax.grid(True, linestyle=':', alpha=0.18, color='white')
+                _g_ax.tick_params(colors='white', labelsize=9)
+                for _gsp in _g_ax.spines.values():
+                    _gsp.set_color('#2d3748')
+                    _gsp.set_linewidth(0.8)
+                _g_fig.text(0.5, 0.003, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+                            size=9, color='#aaaaaa', ha='center', va='bottom', fontstyle='italic')
+                _g_fig.tight_layout()
+                st.pyplot(_g_fig)
 
-            for _col, _mn, _mx in bq_active_filters:
-                _v = pd.to_numeric(row.get(_col), errors='coerce')
-                if pd.isna(_v):
-                    _rows += '<td class="ctr">—</td>'
-                else:
-                    _vs = f'{_v:.2f}' if bq_mode == "Por 90" else (f'{int(_v)}' if _v == int(_v) else f'{_v:.2f}')
-                    _rows += f'<td class="mval">{_vs}</td>'
+                _g_buf = io.BytesIO()
+                _g_fig.savefig(_g_buf, format='png', dpi=150, bbox_inches='tight',
+                               facecolor='#0f1117')
+                st.download_button(
+                    "⬇️ Descargar gráfica", _g_buf.getvalue(),
+                    file_name="scout_multicriterio_marcazonal.png", mime="image/png",
+                    key="dl_bq_chart2",
+                )
+        else:
+            # Ternary scatter (3 o más métricas → usa primeras 3)
+            _tf = bq_active_filters[:3]
+            _tc1, _tt1_min, _ = _tf[0]
+            _tc2, _tt2_min, _ = _tf[1]
+            _tc3, _tt3_min, _ = _tf[2]
 
-            _rows += '</tr>'
+            if not bq_pool.empty and all(c in bq_pool.columns for c in [_tc1, _tc2, _tc3]):
+                # Normalize 0-1 within pool
+                def _tn(col):
+                    _s = pd.to_numeric(bq_pool[col], errors='coerce').fillna(0)
+                    _mn, _mx = _s.min(), _s.max()
+                    _rng = _mx - _mn
+                    return (_s - _mn) / (_rng if _rng > 1e-9 else 1.0)
 
-        _table_h = min(580, 46 + n_bq * 40 + 20)
+                _tv1 = _tn(_tc1)
+                _tv2 = _tn(_tc2)
+                _tv3 = _tn(_tc3)
 
-        _html = f"""<!DOCTYPE html><html>
+                _teps  = 0.05
+                _ttot  = _tv1 + _tv2 + _tv3 + 3 * _teps
+                _ta    = (_tv1 + _teps) / _ttot
+                _tb    = (_tv2 + _teps) / _ttot
+                _tc_   = (_tv3 + _teps) / _ttot
+
+                _rt3h  = (3 ** 0.5) / 2
+                _tx    = _rt3h * (_tc_ - _tb)
+                _ty    = 1.5 * _ta - 0.5
+
+                _rng_gen = np.random.default_rng(42)
+                _tx = _tx + _rng_gen.normal(0, 0.018, len(_tx))
+                _ty = _ty + _rng_gen.normal(0, 0.018, len(_ty))
+
+                _ta1 = pd.to_numeric(bq_pool[_tc1], errors='coerce').fillna(0)
+                _ta2 = pd.to_numeric(bq_pool[_tc2], errors='coerce').fillna(0)
+                _ta3 = pd.to_numeric(bq_pool[_tc3], errors='coerce').fillna(0)
+                _tm1 = (_ta1 >= _tt1_min).astype(int)
+                _tm2 = (_ta2 >= _tt2_min).astype(int)
+                _tm3 = (_ta3 >= _tt3_min).astype(int)
+                _tmt = _tm1 + _tm2 + _tm3
+
+                _t_tcol = ('Team within selected timeframe'
+                           if 'Team within selected timeframe' in bq_pool.columns else 'Team')
+                _tplot = pd.DataFrame({
+                    'Player':  bq_pool['Player'].values,
+                    'Team':    bq_pool[_t_tcol].values if _t_tcol in bq_pool.columns else '',
+                    'x':       _tx.values,
+                    'y':       _ty.values,
+                    'meets':   _tmt.values,
+                })
+
+                _tcmap  = {3: '#22c55e', 2: '#f59e0b', 1: '#f97316', 0: '#ef4444'}
+                _tamap  = {3: 0.95,      2: 0.75,      1: 0.60,      0: 0.40}
+                _tsmap  = {3: 85,        2: 65,         1: 50,        0: 35}
+
+                import matplotlib.patches as _t_mp
+                _t_fig, _t_ax = plt.subplots(figsize=(11, 11))
+                _t_fig.set_facecolor('#0f1117')
+                _t_ax.set_facecolor('#0f1117')
+
+                # Triangle outline
+                _tri = np.array([[0, 1], [-_rt3h, -0.5], [_rt3h, -0.5], [0, 1]])
+                _t_ax.plot(_tri[:, 0], _tri[:, 1], color='#334155', lw=2, zorder=2)
+
+                # Inner guide triangles
+                for _tr in [0.33, 0.66]:
+                    _tin = np.array([[0, _tr], [-_rt3h * _tr, -0.5 * _tr],
+                                     [_rt3h * _tr, -0.5 * _tr], [0, _tr]])
+                    _t_ax.plot(_tin[:, 0], _tin[:, 1], color='#1e293b',
+                               lw=1, linestyle='--', zorder=2, alpha=0.75)
+
+                # Center label
+                _t_ax.text(0, -0.04, 'LAS 3', ha='center', va='center',
+                           color='#22c55e', fontsize=7.5, alpha=0.65, fontweight='bold', zorder=3)
+
+                # Corner metric labels + thresholds
+                _toff = 0.11
+                _tlbl1 = translate(_tc1)[:22]
+                _tlbl2 = translate(_tc2)[:22]
+                _tlbl3 = translate(_tc3)[:22]
+                _t_ax.text(0,          1 + _toff,       _tlbl1, ha='center', va='bottom',
+                           color='#f59e0b', fontsize=10, fontweight='bold', zorder=3)
+                _t_ax.text(-_rt3h - _toff, -0.5,         _tlbl2, ha='right',  va='center',
+                           color='#f59e0b', fontsize=10, fontweight='bold', zorder=3)
+                _t_ax.text(_rt3h + _toff,  -0.5,         _tlbl3, ha='left',   va='center',
+                           color='#f59e0b', fontsize=10, fontweight='bold', zorder=3)
+                _t_ax.text(0,          1 + _toff - 0.07, f'≥ {_tt1_min:.2f}',
+                           ha='center', va='bottom', color='#64748b', fontsize=7.5, zorder=3)
+                _t_ax.text(-_rt3h - _toff, -0.5 - 0.09, f'≥ {_tt2_min:.2f}',
+                           ha='right',  va='top',    color='#64748b', fontsize=7.5, zorder=3)
+                _t_ax.text(_rt3h + _toff,  -0.5 - 0.09, f'≥ {_tt3_min:.2f}',
+                           ha='left',   va='top',    color='#64748b', fontsize=7.5, zorder=3)
+
+                # Scatter points by meets count
+                for _tm_n in [0, 1, 2, 3]:
+                    _tg = _tplot[_tplot['meets'] == _tm_n]
+                    if _tg.empty:
+                        continue
+                    _t_ax.scatter(
+                        _tg['x'], _tg['y'],
+                        c=_tcmap[_tm_n], s=_tsmap[_tm_n], alpha=_tamap[_tm_n],
+                        edgecolors='white' if _tm_n == 3 else 'none',
+                        linewidths=0.8 if _tm_n == 3 else 0,
+                        zorder=5 + _tm_n,
+                    )
+
+                # Annotate players meeting all 3
+                for _, _tr_ in _tplot[_tplot['meets'] == 3].iterrows():
+                    _t_ax.annotate(
+                        _tr_['Player'],
+                        (_tr_['x'], _tr_['y']),
+                        textcoords='offset points', xytext=(0, 9),
+                        ha='center', fontsize=8, color='white', fontweight='bold', zorder=16,
+                        bbox=dict(boxstyle='round,pad=0.2', fc='#0f1117', alpha=0.65, ec='none'),
+                    )
+
+                # Legend with counts
+                _t_leg_h = [
+                    _t_mp.Patch(color='#22c55e', label=f'Cumple las 3  ({(_tplot["meets"]==3).sum()})'),
+                    _t_mp.Patch(color='#f59e0b', label=f'Cumple 2      ({(_tplot["meets"]==2).sum()})'),
+                    _t_mp.Patch(color='#f97316', label=f'Cumple 1      ({(_tplot["meets"]==1).sum()})'),
+                    _t_mp.Patch(color='#ef4444', label=f'Ninguna       ({(_tplot["meets"]==0).sum()})'),
+                ]
+                _t_legobj = _t_ax.legend(handles=_t_leg_h, loc='upper right', framealpha=0.3,
+                                         facecolor='#0f1117', edgecolor='#334155', fontsize=9,
+                                         handlelength=1.2)
+                for _tlt in _t_legobj.get_texts():
+                    _tlt.set_color('white')
+
+                _t_ax.set_xlim(-1.18, 1.18)
+                _t_ax.set_ylim(-0.82, 1.38)
+                _t_ax.set_aspect('equal')
+                _t_ax.axis('off')
+                _t_ax.set_title(
+                    f'Scout Multi-Criterio  ·  {bq_mode}',
+                    color='white', fontsize=12, fontweight='bold', pad=14,
+                )
+                _t_fig.text(0.5, 0.01, '𝕏: @marca_zonal  ·  Instagram: @marca.zonal',
+                            size=9, color='#aaaaaa', ha='center', va='bottom', fontstyle='italic')
+                _t_fig.tight_layout()
+                st.pyplot(_t_fig)
+
+                _t_buf = io.BytesIO()
+                _t_fig.savefig(_t_buf, format='png', dpi=150, bbox_inches='tight',
+                               facecolor='#0f1117')
+                st.download_button(
+                    "⬇️ Descargar gráfica", _t_buf.getvalue(),
+                    file_name="scout_multicriterio_marcazonal.png", mime="image/png",
+                    key="dl_bq_ternary",
+                )
+
+    else:
+        # ── Vista Lista ────────────────────────────────────────────────────
+        # ── Controles de orden ──────────────────────────────────────────────────
+        _bq_sort_opts = ['Jugador', 'Edad', 'Minutos'] + [translate(f[0]) for f in bq_active_filters]
+        _bq_sort_map  = {'Jugador': 'Player', 'Edad': 'Age', 'Minutos': 'Minutes played'}
+        for _col, _, _ in bq_active_filters:
+            _bq_sort_map[translate(_col)] = _col
+
+        _bs1, _bs2 = st.columns([2, 1])
+        with _bs1:
+            bq_sort_lbl = st.selectbox("Ordenar por", _bq_sort_opts, key="bq_sort")
+        with _bs2:
+            bq_sort_dir = st.radio("Orden", ["↓ Mayor a menor", "↑ Menor a mayor"],
+                                   key="bq_ord", horizontal=True, label_visibility="collapsed")
+
+        bq_sort_col = _bq_sort_map.get(bq_sort_lbl, 'Player')
+        bq_asc      = (bq_sort_dir == "↑ Menor a mayor")
+
+        if not bq_result.empty and bq_sort_col in bq_result.columns:
+            try:
+                bq_result = bq_result.sort_values(
+                    bq_sort_col, ascending=bq_asc,
+                    key=lambda s: pd.to_numeric(s, errors='coerce') if bq_sort_col != 'Player' else s
+                ).reset_index(drop=True)
+            except Exception:
+                pass
+
+        # ── HTML Table ──────────────────────────────────────────────────────────
+        if not bq_result.empty and n_bq > 0 and bq_active_filters:
+            _bq_tc_r = ('Team within selected timeframe'
+                        if 'Team within selected timeframe' in bq_result.columns else 'Team')
+            _show_liga = ('Liga' in bq_result.columns and len(selected_ligas_bq) > 1)
+            _bq_badge = {
+                'PAR': '#dc2626', 'ARG': '#75caed', 'BRA': '#16a34a',
+                'URU': '#2563eb', 'COL': '#eab308', 'ECU': '#7c3aed', 'CHI': '#f97316',
+                'PER': '#e879f9', 'VEN': '#2dd4bf',
+                'ING': '#ef4444', 'ITA': '#84cc16', 'ALE': '#facc15',
+                'ESP': '#f97316', 'FRA': '#60a5fa',
+                'LIB': '#10b981', 'SUD': '#a78bfa',
+                'UCL': '#3b82f6', 'UEL': '#fb923c', 'UECL': '#22d3ee',
+            }
+
+            # Cabeceras métricas con rango del slider
+            def _fmt_threshold(mn, mx, col):
+                _all = pd.to_numeric(bq_pool[col], errors='coerce') if col in bq_pool.columns else pd.Series(dtype=float)
+                _pool_min = float(_all.min()) if len(_all) > 0 else mn
+                _pool_max = float(_all.max()) if len(_all) > 0 else mx
+                at_min = abs(mn - _pool_min) < 0.011
+                at_max = abs(mx - _pool_max) < 0.011
+                if at_min and at_max:
+                    return ''
+                if at_min:
+                    return f'≤ {mx:.2f}'
+                if at_max:
+                    return f'≥ {mn:.2f}'
+                return f'{mn:.2f} – {mx:.2f}'
+
+            # Header row
+            _th_metric = ''.join(
+                f'<th class="mth">{translate(col)}'
+                f'{"<br><span class=thr>" + _fmt_threshold(mn, mx, col) + "</span>" if _fmt_threshold(mn, mx, col) else ""}'
+                f'</th>'
+                for col, mn, mx in bq_active_filters
+            )
+            _liga_th = '<th>Liga</th>' if _show_liga else ''
+
+            # Data rows
+            _rows = ''
+            for _, row in bq_result.iterrows():
+                _player = str(row.get('Player', ''))
+                _age    = str(int(row['Age'])) if pd.notna(row.get('Age')) and str(row.get('Age')) != 'nan' else '—'
+                _nat    = str(row.get('Birth country', '—')).strip() or '—'
+                _club   = str(row.get(_bq_tc_r, '—'))
+
+                _rows += '<tr>'
+                _rows += f'<td class="pname">{_player}</td>'
+                _rows += f'<td class="ctr">{_age}</td>'
+                _rows += f'<td class="nat">{_nat}</td>'
+                _rows += f'<td>{_club}</td>'
+
+                if _show_liga:
+                    _lc = str(row.get('Liga', ''))
+                    _bc = _bq_badge.get(_lc, '#64748b')
+                    _rows += (f'<td><span style="background:{_bc};color:#fff;padding:2px 7px;'
+                              f'border-radius:4px;font-size:10px;font-weight:700;">{_lc}</span></td>')
+
+                for _col, _mn, _mx in bq_active_filters:
+                    _v = pd.to_numeric(row.get(_col), errors='coerce')
+                    if pd.isna(_v):
+                        _rows += '<td class="ctr">—</td>'
+                    else:
+                        _vs = f'{_v:.2f}' if bq_mode == "Por 90" else (f'{int(_v)}' if _v == int(_v) else f'{_v:.2f}')
+                        _rows += f'<td class="mval">{_vs}</td>'
+
+                _rows += '</tr>'
+
+            _table_h = min(580, 46 + n_bq * 40 + 20)
+
+            _html = f"""<!DOCTYPE html><html>
 <head>
 <link href="https://fonts.googleapis.com/css2?family=Cousine:wght@400;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -4686,12 +5149,12 @@ tr:hover td{{background:rgba(255,255,255,0.03)}}
 </div>
 </body></html>"""
 
-        components.html(_html, height=_table_h + 30, scrolling=False)
+            components.html(_html, height=_table_h + 30, scrolling=False)
 
-    elif bq_active_filters and n_bq == 0:
-        st.info("Ningún jugador cumple todos los criterios. Probá ampliar los rangos.")
-    elif not bq_active_filters:
-        st.info("Seleccioná al menos una métrica para ver resultados.")
+        elif bq_active_filters and n_bq == 0:
+            st.info("Ningún jugador cumple todos los criterios. Probá ampliar los rangos.")
+        elif not bq_active_filters:
+            st.info("Seleccioná al menos una métrica para ver resultados.")
 
 
 # ---------------------------------------------------------------------------
